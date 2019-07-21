@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-// lspRange transforms go/token.Position (1-based) to LSP start end end ranges (0-based)
+// lspRange transforms go/token.Position (1-based) to LSP start and end ranges (0-based)
 // which takes in consideration of identifier's name length.
 func lspRange(pos token.Position, name string) (start protocol.Pos, end protocol.Pos) {
 	return protocol.Pos{
