@@ -156,7 +156,7 @@ func (e *exporter) exportDefs(p *packages.Package, proID string) error {
 			}
 
 			// Only emit if the object belongs to current file
-			// TODO(jchen): mayeb emit other documents on the fly
+			// TODO(jchen): maybe emit other documents on the fly
 			ipos := p.Fset.Position(ident.Pos())
 			if ipos.Filename != fpos.Filename {
 				continue
