@@ -269,6 +269,17 @@ func (e *exporter) exportDefs(p *packages.Package, proID string) error {
 				//fmt.Println("Def:", ident)
 				//fmt.Println("Pos:", ipos)
 				//spew.Dump(obj)
+				continue
+			}
+
+			hoverResultID, err := e.emitHoverResult(contents)
+			if err != nil {
+				return fmt.Errorf(`emit "hoverResult": %v`, err)
+			}
+
+			_, err = e.emitTextDocumentHover(resultSetID, hoverResultID)
+			if err != nil {
+				return fmt.Errorf(`emit "textDocument/hover": %v`, err)
 			}
 
 			rangeIDs = append(rangeIDs, rangeID)
