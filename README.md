@@ -38,6 +38,12 @@ By default, the exporter dumps LSIF data to the file `data.lsif` in the working 
 
 Use `lsif-go -h` for more information
 
+## Try it out!
+
+1. Go to https://sourcegraph.com/extensions?query=go and disable native Go code intelligence extension
+2. Go to https://sourcegraph.com/extensions?query=lsif and enable experimental LSIF extension
+3. Go to https://sourcegraph.com/github.com/gorilla/mux@d83b6ff/-/blob/mux.go and try to hover around!
+
 ## Testing Commands
 
 - Validate: `lsif-util validate data.lsif`
