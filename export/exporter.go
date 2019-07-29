@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/token"
 	"go/types"
 	"io"
@@ -75,31 +76,13 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 	}
 
 	for _, p := range e.pkgs {
-		if err = e.exportPkg(p, proID); err != nil {
+		if err := e.exportPkg(p, proID); err != nil {
 			return fmt.Errorf("export package %q: %v", p.Name, err)
 		}
 	}
 
-	return nil
-}
-
-func (e *exporter) exportPkg(p *packages.Package, proID string) error {
-	// TODO(jchen): support "-verbose" flag
-	log.Println("Package:", p.Name)
-	defer log.Println()
-
-	err := e.exportDefs(p, proID)
-	if err != nil {
-		return fmt.Errorf("export defs: %v", err)
-	}
-
-	err = e.exportUses(p, proID)
-	if err != nil {
-		return fmt.Errorf("export uses: %v", err)
-	}
-
-	for name, f := range e.files {
-		for _, rangeID := range e.files[name].defRangeIDs {
+	for _, f := range e.files {
+		for _, rangeID := range f.defRangeIDs {
 			refResultID, err := e.emitReferenceResult()
 			if err != nil {
 				return fmt.Errorf(`emit "referenceResult": %v`, err)
@@ -132,290 +115,308 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) error {
 	return nil
 }
 
-func (e *exporter) exportDefs(p *packages.Package, proID string) error {
+func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
+	// TODO(jchen): support "-verbose" flag
+	log.Println("Package:", p.Name)
+	defer log.Println()
+
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
-		// TODO(jchen): support "-verbose" flag
 		log.Println("\tFile:", fpos.Filename)
 
-		docID, err := e.emitDocument(fpos.Filename)
-		if err != nil {
-			return fmt.Errorf(`emit "document": %v`, err)
+		fi, ok := e.files[fpos.Filename]
+		if !ok {
+			docID, err := e.emitDocument(fpos.Filename)
+			if err != nil {
+				return fmt.Errorf(`emit "document": %v`, err)
+			}
+
+			_, err = e.emitContains(proID, []string{docID})
+			if err != nil {
+				return fmt.Errorf(`emit "contains": %v`, err)
+			}
+
+			fi = &fileInfo{docID: docID}
+			e.files[fpos.Filename] = fi
 		}
 
-		_, err = e.emitContains(proID, []string{docID})
-		if err != nil {
-			return fmt.Errorf(`emit "contains": %v`, err)
+		if err = e.exportDefs(p, f, fi, proID, fpos.Filename); err != nil {
+			return fmt.Errorf("error exporting definitions of %q: %v", p.PkgPath, err)
 		}
 
-		var rangeIDs []string
-		for ident, obj := range p.TypesInfo.Defs {
-			// Object is nil when not denote an object
-			if obj == nil {
-				continue
-			}
-
-			// Only emit if the object belongs to current file
-			// TODO(jchen): maybe emit other documents on the fly
-			ipos := p.Fset.Position(ident.Pos())
-			if ipos.Filename != fpos.Filename {
-				continue
-			}
-
-			resultSetID, err := e.emitResultSet()
-			if err != nil {
-				return fmt.Errorf(`emit "resultSet": %v`, err)
-			}
-
-			rangeID, err := e.emitRange(lspRange(ipos, ident.Name))
-			if err != nil {
-				return fmt.Errorf(`emit "range": %v`, err)
-			}
-
-			_, err = e.emitNext(rangeID, resultSetID)
-			if err != nil {
-				return fmt.Errorf(`emit "next": %v`, err)
-			}
-
-			qf := func(*types.Package) string { return "" }
-			var s string
-			var extra string
-			if f, ok := obj.(*types.Var); ok && f.IsField() {
-				// TODO(jchen): make this be like (T).F not "struct field F string".
-				s = "struct " + obj.String()
-			} else {
-				if obj, ok := obj.(*types.TypeName); ok {
-					typ := obj.Type().Underlying()
-					if _, ok := typ.(*types.Struct); ok {
-						s = "type " + obj.Name() + " struct"
-						extra = prettyPrintTypesString(types.TypeString(typ, qf))
-					}
-					if _, ok := typ.(*types.Interface); ok {
-						s = "type " + obj.Name() + " interface"
-						extra = prettyPrintTypesString(types.TypeString(typ, qf))
-					}
-				}
-				if s == "" {
-					s = types.ObjectString(obj, qf)
-				}
-			}
-
-			contents := []protocol.MarkedString{
-				protocol.NewMarkedString(s),
-			}
-			comments, err := findComments(f, obj)
-			if err != nil {
-				return fmt.Errorf("find comments: %v", err)
-			}
-			if comments != "" {
-				var b bytes.Buffer
-				doc.ToMarkdown(&b, comments, nil)
-				contents = append(contents, protocol.RawMarkedString(b.String()))
-			}
-			if extra != "" {
-				contents = append(contents, protocol.NewMarkedString(extra))
-			}
-
-			switch v := obj.(type) {
-			case *types.Func:
-				// TODO(jchen): support "-verbose" flag
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("Def:", ident.Name)
-				//fmt.Println("FullName:", v.FullName())
-				//fmt.Println("iPos:", ipos)
-				//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
-				e.funcs[v.FullName()] = &defInfo{
-					rangeID:     rangeID,
-					resultSetID: resultSetID,
-					contents:    contents,
-				}
-
-			// TODO(jchen): case *types.Const:
-
-			case *types.Var:
-				// TODO(jchen): support "-verbose" flag
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("Def:", ident.Name)
-				//fmt.Println("iPos:", ipos)
-				e.vars[ident.Pos()] = &defInfo{
-					rangeID:     rangeID,
-					resultSetID: resultSetID,
-					contents:    contents,
-				}
-
-			case *types.TypeName:
-				// TODO(jchen): support "-verbose" flag
-				//fmt.Println("Def:", ident.Name)
-				//fmt.Println("Type:", obj.Type())
-				//fmt.Println("Pos:", ipos)
-				e.types[obj.Type().String()] = &defInfo{
-					rangeID:     rangeID,
-					resultSetID: resultSetID,
-					contents:    contents,
-				}
-
-			// TODO(jchen): case *types.Label:
-
-			// TODO(jchen): case *types.PkgName:
-
-			// TODO(jchen): case *types.Builtin:
-
-			// TODO(jchen): case *types.Nil:
-
-			default:
-				// TODO(jchen): remove this case-branch
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("(default)")
-				//fmt.Println("Def:", ident)
-				//fmt.Println("Pos:", ipos)
-				//spew.Dump(obj)
-				continue
-			}
-
-			hoverResultID, err := e.emitHoverResult(contents)
-			if err != nil {
-				return fmt.Errorf(`emit "hoverResult": %v`, err)
-			}
-
-			_, err = e.emitTextDocumentHover(resultSetID, hoverResultID)
-			if err != nil {
-				return fmt.Errorf(`emit "textDocument/hover": %v`, err)
-			}
-
-			rangeIDs = append(rangeIDs, rangeID)
-
-			if e.refs[rangeID] == nil {
-				e.refs[rangeID] = &refResultInfo{}
-			}
-			refResult := e.refs[rangeID]
-			refResult.resultSetID = resultSetID
-			refResult.defRangeIDs = append(refResult.defRangeIDs, rangeID)
+		if err := e.exportUses(p, fi, fpos.Filename); err != nil {
+			return fmt.Errorf("error exporting uses of %q: %v", p.PkgPath, err)
 		}
-
-		if e.files[fpos.Filename] == nil {
-			e.files[fpos.Filename] = &fileInfo{
-				docID: docID,
-			}
-		}
-		e.files[fpos.Filename].defRangeIDs = append(e.files[fpos.Filename].defRangeIDs, rangeIDs...)
 	}
+
 	return nil
 }
 
-func (e *exporter) exportUses(p *packages.Package, docID string) error {
-	for _, f := range p.Syntax {
-		fpos := p.Fset.Position(f.Package)
-		var rangeIDs []string
-		for ident, obj := range p.TypesInfo.Uses {
-			// Only emit if the object belongs to current file
-			ipos := p.Fset.Position(ident.Pos())
-			if ipos.Filename != fpos.Filename {
-				continue
-			}
+func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) (err error) {
+	var rangeIDs []string
+	for ident, obj := range p.TypesInfo.Defs {
+		// Object is nil when not denote an object
+		if obj == nil {
+			continue
+		}
 
-			var def *defInfo
-			switch v := obj.(type) {
-			case *types.Func:
-				// TODO(jchen): support "-verbose" flag
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("Use:", ident.Name)
-				//fmt.Println("FullName:", v.FullName())
-				//fmt.Println("Pos:", ipos)
-				//fmt.Println("Scope.Parent.Pos:", p.Fset.Position(v.Scope().Parent().Pos()))
-				//fmt.Println("Scope.Pos:", p.Fset.Position(v.Scope().Pos()))
-				def = e.funcs[v.FullName()]
+		// Only emit if the object belongs to current file
+		// TODO(jchen): maybe emit other documents on the fly
+		ipos := p.Fset.Position(ident.Pos())
+		if ipos.Filename != filename {
+			continue
+		}
 
-			// TODO(jchen): case *types.Const:
+		rangeID, err := e.emitRange(lspRange(ipos, ident.Name))
+		if err != nil {
+			return fmt.Errorf(`emit "range": %v`, err)
+		}
 
-			case *types.Var:
-				// TODO(jchen): support "-verbose" flag
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("Use:", ident)
-				//fmt.Println("iPos:", ipos)
-				//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
-				def = e.vars[v.Pos()]
+		refResult, ok := e.refs[rangeID]
+		if !ok {
+			refResult = &refResultInfo{resultSetID: e.nextID()}
+			e.refs[rangeID] = refResult
+		}
 
-			// TODO(jchen): case *types.PkgName:
-			//fmt.Println("Use:", ident)
-			//fmt.Println("Pos:", ipos)
-			//def = e.imports[ident.Name]
+		refResult.defRangeIDs = append(refResult.defRangeIDs, rangeID)
 
-			case *types.TypeName:
-				// TODO(jchen): support "-verbose" flag
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("Use:", ident.Name)
-				//fmt.Println("Type:", obj.Type())
-				//fmt.Println("Pos:", ipos)
-				def = e.types[obj.Type().String()]
-
-			// TODO(jchen): case *types.Label:
-
-			// TODO(jchen): case *types.PkgName:
-
-			// TODO(jchen): case *types.Builtin:
-
-			// TODO(jchen): case *types.Nil:
-
-			default:
-				// TODO(jchen): remove this case-branch
-				//fmt.Printf("---> %T\n", obj)
-				//fmt.Println("(default)")
-				//fmt.Println("Use:", ident)
-				//fmt.Println("iPos:", ipos)
-				//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
-				//spew.Dump(obj)
-			}
-
-			if def == nil {
-				continue
-			}
-
-			rangeID, err := e.emitRange(lspRange(ipos, ident.Name))
+		if !ok {
+			err = e.emit(protocol.NewResultSet(refResult.resultSetID))
 			if err != nil {
-				return fmt.Errorf(`emit "range": %v`, err)
-			}
-			rangeIDs = append(rangeIDs, rangeID)
-
-			_, err = e.emitNext(rangeID, def.resultSetID)
-			if err != nil {
-				return fmt.Errorf(`emit "next": %v`, err)
-			}
-
-			defResultID, err := e.emitDefinitionResult()
-			if err != nil {
-				return fmt.Errorf(`emit "definitionResult": %v`, err)
-			}
-
-			_, err = e.emitTextDocumentDefinition(def.resultSetID, defResultID)
-			if err != nil {
-				return fmt.Errorf(`emit "textDocument/definition": %v`, err)
-			}
-
-			_, err = e.emitItem(defResultID, []string{def.rangeID}, docID)
-			if err != nil {
-				return fmt.Errorf(`emit "item": %v`, err)
-			}
-
-			hoverResultID, err := e.emitHoverResult(def.contents)
-			if err != nil {
-				return fmt.Errorf(`emit "hoverResult": %v`, err)
-			}
-
-			_, err = e.emitTextDocumentHover(def.resultSetID, hoverResultID)
-			if err != nil {
-				return fmt.Errorf(`emit "textDocument/hover": %v`, err)
-			}
-
-			rangeIDs = append(rangeIDs, rangeID)
-
-			refResult := e.refs[def.rangeID]
-			if refResult != nil {
-				refResult.refRangeIDs = append(refResult.refRangeIDs, rangeID)
+				return fmt.Errorf(`emit "resultSet": %v`, err)
 			}
 		}
 
-		e.files[fpos.Filename].useRangeIDs = append(e.files[fpos.Filename].useRangeIDs, rangeIDs...)
+		_, err = e.emitNext(rangeID, refResult.resultSetID)
+		if err != nil {
+			return fmt.Errorf(`emit "next": %v`, err)
+		}
+
+		qf := func(*types.Package) string { return "" }
+		var s string
+		var extra string
+		if f, ok := obj.(*types.Var); ok && f.IsField() {
+			// TODO(jchen): make this be like (T).F not "struct field F string".
+			s = "struct " + obj.String()
+		} else {
+			if obj, ok := obj.(*types.TypeName); ok {
+				typ := obj.Type().Underlying()
+				if _, ok := typ.(*types.Struct); ok {
+					s = "type " + obj.Name() + " struct"
+					extra = prettyPrintTypesString(types.TypeString(typ, qf))
+				}
+				if _, ok := typ.(*types.Interface); ok {
+					s = "type " + obj.Name() + " interface"
+					extra = prettyPrintTypesString(types.TypeString(typ, qf))
+				}
+			}
+			if s == "" {
+				s = types.ObjectString(obj, qf)
+			}
+		}
+
+		contents := []protocol.MarkedString{
+			protocol.NewMarkedString(s),
+		}
+		comments, err := findComments(f, obj)
+		if err != nil {
+			return fmt.Errorf("find comments: %v", err)
+		}
+		if comments != "" {
+			var b bytes.Buffer
+			doc.ToMarkdown(&b, comments, nil)
+			contents = append(contents, protocol.RawMarkedString(b.String()))
+		}
+		if extra != "" {
+			contents = append(contents, protocol.NewMarkedString(extra))
+		}
+
+		switch v := obj.(type) {
+		case *types.Func:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Def:", ident.Name)
+			//fmt.Println("FullName:", v.FullName())
+			//fmt.Println("iPos:", ipos)
+			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			e.funcs[v.FullName()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
+
+		// TODO(jchen): case *types.Const:
+
+		case *types.Var:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Def:", ident.Name)
+			//fmt.Println("iPos:", ipos)
+			e.vars[ident.Pos()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
+
+		case *types.TypeName:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Println("Def:", ident.Name)
+			//fmt.Println("Type:", obj.Type())
+			//fmt.Println("Pos:", ipos)
+			e.types[obj.Type().String()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
+
+		// TODO(jchen): case *types.Label:
+
+		// TODO(jchen): case *types.PkgName:
+
+		// TODO(jchen): case *types.Builtin:
+
+		// TODO(jchen): case *types.Nil:
+
+		default:
+			// TODO(jchen): remove this case-branch
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("(default)")
+			//fmt.Println("Def:", ident)
+			//fmt.Println("Pos:", ipos)
+			//spew.Dump(obj)
+			continue
+		}
+
+		hoverResultID, err := e.emitHoverResult(contents)
+		if err != nil {
+			return fmt.Errorf(`emit "hoverResult": %v`, err)
+		}
+
+		_, err = e.emitTextDocumentHover(refResult.resultSetID, hoverResultID)
+		if err != nil {
+			return fmt.Errorf(`emit "textDocument/hover": %v`, err)
+		}
+
+		rangeIDs = append(rangeIDs, rangeID)
 	}
+
+	fi.defRangeIDs = append(fi.defRangeIDs, rangeIDs...)
+
+	return nil
+}
+
+func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string) error {
+	var rangeIDs []string
+	for ident, obj := range p.TypesInfo.Uses {
+		// Only emit if the object belongs to current file
+		ipos := p.Fset.Position(ident.Pos())
+		if ipos.Filename != filename {
+			continue
+		}
+
+		var def *defInfo
+		switch v := obj.(type) {
+		case *types.Func:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Use:", ident.Name)
+			//fmt.Println("FullName:", v.FullName())
+			//fmt.Println("Pos:", ipos)
+			//fmt.Println("Scope.Parent.Pos:", p.Fset.Position(v.Scope().Parent().Pos()))
+			//fmt.Println("Scope.Pos:", p.Fset.Position(v.Scope().Pos()))
+			def = e.funcs[v.FullName()]
+
+		// TODO(jchen): case *types.Const:
+
+		case *types.Var:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Use:", ident)
+			//fmt.Println("iPos:", ipos)
+			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			def = e.vars[v.Pos()]
+
+		// TODO(jchen): case *types.PkgName:
+		//fmt.Println("Use:", ident)
+		//fmt.Println("Pos:", ipos)
+		//def = e.imports[ident.Name]
+
+		case *types.TypeName:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Use:", ident.Name)
+			//fmt.Println("Type:", obj.Type())
+			//fmt.Println("Pos:", ipos)
+			def = e.types[obj.Type().String()]
+
+		// TODO(jchen): case *types.Label:
+
+		// TODO(jchen): case *types.PkgName:
+
+		// TODO(jchen): case *types.Builtin:
+
+		// TODO(jchen): case *types.Nil:
+
+		default:
+			// TODO(jchen): remove this case-branch
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("(default)")
+			//fmt.Println("Use:", ident)
+			//fmt.Println("iPos:", ipos)
+			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			//spew.Dump(obj)
+		}
+
+		if def == nil {
+			continue
+		}
+
+		rangeID, err := e.emitRange(lspRange(ipos, ident.Name))
+		if err != nil {
+			return fmt.Errorf(`emit "range": %v`, err)
+		}
+		rangeIDs = append(rangeIDs, rangeID)
+
+		_, err = e.emitNext(rangeID, def.resultSetID)
+		if err != nil {
+			return fmt.Errorf(`emit "next": %v`, err)
+		}
+
+		defResultID, err := e.emitDefinitionResult()
+		if err != nil {
+			return fmt.Errorf(`emit "definitionResult": %v`, err)
+		}
+
+		_, err = e.emitTextDocumentDefinition(def.resultSetID, defResultID)
+		if err != nil {
+			return fmt.Errorf(`emit "textDocument/definition": %v`, err)
+		}
+
+		_, err = e.emitItem(defResultID, []string{def.rangeID}, fi.docID)
+		if err != nil {
+			return fmt.Errorf(`emit "item": %v`, err)
+		}
+
+		hoverResultID, err := e.emitHoverResult(def.contents)
+		if err != nil {
+			return fmt.Errorf(`emit "hoverResult": %v`, err)
+		}
+
+		_, err = e.emitTextDocumentHover(def.resultSetID, hoverResultID)
+		if err != nil {
+			return fmt.Errorf(`emit "textDocument/hover": %v`, err)
+		}
+
+		rangeIDs = append(rangeIDs, rangeID)
+
+		refResult := e.refs[def.rangeID]
+		if refResult != nil {
+			refResult.refRangeIDs = append(refResult.refRangeIDs, rangeID)
+		}
+	}
+
+	fi.useRangeIDs = append(fi.useRangeIDs, rangeIDs...)
+
 	return nil
 }
 
