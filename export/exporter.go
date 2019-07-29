@@ -77,7 +77,7 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 
 	for _, p := range e.pkgs {
 		if err := e.exportPkg(p, proID); err != nil {
-			return err
+			return fmt.Errorf("export package %q: %v", p.Name, err)
 		}
 	}
 
