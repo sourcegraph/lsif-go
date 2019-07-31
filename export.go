@@ -28,8 +28,9 @@ Examples:
 		fmt.Println(usage)
 	}
 	var (
-		workspaceFlag = flagSet.String("workspace", "", `The path to the workspace. (required)`)
-		outputFlag    = flagSet.String("output", "data.lsif", `The output location of the dump.`)
+		workspaceFlag      = flagSet.String("workspace", "", `The path to the workspace. (required)`)
+		outputFlag         = flagSet.String("output", "data.lsif", `The output location of the dump.`)
+		excludeContentFlag = flagSet.Bool("exclude-content", false, `Whether or not to exclude document content in the dump.`)
 	)
 
 	handler := func(args []string) error {
@@ -43,11 +44,12 @@ Examples:
 		}
 		defer out.Close()
 
-		err = export.Export(*workspaceFlag, out, protocol.ToolInfo{
-			Name:    "lsif-go",
-			Version: version,
-			Args:    args,
-		})
+		err = export.Export(*workspaceFlag, *excludeContentFlag, out,
+			protocol.ToolInfo{
+				Name:    "lsif-go",
+				Version: version,
+				Args:    args,
+			})
 		if err != nil {
 			return fmt.Errorf("export: %v", err)
 		}

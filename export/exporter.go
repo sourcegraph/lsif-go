@@ -22,7 +22,7 @@ import (
 // Export generates an LSIF dump for a workspace by traversing through source files
 // and storing LSP responses to output source that implements io.Writer. It is
 // caller's responsibility to close the output source if applicable.
-func Export(workspace string, w io.Writer, toolInfo protocol.ToolInfo) error {
+func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) error {
 	projectRoot, err := filepath.Abs(workspace)
 	if err != nil {
 		return fmt.Errorf("get abspath of project root: %v", err)
@@ -39,8 +39,9 @@ func Export(workspace string, w io.Writer, toolInfo protocol.ToolInfo) error {
 	}
 
 	return (&exporter{
-		projectRoot: projectRoot,
-		w:           w,
+		projectRoot:    projectRoot,
+		excludeContent: excludeContent,
+		w:              w,
 
 		pkgs:  pkgs,
 		files: make(map[string]*fileInfo),
@@ -53,8 +54,9 @@ func Export(workspace string, w io.Writer, toolInfo protocol.ToolInfo) error {
 
 // exporter keeps track of all information needed to generate a LSIF dump.
 type exporter struct {
-	projectRoot string
-	w           io.Writer
+	projectRoot    string
+	excludeContent bool
+	w              io.Writer
 
 	id    int // The ID counter of the last element emitted
 	pkgs  []*packages.Package
@@ -477,9 +479,13 @@ func (e *exporter) emitProject() (string, error) {
 }
 
 func (e *exporter) emitDocument(path string) (string, error) {
-	contents, err := ioutil.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read file: %v", err)
+	var contents []byte
+	if !e.excludeContent {
+		var err error
+		contents, err = ioutil.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("read file: %v", err)
+		}
 	}
 
 	id := e.nextID()
