@@ -119,6 +119,19 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		}
 	}
 
+	// Close all documents
+	// TODO(efritz) - see if we can rearrange the outputs so that
+	// all of the output for a document is contained in one segment
+	// that does not interfere with emission of other document
+	// properties.
+
+	for _, info := range e.files {
+		_, err = e.emitEndEvent("document", info.docID)
+		if err != nil {
+			return fmt.Errorf(`emit "end": %v`, err)
+		}
+	}
+
 	_, err = e.emitEndEvent("project", proID)
 	if err != nil {
 		return fmt.Errorf(`emit "end": %v`, err)
@@ -163,13 +176,6 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 
 		if err := e.exportUses(p, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error exporting uses of %q: %v", p.PkgPath, err)
-		}
-	}
-
-	for _, info := range e.files {
-		_, err = e.emitEndEvent("document", info.docID)
-		if err != nil {
-			return fmt.Errorf(`emit "end": %v`, err)
 		}
 	}
 
