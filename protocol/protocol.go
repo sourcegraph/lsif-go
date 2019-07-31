@@ -124,7 +124,7 @@ type Event struct {
 
 // NewEvent returns a new Event object with the given ID, kind, scope,
 // and data information.
-func NewEvent(id, kind, scope string, data string) *Event {
+func NewEvent(id, kind, scope, data string) *Event {
 	return &Event{
 		Vertex: Vertex{
 			Element: Element{
