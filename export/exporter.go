@@ -119,7 +119,9 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		}
 	}
 
-	// Close all documents
+	// Close all documents. This must be done as a last step as we need
+	// to emit everything about a document before sending the end event.
+
 	// TODO(efritz) - see if we can rearrange the outputs so that
 	// all of the output for a document is contained in one segment
 	// that does not interfere with emission of other document
