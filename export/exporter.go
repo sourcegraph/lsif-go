@@ -162,9 +162,9 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 		}
 	}
 
-	// NOTE: since we currently only support package-level references, it is OK to run the loop
-	//       here. Once we want repository (or Go module)-level references, they can only be
-	//       handled after all files are processed for definitions.
+	// NOTE: since we currently only support package-level references, it is OK to export usages
+	// at the end of each package. When repository-level references are implemented, usages must
+	// be exported after all files are processed.
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
 		if err := e.exportUses(p, e.files[fpos.Filename], fpos.Filename); err != nil {
