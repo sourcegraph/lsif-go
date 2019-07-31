@@ -75,6 +75,11 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		return fmt.Errorf(`emit "project": %v`, err)
 	}
 
+	_, err = e.emitBeginEvent("project", proID)
+	if err != nil {
+		return fmt.Errorf(`emit "begin": %v`, err)
+	}
+
 	for _, p := range e.pkgs {
 		if err := e.exportPkg(p, proID); err != nil {
 			return fmt.Errorf("export package %q: %v", p.Name, err)
@@ -112,6 +117,11 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		}
 	}
 
+	_, err = e.emitEndEvent("project", proID)
+	if err != nil {
+		return fmt.Errorf(`emit "end": %v`, err)
+	}
+
 	return nil
 }
 
@@ -131,6 +141,11 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 				return fmt.Errorf(`emit "document": %v`, err)
 			}
 
+			_, err = e.emitBeginEvent("document", docID)
+			if err != nil {
+				return fmt.Errorf(`emit "begin": %v`, err)
+			}
+
 			_, err = e.emitContains(proID, []string{docID})
 			if err != nil {
 				return fmt.Errorf(`emit "contains": %v`, err)
@@ -146,6 +161,13 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 
 		if err := e.exportUses(p, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error exporting uses of %q: %v", p.PkgPath, err)
+		}
+	}
+
+	for _, info := range e.files {
+		_, err = e.emitEndEvent("document", info.docID)
+		if err != nil {
+			return fmt.Errorf(`emit "end": %v`, err)
 		}
 	}
 
@@ -437,6 +459,16 @@ func (e *exporter) emit(v interface{}) error {
 func (e *exporter) emitMetaData(root string, info protocol.ToolInfo) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewMetaData(id, root, info))
+}
+
+func (e *exporter) emitBeginEvent(scope string, data string) (string, error) {
+	id := e.nextID()
+	return id, e.emit(protocol.NewEvent(id, "begin", scope, data))
+}
+
+func (e *exporter) emitEndEvent(scope string, data string) (string, error) {
+	id := e.nextID()
+	return id, e.emit(protocol.NewEvent(id, "end", scope, data))
 }
 
 func (e *exporter) emitProject() (string, error) {
