@@ -135,7 +135,7 @@ func NewEvent(id, kind, scope string, data string) *Event {
 		},
 		Kind:  kind,
 		Scope: scope,
-		Data:  data, // TODO - will need to be int soon
+		Data:  data,
 	}
 }
 
