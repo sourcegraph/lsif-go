@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
-	"strconv"
 
 	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/lsif-go/protocol"
@@ -47,7 +46,7 @@ func Export(workspace string, w io.Writer, toolInfo protocol.ToolInfo) error {
 		funcs: make(map[string]*defInfo),
 		vars:  make(map[token.Pos]*defInfo),
 		types: make(map[string]*defInfo),
-		refs:  make(map[string]*refResultInfo),
+		refs:  make(map[int]*refResultInfo),
 	}).export(toolInfo)
 }
 
@@ -58,11 +57,11 @@ type exporter struct {
 
 	id    int // The ID counter of the last element emitted
 	pkgs  []*packages.Package
-	files map[string]*fileInfo      // Keys: filename
-	funcs map[string]*defInfo       // Keys: full name (with receiver for methods)
-	vars  map[token.Pos]*defInfo    // Keys: definition position
-	types map[string]*defInfo       // Keys: type name
-	refs  map[string]*refResultInfo // Keys: definition range ID
+	files map[string]*fileInfo   // Keys: filename
+	funcs map[string]*defInfo    // Keys: full name (with receiver for methods)
+	vars  map[token.Pos]*defInfo // Keys: definition position
+	types map[string]*defInfo    // Keys: type name
+	refs  map[int]*refResultInfo // Keys: definition range ID
 }
 
 func (e *exporter) export(info protocol.ToolInfo) error {
@@ -115,7 +114,7 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 	return nil
 }
 
-func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
+func (e *exporter) exportPkg(p *packages.Package, proID int) (err error) {
 	// TODO(jchen): support "-verbose" flag
 	log.Println("Package:", p.Name)
 	defer log.Println()
@@ -131,7 +130,7 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 				return fmt.Errorf(`emit "document": %v`, err)
 			}
 
-			_, err = e.emitContains(proID, []string{docID})
+			_, err = e.emitContains(proID, []int{docID})
 			if err != nil {
 				return fmt.Errorf(`emit "contains": %v`, err)
 			}
@@ -152,8 +151,8 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 	return nil
 }
 
-func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) (err error) {
-	var rangeIDs []string
+func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID int, filename string) (err error) {
+	var rangeIDs []int
 	for ident, obj := range p.TypesInfo.Defs {
 		// Object is nil when not denote an object
 		if obj == nil {
@@ -306,7 +305,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 }
 
 func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string) error {
-	var rangeIDs []string
+	var rangeIDs []int
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file
 		ipos := p.Fset.Position(ident.Pos())
@@ -392,7 +391,7 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			return fmt.Errorf(`emit "textDocument/definition": %v`, err)
 		}
 
-		_, err = e.emitItem(defResultID, []string{def.rangeID}, fi.docID)
+		_, err = e.emitItem(defResultID, []int{def.rangeID}, fi.docID)
 		if err != nil {
 			return fmt.Errorf(`emit "item": %v`, err)
 		}
@@ -425,96 +424,96 @@ func (e *exporter) writeNewLine() error {
 	return err
 }
 
-func (e *exporter) nextID() string {
+func (e *exporter) nextID() int {
 	e.id++
-	return strconv.Itoa(e.id)
+	return e.id
 }
 
 func (e *exporter) emit(v interface{}) error {
 	return json.NewEncoder(e.w).Encode(v)
 }
 
-func (e *exporter) emitMetaData(root string, info protocol.ToolInfo) (string, error) {
+func (e *exporter) emitMetaData(root string, info protocol.ToolInfo) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewMetaData(id, root, info))
 }
 
-func (e *exporter) emitProject() (string, error) {
+func (e *exporter) emitProject() (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewProject(id))
 }
 
-func (e *exporter) emitDocument(path string) (string, error) {
+func (e *exporter) emitDocument(path string) (int, error) {
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("read file: %v", err)
+		return 0, fmt.Errorf("read file: %v", err)
 	}
 
 	id := e.nextID()
 	return id, e.emit(protocol.NewDocument(id, "file://"+path, contents))
 }
 
-func (e *exporter) emitContains(outV string, inVs []string) (string, error) {
+func (e *exporter) emitContains(outV int, inVs []int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewContains(id, outV, inVs))
 }
 
-func (e *exporter) emitResultSet() (string, error) {
+func (e *exporter) emitResultSet() (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewResultSet(id))
 }
 
-func (e *exporter) emitRange(start, end protocol.Pos) (string, error) {
+func (e *exporter) emitRange(start, end protocol.Pos) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewRange(id, start, end))
 }
 
-func (e *exporter) emitNext(outV, inV string) (string, error) {
+func (e *exporter) emitNext(outV, inV int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewNext(id, outV, inV))
 }
 
-func (e *exporter) emitDefinitionResult() (string, error) {
+func (e *exporter) emitDefinitionResult() (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewDefinitionResult(id))
 }
 
-func (e *exporter) emitTextDocumentDefinition(outV, inV string) (string, error) {
+func (e *exporter) emitTextDocumentDefinition(outV, inV int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewTextDocumentDefinition(id, outV, inV))
 }
 
-func (e *exporter) emitHoverResult(contents []protocol.MarkedString) (string, error) {
+func (e *exporter) emitHoverResult(contents []protocol.MarkedString) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewHoverResult(id, contents))
 }
 
-func (e *exporter) emitTextDocumentHover(outV, inV string) (string, error) {
+func (e *exporter) emitTextDocumentHover(outV, inV int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewTextDocumentHover(id, outV, inV))
 }
 
-func (e *exporter) emitReferenceResult() (string, error) {
+func (e *exporter) emitReferenceResult() (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewReferenceResult(id))
 }
 
-func (e *exporter) emitTextDocumentReferences(outV, inV string) (string, error) {
+func (e *exporter) emitTextDocumentReferences(outV, inV int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewTextDocumentReferences(id, outV, inV))
 }
 
-func (e *exporter) emitItem(outV string, inVs []string, docID string) (string, error) {
+func (e *exporter) emitItem(outV int, inVs []int, docID int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItem(id, outV, inVs, docID))
 }
 
-func (e *exporter) emitItemOfDefinitions(outV string, inVs []string, docID string) (string, error) {
+func (e *exporter) emitItemOfDefinitions(outV int, inVs []int, docID int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItemOfDefinitions(id, outV, inVs, docID))
 }
 
-func (e *exporter) emitItemOfReferences(outV string, inVs []string, docID string) (string, error) {
+func (e *exporter) emitItemOfReferences(outV int, inVs []int, docID int) (int, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItemOfReferences(id, outV, inVs, docID))
 }

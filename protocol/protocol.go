@@ -22,7 +22,7 @@ const (
 // Element contains basic information of an element in the graph.
 type Element struct {
 	// The unique identifier of this element within the scope of project.
-	ID string `json:"id"`
+	ID int `json:"id"`
 	// The kind of element in the graph.
 	Type ElementType `json:"type"`
 }
@@ -94,7 +94,7 @@ type MetaData struct {
 
 // NewMetaData returns a new MetaData object with given ID, project root
 // and tool information.
-func NewMetaData(id, root string, info ToolInfo) *MetaData {
+func NewMetaData(id int, root string, info ToolInfo) *MetaData {
 	return &MetaData{
 		Vertex: Vertex{
 			Element: Element{
@@ -118,7 +118,7 @@ type Project struct {
 }
 
 // NewProject returns a new Project object with given ID.
-func NewProject(id string) *Project {
+func NewProject(id int) *Project {
 	return &Project{
 		Vertex: Vertex{
 			Element: Element{
@@ -143,7 +143,7 @@ type Document struct {
 }
 
 // NewDocument returns a new Document object with given ID, URI and contents.
-func NewDocument(id, uri string, contents []byte) *Document {
+func NewDocument(id int, uri string, contents []byte) *Document {
 	d := &Document{
 		Vertex: Vertex{
 			Element: Element{
@@ -169,7 +169,7 @@ type ResultSet struct {
 }
 
 // NewResultSet returns a new ResultSet object with given ID.
-func NewResultSet(id string) *ResultSet {
+func NewResultSet(id int) *ResultSet {
 	return &ResultSet{
 		Vertex: Vertex{
 			Element: Element{
@@ -187,7 +187,7 @@ type ReferenceResult struct {
 }
 
 // NewReferenceResult returns a new ReferenceResult object with given ID.
-func NewReferenceResult(id string) *ResultSet {
+func NewReferenceResult(id int) *ResultSet {
 	return &ResultSet{
 		Vertex: Vertex{
 			Element: Element{
@@ -217,7 +217,7 @@ type Range struct {
 }
 
 // NewRange returns a new Range object with given ID and position information.
-func NewRange(id string, start, end Pos) *Range {
+func NewRange(id int, start, end Pos) *Range {
 	return &Range{
 		Vertex: Vertex{
 			Element: Element{
@@ -237,7 +237,7 @@ type DefinitionResult struct {
 }
 
 // NewDefinitionResult returns a new DefinitionResult object with given ID.
-func NewDefinitionResult(id string) *DefinitionResult {
+func NewDefinitionResult(id int) *DefinitionResult {
 	return &DefinitionResult{
 		Vertex: Vertex{
 			Element: Element{
@@ -313,7 +313,7 @@ type HoverResult struct {
 }
 
 // NewHoverResult returns a new HoverResult object with given ID, signature and extra contents.
-func NewHoverResult(id string, contents []MarkedString) *HoverResult {
+func NewHoverResult(id int, contents []MarkedString) *HoverResult {
 	return &HoverResult{
 		Vertex: Vertex{
 			Element: Element{
@@ -360,12 +360,12 @@ const (
 // Next is an edge object that represents "next" relation.
 type Next struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV int `json:"outV"`
+	InV  int `json:"inV"`
 }
 
 // NewNext returns a new Next object with given ID and vertices information.
-func NewNext(id, outV, inV string) *Next {
+func NewNext(id int, outV, inV int) *Next {
 	return &Next{
 		Edge: Edge{
 			Element: Element{
@@ -382,12 +382,12 @@ func NewNext(id, outV, inV string) *Next {
 // Contains is an edge object that represents 1:n "contains" relation.
 type Contains struct {
 	Edge
-	OutV string   `json:"outV"`
-	InVs []string `json:"inVs"`
+	OutV int   `json:"outV"`
+	InVs []int `json:"inVs"`
 }
 
 // NewContains returns a new Contains object with given ID and vertices information.
-func NewContains(id, outV string, inVs []string) *Contains {
+func NewContains(id int, outV int, inVs []int) *Contains {
 	return &Contains{
 		Edge: Edge{
 			Element: Element{
@@ -404,13 +404,13 @@ func NewContains(id, outV string, inVs []string) *Contains {
 // TextDocumentDefinition is an edge object that represents "textDocument/definition" relation.
 type TextDocumentDefinition struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV int `json:"outV"`
+	InV  int `json:"inV"`
 }
 
 // NewTextDocumentDefinition returns a new TextDocumentDefinition object with given ID and
 // vertices information.
-func NewTextDocumentDefinition(id, outV, inV string) *TextDocumentDefinition {
+func NewTextDocumentDefinition(id int, outV, inV int) *TextDocumentDefinition {
 	return &TextDocumentDefinition{
 		Edge: Edge{
 			Element: Element{
@@ -427,13 +427,13 @@ func NewTextDocumentDefinition(id, outV, inV string) *TextDocumentDefinition {
 // TextDocumentHover is an edge object that represents "textDocument/hover" relation.
 type TextDocumentHover struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV int `json:"outV"`
+	InV  int `json:"inV"`
 }
 
 // NewTextDocumentHover returns a new TextDocumentHover object with given ID and
 // vertices information.
-func NewTextDocumentHover(id, outV, inV string) *TextDocumentHover {
+func NewTextDocumentHover(id int, outV, inV int) *TextDocumentHover {
 	return &TextDocumentHover{
 		Edge: Edge{
 			Element: Element{
@@ -450,13 +450,13 @@ func NewTextDocumentHover(id, outV, inV string) *TextDocumentHover {
 // TextDocumentReferences is an edge object that represents "textDocument/references" relation.
 type TextDocumentReferences struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV int `json:"outV"`
+	InV  int `json:"inV"`
 }
 
 // NewTextDocumentReferences returns a new TextDocumentReferences object with given ID and
 // vertices information.
-func NewTextDocumentReferences(id, outV, inV string) *TextDocumentReferences {
+func NewTextDocumentReferences(id int, outV, inV int) *TextDocumentReferences {
 	return &TextDocumentReferences{
 		Edge: Edge{
 			Element: Element{
@@ -473,16 +473,16 @@ func NewTextDocumentReferences(id, outV, inV string) *TextDocumentReferences {
 // Item is an edge object that represents "item" relation.
 type Item struct {
 	Edge
-	OutV string   `json:"outV"`
-	InVs []string `json:"inVs"`
+	OutV int   `json:"outV"`
+	InVs []int `json:"inVs"`
 	// The document the item belongs to.
-	Document string `json:"document"`
+	Document int `json:"document"`
 	// The relationship property of the item.
 	Property string `json:"property,omitempty"`
 }
 
 // NewItem returns a new Item object with given ID and vertices information.
-func NewItem(id, outV string, inVs []string, document string) *Item {
+func NewItem(id int, outV int, inVs []int, document int) *Item {
 	return &Item{
 		Edge: Edge{
 			Element: Element{
@@ -499,7 +499,7 @@ func NewItem(id, outV string, inVs []string, document string) *Item {
 
 // NewItemWithProperty returns a new Item object with given ID, vertices, document and
 // property information.
-func NewItemWithProperty(id, outV string, inVs []string, document, property string) *Item {
+func NewItemWithProperty(id int, outV int, inVs []int, document int, property string) *Item {
 	i := NewItem(id, outV, inVs, document)
 	i.Property = property
 	return i
@@ -507,12 +507,12 @@ func NewItemWithProperty(id, outV string, inVs []string, document, property stri
 
 // NewItemOfDefinitions returns a new Item object with given ID, vertices and document
 // informationand in "definitions" relationship.
-func NewItemOfDefinitions(id, outV string, inVs []string, document string) *Item {
+func NewItemOfDefinitions(id int, outV int, inVs []int, document int) *Item {
 	return NewItemWithProperty(id, outV, inVs, document, "definitions")
 }
 
 // NewItemOfReferences returns a new Item object with given ID, vertices and document
 // informationand in "references" relationship.
-func NewItemOfReferences(id, outV string, inVs []string, document string) *Item {
+func NewItemOfReferences(id int, outV int, inVs []int, document int) *Item {
 	return NewItemWithProperty(id, outV, inVs, document, "references")
 }
