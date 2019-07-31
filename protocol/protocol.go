@@ -119,12 +119,12 @@ type Event struct {
 	// The type of element this event describes (project or document).
 	Scope string `json:"scope"`
 	// The identifier of the data beginning or ending.
-	Data int `json:"data"`
+	Data string `json:"data"`
 }
 
 // NewEvent returns a new Event object with the given ID, kind, scope,
 // and data information.
-func NewEvent(id, kind, scope string, data int) *Event {
+func NewEvent(id, kind, scope string, data string) *Event {
 	return &Event{
 		Vertex: Vertex{
 			Element: Element{
@@ -135,7 +135,7 @@ func NewEvent(id, kind, scope string, data int) *Event {
 		},
 		Kind:  kind,
 		Scope: scope,
-		Data:  data,
+		Data:  data, // TODO - will need to be int soon
 	}
 }
 
