@@ -160,8 +160,14 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 		if err = e.exportDefs(p, f, fi, proID, fpos.Filename); err != nil {
 			return fmt.Errorf("error exporting definitions of %q: %v", p.PkgPath, err)
 		}
+	}
 
-		if err := e.exportUses(p, fi, fpos.Filename); err != nil {
+	// NOTE: since we currently only support package-level references, it is OK to run the loop
+	//       here. Once we want repository (or Go module)-level references, they can only be
+	//       handled after all files are processed for definitions.
+	for _, f := range p.Syntax {
+		fpos := p.Fset.Position(f.Package)
+		if err := e.exportUses(p, e.files[fpos.Filename], fpos.Filename); err != nil {
 			return fmt.Errorf("error exporting uses of %q: %v", p.PkgPath, err)
 		}
 	}
