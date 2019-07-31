@@ -399,16 +399,6 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			return fmt.Errorf(`emit "item": %v`, err)
 		}
 
-		hoverResultID, err := e.emitHoverResult(def.contents)
-		if err != nil {
-			return fmt.Errorf(`emit "hoverResult": %v`, err)
-		}
-
-		_, err = e.emitTextDocumentHover(def.resultSetID, hoverResultID)
-		if err != nil {
-			return fmt.Errorf(`emit "textDocument/hover": %v`, err)
-		}
-
 		rangeIDs = append(rangeIDs, rangeID)
 
 		refResult := e.refs[def.rangeID]
