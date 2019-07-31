@@ -106,9 +106,11 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 			}
 		}
 
-		_, err = e.emitContains(f.docID, append(f.defRangeIDs, f.useRangeIDs...))
-		if err != nil {
-			return fmt.Errorf(`emit "contains": %v`, err)
+		if len(f.defRangeIDs) > 0 || len(f.useRangeIDs) > 0 {
+			_, err = e.emitContains(f.docID, append(f.defRangeIDs, f.useRangeIDs...))
+			if err != nil {
+				return fmt.Errorf(`emit "contains": %v`, err)
+			}
 		}
 	}
 
