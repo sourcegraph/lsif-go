@@ -110,6 +110,35 @@ func NewMetaData(id, root string, info ToolInfo) *MetaData {
 	}
 }
 
+// Event is optional metadata emitted to give hints to consumers about
+// the beginning and ending of new "socpes" (e.g. a project or document).
+type Event struct {
+	Vertex
+	// The kind of event (begin or end).
+	Kind string `json:"kind"`
+	// The type of element this event describes (project or document).
+	Scope string `json:"scope"`
+	// The identifier of the data beginning or ending.
+	Data string `json:"data"`
+}
+
+// NewEvent returns a new Event object with the given ID, kind, scope,
+// and data information.
+func NewEvent(id, kind, scope, data string) *Event {
+	return &Event{
+		Vertex: Vertex{
+			Element: Element{
+				ID:   id,
+				Type: ElementVertex,
+			},
+			Label: VertexEvent,
+		},
+		Kind:  kind,
+		Scope: scope,
+		Data:  data,
+	}
+}
+
 // Project declares the language of the dump.
 type Project struct {
 	Vertex
