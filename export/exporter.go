@@ -49,6 +49,7 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		consts: make(map[token.Pos]*defInfo),
 		vars:   make(map[token.Pos]*defInfo),
 		types:  make(map[string]*defInfo),
+		labels: make(map[token.Pos]*defInfo),
 		refs:   make(map[string]*refResultInfo),
 	}).export(toolInfo)
 }
@@ -66,6 +67,7 @@ type exporter struct {
 	consts map[token.Pos]*defInfo    // Keys: definition position
 	vars   map[token.Pos]*defInfo    // Keys: definition position
 	types  map[string]*defInfo       // Keys: type name
+	labels map[token.Pos]*defInfo    // Keys: definition position
 	refs   map[string]*refResultInfo // Keys: definition range ID
 }
 
@@ -320,7 +322,16 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 				contents:    contents,
 			}
 
-		// TODO(jchen): case *types.Label:
+		case *types.Label:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Def:", ident.Name)
+			//fmt.Println("iPos:", ipos)
+			e.labels[ident.Pos()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
 
 		// TODO(jchen): case *types.PkgName:
 
@@ -406,7 +417,13 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			//fmt.Println("Pos:", ipos)
 			def = e.types[obj.Type().String()]
 
-		// TODO(jchen): case *types.Label:
+		case *types.Label:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Use:", ident.Name)
+			//fmt.Println("iPos:", ipos)
+			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			def = e.labels[v.Pos()]
 
 		// TODO(jchen): case *types.PkgName:
 
