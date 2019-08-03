@@ -43,12 +43,15 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		excludeContent: excludeContent,
 		w:              w,
 
-		pkgs:  pkgs,
-		files: make(map[string]*fileInfo),
-		funcs: make(map[string]*defInfo),
-		vars:  make(map[token.Pos]*defInfo),
-		types: make(map[string]*defInfo),
-		refs:  make(map[string]*refResultInfo),
+		pkgs:    pkgs,
+		files:   make(map[string]*fileInfo),
+		imports: make(map[token.Pos]*defInfo),
+		funcs:   make(map[string]*defInfo),
+		consts:  make(map[token.Pos]*defInfo),
+		vars:    make(map[token.Pos]*defInfo),
+		types:   make(map[string]*defInfo),
+		labels:  make(map[token.Pos]*defInfo),
+		refs:    make(map[string]*refResultInfo),
 	}).export(toolInfo)
 }
 
@@ -58,13 +61,16 @@ type exporter struct {
 	excludeContent bool
 	w              io.Writer
 
-	id    int // The ID counter of the last element emitted
-	pkgs  []*packages.Package
-	files map[string]*fileInfo      // Keys: filename
-	funcs map[string]*defInfo       // Keys: full name (with receiver for methods)
-	vars  map[token.Pos]*defInfo    // Keys: definition position
-	types map[string]*defInfo       // Keys: type name
-	refs  map[string]*refResultInfo // Keys: definition range ID
+	id      int // The ID counter of the last element emitted
+	pkgs    []*packages.Package
+	files   map[string]*fileInfo      // Keys: filename
+	imports map[token.Pos]*defInfo    // Keys: definition position
+	funcs   map[string]*defInfo       // Keys: full name (with receiver for methods)
+	consts  map[token.Pos]*defInfo    // Keys: definition position
+	vars    map[token.Pos]*defInfo    // Keys: definition position
+	types   map[string]*defInfo       // Keys: type name
+	labels  map[token.Pos]*defInfo    // Keys: definition position
+	refs    map[string]*refResultInfo // Keys: definition range ID
 }
 
 func (e *exporter) export(info protocol.ToolInfo) error {
@@ -285,7 +291,16 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 				contents:    contents,
 			}
 
-		// TODO(jchen): case *types.Const:
+		case *types.Const:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Def:", ident.Name)
+			//fmt.Println("iPos:", ipos)
+			e.consts[ident.Pos()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
 
 		case *types.Var:
 			// TODO(jchen): support "-verbose" flag
@@ -309,9 +324,24 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 				contents:    contents,
 			}
 
-		// TODO(jchen): case *types.Label:
+		case *types.Label:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Def:", ident.Name)
+			//fmt.Println("iPos:", ipos)
+			e.labels[ident.Pos()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
 
-		// TODO(jchen): case *types.PkgName:
+		case *types.PkgName:
+			// TODO: support import paths are not renamed
+			e.imports[ident.Pos()] = &defInfo{
+				rangeID:     rangeID,
+				resultSetID: refResult.resultSetID,
+				contents:    contents,
+			}
 
 		// TODO(jchen): case *types.Builtin:
 
@@ -366,7 +396,13 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			//fmt.Println("Scope.Pos:", p.Fset.Position(v.Scope().Pos()))
 			def = e.funcs[v.FullName()]
 
-		// TODO(jchen): case *types.Const:
+		case *types.Const:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Use:", ident)
+			//fmt.Println("iPos:", ipos)
+			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			def = e.consts[v.Pos()]
 
 		case *types.Var:
 			// TODO(jchen): support "-verbose" flag
@@ -376,10 +412,8 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
 			def = e.vars[v.Pos()]
 
-		// TODO(jchen): case *types.PkgName:
-		//fmt.Println("Use:", ident)
-		//fmt.Println("Pos:", ipos)
-		//def = e.imports[ident.Name]
+		case *types.PkgName:
+			def = e.imports[v.Pos()]
 
 		case *types.TypeName:
 			// TODO(jchen): support "-verbose" flag
@@ -389,7 +423,13 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			//fmt.Println("Pos:", ipos)
 			def = e.types[obj.Type().String()]
 
-		// TODO(jchen): case *types.Label:
+		case *types.Label:
+			// TODO(jchen): support "-verbose" flag
+			//fmt.Printf("---> %T\n", obj)
+			//fmt.Println("Use:", ident.Name)
+			//fmt.Println("iPos:", ipos)
+			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			def = e.labels[v.Pos()]
 
 		// TODO(jchen): case *types.PkgName:
 
