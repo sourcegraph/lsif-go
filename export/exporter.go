@@ -22,10 +22,10 @@ import (
 // Export generates an LSIF dump for a workspace by traversing through source files
 // and storing LSP responses to output source that implements io.Writer. It is
 // caller's responsibility to close the output source if applicable.
-func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) error {
+func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) (*Stats, error) {
 	projectRoot, err := filepath.Abs(workspace)
 	if err != nil {
-		return fmt.Errorf("get abspath of project root: %v", err)
+		return nil, fmt.Errorf("get abspath of project root: %v", err)
 	}
 
 	pkgs, err := packages.Load(&packages.Config{
@@ -35,10 +35,10 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		Dir: projectRoot,
 	}, "./...")
 	if err != nil {
-		return fmt.Errorf("load packages: %v", err)
+		return nil, fmt.Errorf("load packages: %v", err)
 	}
 
-	return (&exporter{
+	e := &exporter{
 		projectRoot:    projectRoot,
 		excludeContent: excludeContent,
 		w:              w,
@@ -52,7 +52,8 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		types:   make(map[string]*defInfo),
 		labels:  make(map[token.Pos]*defInfo),
 		refs:    make(map[string]*refResultInfo),
-	}).export(toolInfo)
+	}
+	return e.export(toolInfo)
 }
 
 // exporter keeps track of all information needed to generate a LSIF dump.
@@ -73,24 +74,32 @@ type exporter struct {
 	refs    map[string]*refResultInfo // Keys: definition range ID
 }
 
-func (e *exporter) export(info protocol.ToolInfo) error {
+// Stats contains statistics of data processed during export.
+type Stats struct {
+	NumPkgs     int
+	NumFiles    int
+	NumDefs     int
+	NumElements int
+}
+
+func (e *exporter) export(info protocol.ToolInfo) (*Stats, error) {
 	_, err := e.emitMetaData("file://"+e.projectRoot, info)
 	if err != nil {
-		return fmt.Errorf(`emit "metadata": %v`, err)
+		return nil, fmt.Errorf(`emit "metadata": %v`, err)
 	}
 	proID, err := e.emitProject()
 	if err != nil {
-		return fmt.Errorf(`emit "project": %v`, err)
+		return nil, fmt.Errorf(`emit "project": %v`, err)
 	}
 
 	_, err = e.emitBeginEvent("project", proID)
 	if err != nil {
-		return fmt.Errorf(`emit "begin": %v`, err)
+		return nil, fmt.Errorf(`emit "begin": %v`, err)
 	}
 
 	for _, p := range e.pkgs {
 		if err := e.exportPkg(p, proID); err != nil {
-			return fmt.Errorf("export package %q: %v", p.Name, err)
+			return nil, fmt.Errorf("export package %q: %v", p.Name, err)
 		}
 	}
 
@@ -98,23 +107,23 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		for _, rangeID := range f.defRangeIDs {
 			refResultID, err := e.emitReferenceResult()
 			if err != nil {
-				return fmt.Errorf(`emit "referenceResult": %v`, err)
+				return nil, fmt.Errorf(`emit "referenceResult": %v`, err)
 			}
 
 			_, err = e.emitTextDocumentReferences(e.refs[rangeID].resultSetID, refResultID)
 			if err != nil {
-				return fmt.Errorf(`emit "textDocument/references": %v`, err)
+				return nil, fmt.Errorf(`emit "textDocument/references": %v`, err)
 			}
 
 			_, err = e.emitItemOfDefinitions(refResultID, e.refs[rangeID].defRangeIDs, f.docID)
 			if err != nil {
-				return fmt.Errorf(`emit "item": %v`, err)
+				return nil, fmt.Errorf(`emit "item": %v`, err)
 			}
 
 			if len(e.refs[rangeID].refRangeIDs) > 0 {
 				_, err = e.emitItemOfReferences(refResultID, e.refs[rangeID].refRangeIDs, f.docID)
 				if err != nil {
-					return fmt.Errorf(`emit "item": %v`, err)
+					return nil, fmt.Errorf(`emit "item": %v`, err)
 				}
 			}
 		}
@@ -122,7 +131,7 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		if len(f.defRangeIDs) > 0 || len(f.useRangeIDs) > 0 {
 			_, err = e.emitContains(f.docID, append(f.defRangeIDs, f.useRangeIDs...))
 			if err != nil {
-				return fmt.Errorf(`emit "contains": %v`, err)
+				return nil, fmt.Errorf(`emit "contains": %v`, err)
 			}
 		}
 	}
@@ -138,16 +147,21 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 	for _, info := range e.files {
 		_, err = e.emitEndEvent("document", info.docID)
 		if err != nil {
-			return fmt.Errorf(`emit "end": %v`, err)
+			return nil, fmt.Errorf(`emit "end": %v`, err)
 		}
 	}
 
 	_, err = e.emitEndEvent("project", proID)
 	if err != nil {
-		return fmt.Errorf(`emit "end": %v`, err)
+		return nil, fmt.Errorf(`emit "end": %v`, err)
 	}
 
-	return nil
+	return &Stats{
+		NumPkgs:     len(e.pkgs),
+		NumFiles:    len(e.files),
+		NumDefs:     len(e.imports) + len(e.funcs) + len(e.consts) + len(e.vars) + len(e.types) + len(e.labels),
+		NumElements: e.id,
+	}, nil
 }
 
 func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
@@ -340,12 +354,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 				contents:    contents,
 			}
 
-		// TODO(jchen): case *types.Builtin:
-
-		// TODO(jchen): case *types.Nil:
-
 		default:
-			// TODO(jchen): remove this case-branch
 			log.Debugf("default", "---> %T\n", obj)
 			log.Debugln("default", "(default)")
 			log.Debugln("default", "Def:", ident)
@@ -429,7 +438,6 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 		// TODO(jchen): case *types.Nil:
 
 		default:
-			// TODO(jchen): remove this case-branch
 			log.Debugf("default", "---> %T\n", obj)
 			log.Debugln("default", "(default)")
 			log.Debugln("default", "Use:", ident)

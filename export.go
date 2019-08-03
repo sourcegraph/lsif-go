@@ -44,7 +44,7 @@ Examples:
 		}
 		defer out.Close()
 
-		err = export.Export(*workspaceFlag, *excludeContentFlag, out,
+		s, err := export.Export(*workspaceFlag, *excludeContentFlag, out,
 			protocol.ToolInfo{
 				Name:    "lsif-go",
 				Version: version,
@@ -54,6 +54,7 @@ Examples:
 			return fmt.Errorf("export: %v", err)
 		}
 
+		log.Printf("%d package(s), %d file(s), %d def(s), %d element(s)", s.NumPkgs, s.NumFiles, s.NumDefs, s.NumElements)
 		log.Println("Processed in", time.Since(start))
 		return nil
 	}
