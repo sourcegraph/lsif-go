@@ -476,17 +476,26 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
-		defResultID, err := e.emitDefinitionResult()
-		if err != nil {
-			return fmt.Errorf(`emit "definitionResult": %v`, err)
+		// If this is the first use for this definition, we need to create
+		// some extra vertices. Caching this on the definition lets us share
+		// the vertices between uses. We do this lazily so that we don't have
+		// an unreachable set of vertices.
+
+		if def.defResultID == "" {
+			defResultID, err := e.emitDefinitionResult()
+			if err != nil {
+				return fmt.Errorf(`emit "definitionResult": %v`, err)
+			}
+
+			_, err = e.emitTextDocumentDefinition(def.resultSetID, defResultID)
+			if err != nil {
+				return fmt.Errorf(`emit "textDocument/definition": %v`, err)
+			}
+
+			def.defResultID = defResultID
 		}
 
-		_, err = e.emitTextDocumentDefinition(def.resultSetID, defResultID)
-		if err != nil {
-			return fmt.Errorf(`emit "textDocument/definition": %v`, err)
-		}
-
-		_, err = e.emitItem(defResultID, []string{def.rangeID}, fi.docID)
+		_, err = e.emitItem(def.defResultID, []string{def.rangeID}, fi.docID)
 		if err != nil {
 			return fmt.Errorf(`emit "item": %v`, err)
 		}
