@@ -251,6 +251,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
+		// TODO(jchen): make the following block of code to function "findContents".
 		qf := func(*types.Package) string { return "" }
 		var s string
 		var extra string
@@ -292,11 +293,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 
 		switch v := obj.(type) {
 		case *types.Func:
-			log.Debugf("func", "---> %T\n", obj)
-			log.Debugln("func", "Def:", ident.Name)
-			log.Debugln("func", "FullName:", v.FullName())
-			log.Debugln("func", "iPos:", ipos)
-			log.Debugln("func", "vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[func] Def:", ident.Name)
+			log.Debugln("[func] FullName:", v.FullName())
+			log.Debugln("[func] iPos:", ipos)
 			e.funcs[v.FullName()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -304,9 +303,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.Const:
-			log.Debugf("const", "---> %T\n", obj)
-			log.Debugln("const", "Def:", ident.Name)
-			log.Debugln("const", "iPos:", ipos)
+			log.Debugln("[const] Def:", ident.Name)
+			log.Debugln("[const] iPos:", ipos)
 			e.consts[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -314,9 +312,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.Var:
-			log.Debugf("var", "---> %T\n", obj)
-			log.Debugln("var", "Def:", ident.Name)
-			log.Debugln("var", "iPos:", ipos)
+			log.Debugln("[var] Def:", ident.Name)
+			log.Debugln("[var] iPos:", ipos)
 			e.vars[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -324,9 +321,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.TypeName:
-			log.Debugf("typename", "Def:", ident.Name)
-			log.Debugln("typename", "Type:", obj.Type())
-			log.Debugln("typename", "iPos:", ipos)
+			log.Debugln("[typename] Def:", ident.Name)
+			log.Debugln("[typename] Type:", obj.Type())
+			log.Debugln("[typename] iPos:", ipos)
 			e.types[obj.Type().String()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -334,9 +331,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.Label:
-			log.Debugf("label", "---> %T\n", obj)
-			log.Debugln("label", "Def:", ident.Name)
-			log.Debugln("label", "iPos:", ipos)
+			log.Debugln("[label] Def:", ident.Name)
+			log.Debugln("[label] iPos:", ipos)
 			e.labels[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -345,9 +341,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 
 		case *types.PkgName:
 			// TODO: support import paths are not renamed
-			log.Debugf("pkgname", "---> %T\n", obj)
-			log.Debugln("pkgname", "Use:", ident)
-			log.Debugln("pkgname", "iPos:", ipos)
+			log.Debugln("[pkgname] Use:", ident)
+			log.Debugln("[pkgname] iPos:", ipos)
 			e.imports[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -355,10 +350,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		default:
-			log.Debugf("default", "---> %T\n", obj)
-			log.Debugln("default", "(default)")
-			log.Debugln("default", "Def:", ident)
-			log.Debugln("default", "iPos:", ipos)
+			log.Debugf("[default] ---> %T\n", obj)
+			log.Debugln("[default] Def:", ident)
+			log.Debugln("[default] iPos:", ipos)
 			continue
 		}
 
@@ -392,45 +386,39 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 		var def *defInfo
 		switch v := obj.(type) {
 		case *types.Func:
-			log.Debugf("func", "---> %T\n", obj)
-			log.Debugln("func", "Use:", ident.Name)
-			log.Debugln("func", "FullName:", v.FullName())
-			log.Debugln("func", "iPos:", ipos)
+			log.Debugln("[func] Use:", ident.Name)
+			log.Debugln("[func] FullName:", v.FullName())
+			log.Debugln("[func] iPos:", ipos)
 			def = e.funcs[v.FullName()]
 
 		case *types.Const:
-			log.Debugf("const", "---> %T\n", obj)
-			log.Debugln("const", "Use:", ident)
-			log.Debugln("const", "iPos:", ipos)
-			log.Debugln("const", "vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[const] Use:", ident)
+			log.Debugln("[const] iPos:", ipos)
+			log.Debugln("[const] vPos:", p.Fset.Position(v.Pos()))
 			def = e.consts[v.Pos()]
 
 		case *types.Var:
-			log.Debugf("var", "---> %T\n", obj)
-			log.Debugln("var", "Use:", ident)
-			log.Debugln("var", "iPos:", ipos)
-			log.Debugln("var", "vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[var] Use:", ident)
+			log.Debugln("[var] iPos:", ipos)
+			log.Debugln("[var] vPos:", p.Fset.Position(v.Pos()))
 			def = e.vars[v.Pos()]
 
 		case *types.TypeName:
-			log.Debugf("typename", "---> %T\n", obj)
-			log.Debugln("typename", "Use:", ident.Name)
-			log.Debugln("typename", "Type:", obj.Type())
-			log.Debugln("typename", "iPos:", ipos)
+			log.Debugln("[typename] Use:", ident.Name)
+			log.Debugln("[typename] Type:", obj.Type())
+			log.Debugln("[typename] iPos:", ipos)
 			def = e.types[obj.Type().String()]
 
 		case *types.Label:
-			log.Debugf("label", "---> %T\n", obj)
-			log.Debugln("label", "Use:", ident.Name)
-			log.Debugln("label", "iPos:", ipos)
-			log.Debugln("label", "vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[label] Use:", ident.Name)
+			log.Debugln("[label] iPos:", ipos)
+			log.Debugln("[label] vPos:", p.Fset.Position(v.Pos()))
 			def = e.labels[v.Pos()]
 
 		case *types.PkgName:
-			log.Debugf("pkgname", "---> %T\n", obj)
-			log.Debugln("pkgname", "Use:", ident)
-			log.Debugln("pkgname", "iPos:", ipos)
-			log.Debugln("pkgname", "vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[pkgname] Use:", ident)
+			log.Debugln("[pkgname] iPos:", ipos)
+			log.Debugln("[pkgname] vPos:", p.Fset.Position(v.Pos()))
 			def = e.imports[v.Pos()]
 
 		// TODO(jchen): case *types.Builtin:
@@ -438,11 +426,9 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 		// TODO(jchen): case *types.Nil:
 
 		default:
-			log.Debugf("default", "---> %T\n", obj)
-			log.Debugln("default", "(default)")
-			log.Debugln("default", "Use:", ident)
-			log.Debugln("default", "iPos:", ipos)
-			log.Debugln("default", "vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[default] Use:", ident)
+			log.Debugln("[default] iPos:", ipos)
+			log.Debugln("[default] vPos:", p.Fset.Position(v.Pos()))
 			continue
 		}
 

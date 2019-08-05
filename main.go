@@ -30,7 +30,7 @@ Use "lsif-go [command] -h" for more information about a command.
 var commands commander
 
 var (
-	debug   = flag.String("debug", "none", `To display debug information.`)
+	debug   = flag.Bool("debug", false, `To display debug information.`)
 	verbose = flag.Bool("verbose", false, `To display verbose information.`)
 )
 

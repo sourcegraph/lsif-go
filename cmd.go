@@ -53,7 +53,9 @@ func (c commander) run(flagSet *flag.FlagSet, cmdName, usageText string, args []
 	if *verbose {
 		log.SetLevel(log.Info)
 	}
-	log.SetDebugMods(*debug)
+	if *debug {
+		log.SetLevel(log.Debug)
+	}
 
 	// Configure default usage funcs for commands
 	for _, cmd := range c {

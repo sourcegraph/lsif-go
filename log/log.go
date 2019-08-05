@@ -2,7 +2,6 @@ package log
 
 import (
 	"log"
-	"strings"
 )
 
 func init() {
@@ -10,8 +9,10 @@ func init() {
 	log.SetPrefix("")
 }
 
+// Level determines the level of verbose for logging messages.
 type Level int
 
+// Logging levels can be used to define verboseness.
 const (
 	Debug Level = iota
 	Info
@@ -20,52 +21,33 @@ const (
 
 var level = None
 
+// SetLevel sets the logging level.
 func SetLevel(l Level) {
 	level = l
 }
 
-var (
-	debugAll  = false
-	debugMods map[string]bool
-)
-
-func SetDebugMods(mods string) {
-	if mods == "none" {
-		return
-	}
-	level = Debug
-
-	if mods == "all" {
-		debugAll = true
-		return
-	}
-
-	debugMods = make(map[string]bool)
-	for _, m := range strings.Split(mods, ",") {
-		debugMods[m] = true
-	}
-}
-
-func Debugf(mod, format string, v ...interface{}) {
+// Debugf prints logging messages in Debug level.
+// Arguments are handled in the manner of fmt.Printf.
+func Debugf(format string, v ...interface{}) {
 	if level > Debug {
-		return
-	} else if !debugAll && !debugMods[mod] {
 		return
 	}
 
 	log.Printf(format, v...)
 }
 
-func Debugln(mod string, v ...interface{}) {
+// Debugf prints logging messages in Debug level.
+// Arguments are handled in the manner of fmt.Println.
+func Debugln(v ...interface{}) {
 	if level > Debug {
-		return
-	} else if !debugAll && !debugMods[mod] {
 		return
 	}
 
 	log.Println(v...)
 }
 
+// Infof prints logging messages in Info level.
+// Arguments are handled in the manner of fmt.Printf.
 func Infof(format string, v ...interface{}) {
 	if level > Info {
 		return
@@ -74,6 +56,8 @@ func Infof(format string, v ...interface{}) {
 	log.Printf(format, v...)
 }
 
+// Infoln prints logging messages in Info level.
+// Arguments are handled in the manner of fmt.Println.
 func Infoln(v ...interface{}) {
 	if level > Info {
 		return
