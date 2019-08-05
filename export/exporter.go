@@ -120,7 +120,7 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		}
 
 		if len(f.defRangeIDs) > 0 || len(f.useRangeIDs) > 0 {
-			_, err = e.emitContains(f.docID, append(f.defRangeIDs, f.useRangeIDs...))
+			_, err = e.emitContains(f.docID, deduplicate(append(f.defRangeIDs, f.useRangeIDs...)))
 			if err != nil {
 				return fmt.Errorf(`emit "contains": %v`, err)
 			}
@@ -148,6 +148,20 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 	}
 
 	return nil
+}
+
+func deduplicate(values []string) []string {
+	set := map[string]struct{}{}
+	for _, val := range values {
+		set[val] = struct{}{}
+	}
+
+	values = values[:0]
+	for k := range set {
+		values = append(values, k)
+	}
+
+	return values
 }
 
 func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
