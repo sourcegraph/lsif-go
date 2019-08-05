@@ -2,11 +2,13 @@ package log
 
 import (
 	"log"
+	"os"
 )
 
 func init() {
 	log.SetFlags(0)
 	log.SetPrefix("")
+	log.SetOutput(os.Stdout)
 }
 
 // Level determines the level of verbose for logging messages.
