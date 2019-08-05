@@ -24,6 +24,8 @@ type defInfo struct {
 	resultSetID string
 	// The contents will be used as the hover information.
 	contents []protocol.MarkedString
+	// The lazily initialized definition result ID upon first use found.
+	defResultID string
 }
 
 // refResultInfo contains LSIF information of a reference result.
