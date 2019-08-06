@@ -8,7 +8,7 @@ import (
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 func init() {
 	usage := `
