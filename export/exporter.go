@@ -2,7 +2,6 @@
 package export
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -12,8 +11,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
+	"strings"
 
-	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/lsif-go/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
@@ -193,6 +192,10 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 			e.files[fpos.Filename] = fi
 		}
 
+		if err = e.addImports(p, f, fi); err != nil {
+			return fmt.Errorf("error exporting imports of %q: %v", p.PkgPath, err)
+		}
+
 		if err = e.exportDefs(p, f, fi, proID, fpos.Filename); err != nil {
 			return fmt.Errorf("error exporting definitions of %q: %v", p.PkgPath, err)
 		}
@@ -211,7 +214,30 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 	return nil
 }
 
-func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) (err error) {
+// addImports constructs *ast.Ident and types.Object out of *ImportSpec and inserts them into
+// packages defs map to be exported within a unified process.
+func (e *exporter) addImports(p *packages.Package, f *ast.File, fi *fileInfo) error {
+	for _, ispec := range f.Imports {
+		ipath := strings.Trim(ispec.Path.Value, `"`)
+		var name string
+		if ispec.Name == nil {
+			name = ipath
+		} else {
+			name = ispec.Name.String()
+		}
+		p.TypesInfo.Defs[&ast.Ident{
+			NamePos: ispec.Pos(),
+			Name:    name,
+			Obj:     ast.NewObj(ast.Pkg, name),
+		}] = types.NewPkgName(ispec.Pos(), p.Types, name, p.Imports[ipath].Types)
+		log.Debugln("[import] Path:", ipath)
+		log.Debugln("[import] Name:", ispec.Name)
+		log.Debugln("[import] iPos:", p.Fset.Position(ispec.Pos()))
+	}
+	return nil
+}
+
+func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Defs {
 		// Object is nil when not denote an object
@@ -219,8 +245,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			continue
 		}
 
+		// TODO(jchen): emit other documents on the fly, thus we do not need to iterate
+		//  over this map once for every file.
 		// Only emit if the object belongs to current file
-		// TODO(jchen): maybe emit other documents on the fly
 		ipos := p.Fset.Position(ident.Pos())
 		if ipos.Filename != filename {
 			continue
@@ -251,44 +278,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
-		// TODO(jchen): make the following block of code to function "findContents".
-		qf := func(*types.Package) string { return "" }
-		var s string
-		var extra string
-		if f, ok := obj.(*types.Var); ok && f.IsField() {
-			// TODO(jchen): make this be like (T).F not "struct field F string".
-			s = "struct " + obj.String()
-		} else {
-			if obj, ok := obj.(*types.TypeName); ok {
-				typ := obj.Type().Underlying()
-				if _, ok := typ.(*types.Struct); ok {
-					s = "type " + obj.Name() + " struct"
-					extra = prettyPrintTypesString(types.TypeString(typ, qf))
-				}
-				if _, ok := typ.(*types.Interface); ok {
-					s = "type " + obj.Name() + " interface"
-					extra = prettyPrintTypesString(types.TypeString(typ, qf))
-				}
-			}
-			if s == "" {
-				s = types.ObjectString(obj, qf)
-			}
-		}
-
-		contents := []protocol.MarkedString{
-			protocol.NewMarkedString(s),
-		}
-		comments, err := findComments(f, obj)
+		contents, err := findContents(f, obj)
 		if err != nil {
-			return fmt.Errorf("find comments: %v", err)
-		}
-		if comments != "" {
-			var b bytes.Buffer
-			doc.ToMarkdown(&b, comments, nil)
-			contents = append(contents, protocol.RawMarkedString(b.String()))
-		}
-		if extra != "" {
-			contents = append(contents, protocol.NewMarkedString(extra))
+			return fmt.Errorf("find contents: %v", err)
 		}
 
 		switch v := obj.(type) {
@@ -340,8 +332,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.PkgName:
-			// TODO: support import paths are not renamed
-			log.Debugln("[pkgname] Use:", ident)
+			log.Debugln("[pkgname] Def:", ident)
 			log.Debugln("[pkgname] iPos:", ipos)
 			e.imports[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,

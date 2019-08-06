@@ -2,11 +2,13 @@ package export
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"strings"
 
+	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -21,6 +23,49 @@ func lspRange(pos token.Position, name string) (start protocol.Pos, end protocol
 			Line:      pos.Line - 1,
 			Character: pos.Column - 1 + len(name),
 		}
+}
+
+// findContents returns contents used as hover info for given object.
+func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error) {
+	qf := func(*types.Package) string { return "" }
+	var s string
+	var extra string
+	if f, ok := obj.(*types.Var); ok && f.IsField() {
+		// TODO(jchen): make this be like (T).F not "struct field F string".
+		s = "struct " + obj.String()
+	} else {
+		if obj, ok := obj.(*types.TypeName); ok {
+			typ := obj.Type().Underlying()
+			if _, ok := typ.(*types.Struct); ok {
+				s = "type " + obj.Name() + " struct"
+				extra = prettyPrintTypesString(types.TypeString(typ, qf))
+			}
+			if _, ok := typ.(*types.Interface); ok {
+				s = "type " + obj.Name() + " interface"
+				extra = prettyPrintTypesString(types.TypeString(typ, qf))
+			}
+		}
+		if s == "" {
+			s = types.ObjectString(obj, qf)
+		}
+	}
+
+	contents := []protocol.MarkedString{
+		protocol.NewMarkedString(s),
+	}
+	comments, err := findComments(f, obj)
+	if err != nil {
+		return nil, fmt.Errorf("find comments: %v", err)
+	}
+	if comments != "" {
+		var b bytes.Buffer
+		doc.ToMarkdown(&b, comments, nil)
+		contents = append(contents, protocol.RawMarkedString(b.String()))
+	}
+	if extra != "" {
+		contents = append(contents, protocol.NewMarkedString(extra))
+	}
+	return contents, nil
 }
 
 // prettyPrintTypesString is pretty printing specific to the output of
