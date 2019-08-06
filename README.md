@@ -17,21 +17,8 @@ A first draft specification can be found [here](https://github.com/Microsoft/lan
 
 ```
 ➜ lsif-go export
-Package: protocol
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/protocol/protocol.go
-
-Package: export
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/export/exporter.go
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/export/helper.go
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/export/types.go
-
-Package: main
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/cmd.go
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/export.go
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/main.go
-	File: /Users/unknwon/Work/Sourcegraph/lsif-go/version.go
-
-Processed in 950.942253ms
+4 package(s), 10 file(s), 597 def(s), 11521 element(s)
+Processed in 770.817859ms
 ```
 
 By default, the exporter dumps LSIF data to the file `data.lsif` in the working directory.
