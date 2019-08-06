@@ -10,11 +10,11 @@ import (
 	"go/types"
 	"io"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 	"strconv"
 
 	doc "github.com/slimsag/godocmd"
+	"github.com/sourcegraph/lsif-go/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
@@ -22,10 +22,10 @@ import (
 // Export generates an LSIF dump for a workspace by traversing through source files
 // and storing LSP responses to output source that implements io.Writer. It is
 // caller's responsibility to close the output source if applicable.
-func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) error {
+func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) (*Stats, error) {
 	projectRoot, err := filepath.Abs(workspace)
 	if err != nil {
-		return fmt.Errorf("get abspath of project root: %v", err)
+		return nil, fmt.Errorf("get abspath of project root: %v", err)
 	}
 
 	pkgs, err := packages.Load(&packages.Config{
@@ -35,10 +35,10 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		Dir: projectRoot,
 	}, "./...")
 	if err != nil {
-		return fmt.Errorf("load packages: %v", err)
+		return nil, fmt.Errorf("load packages: %v", err)
 	}
 
-	return (&exporter{
+	e := &exporter{
 		projectRoot:    projectRoot,
 		excludeContent: excludeContent,
 		w:              w,
@@ -52,7 +52,8 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		types:   make(map[string]*defInfo),
 		labels:  make(map[token.Pos]*defInfo),
 		refs:    make(map[string]*refResultInfo),
-	}).export(toolInfo)
+	}
+	return e.export(toolInfo)
 }
 
 // exporter keeps track of all information needed to generate a LSIF dump.
@@ -73,24 +74,32 @@ type exporter struct {
 	refs    map[string]*refResultInfo // Keys: definition range ID
 }
 
-func (e *exporter) export(info protocol.ToolInfo) error {
+// Stats contains statistics of data processed during export.
+type Stats struct {
+	NumPkgs     int
+	NumFiles    int
+	NumDefs     int
+	NumElements int
+}
+
+func (e *exporter) export(info protocol.ToolInfo) (*Stats, error) {
 	_, err := e.emitMetaData("file://"+e.projectRoot, info)
 	if err != nil {
-		return fmt.Errorf(`emit "metadata": %v`, err)
+		return nil, fmt.Errorf(`emit "metadata": %v`, err)
 	}
 	proID, err := e.emitProject()
 	if err != nil {
-		return fmt.Errorf(`emit "project": %v`, err)
+		return nil, fmt.Errorf(`emit "project": %v`, err)
 	}
 
 	_, err = e.emitBeginEvent("project", proID)
 	if err != nil {
-		return fmt.Errorf(`emit "begin": %v`, err)
+		return nil, fmt.Errorf(`emit "begin": %v`, err)
 	}
 
 	for _, p := range e.pkgs {
 		if err := e.exportPkg(p, proID); err != nil {
-			return fmt.Errorf("export package %q: %v", p.Name, err)
+			return nil, fmt.Errorf("export package %q: %v", p.Name, err)
 		}
 	}
 
@@ -98,23 +107,23 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		for _, rangeID := range f.defRangeIDs {
 			refResultID, err := e.emitReferenceResult()
 			if err != nil {
-				return fmt.Errorf(`emit "referenceResult": %v`, err)
+				return nil, fmt.Errorf(`emit "referenceResult": %v`, err)
 			}
 
 			_, err = e.emitTextDocumentReferences(e.refs[rangeID].resultSetID, refResultID)
 			if err != nil {
-				return fmt.Errorf(`emit "textDocument/references": %v`, err)
+				return nil, fmt.Errorf(`emit "textDocument/references": %v`, err)
 			}
 
 			_, err = e.emitItemOfDefinitions(refResultID, e.refs[rangeID].defRangeIDs, f.docID)
 			if err != nil {
-				return fmt.Errorf(`emit "item": %v`, err)
+				return nil, fmt.Errorf(`emit "item": %v`, err)
 			}
 
 			if len(e.refs[rangeID].refRangeIDs) > 0 {
 				_, err = e.emitItemOfReferences(refResultID, e.refs[rangeID].refRangeIDs, f.docID)
 				if err != nil {
-					return fmt.Errorf(`emit "item": %v`, err)
+					return nil, fmt.Errorf(`emit "item": %v`, err)
 				}
 			}
 		}
@@ -122,7 +131,7 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 		if len(f.defRangeIDs) > 0 || len(f.useRangeIDs) > 0 {
 			_, err = e.emitContains(f.docID, append(f.defRangeIDs, f.useRangeIDs...))
 			if err != nil {
-				return fmt.Errorf(`emit "contains": %v`, err)
+				return nil, fmt.Errorf(`emit "contains": %v`, err)
 			}
 		}
 	}
@@ -138,26 +147,30 @@ func (e *exporter) export(info protocol.ToolInfo) error {
 	for _, info := range e.files {
 		_, err = e.emitEndEvent("document", info.docID)
 		if err != nil {
-			return fmt.Errorf(`emit "end": %v`, err)
+			return nil, fmt.Errorf(`emit "end": %v`, err)
 		}
 	}
 
 	_, err = e.emitEndEvent("project", proID)
 	if err != nil {
-		return fmt.Errorf(`emit "end": %v`, err)
+		return nil, fmt.Errorf(`emit "end": %v`, err)
 	}
 
-	return nil
+	return &Stats{
+		NumPkgs:     len(e.pkgs),
+		NumFiles:    len(e.files),
+		NumDefs:     len(e.imports) + len(e.funcs) + len(e.consts) + len(e.vars) + len(e.types) + len(e.labels),
+		NumElements: e.id,
+	}, nil
 }
 
 func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
-	// TODO(jchen): support "-verbose" flag
-	log.Println("Package:", p.Name)
-	defer log.Println()
+	log.Infoln("Package:", p.Name)
+	defer log.Infoln()
 
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
-		log.Println("\tFile:", fpos.Filename)
+		log.Infoln("\tFile:", fpos.Filename)
 
 		fi, ok := e.files[fpos.Filename]
 		if !ok {
@@ -238,6 +251,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
+		// TODO(jchen): make the following block of code to function "findContents".
 		qf := func(*types.Package) string { return "" }
 		var s string
 		var extra string
@@ -279,12 +293,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 
 		switch v := obj.(type) {
 		case *types.Func:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Def:", ident.Name)
-			//fmt.Println("FullName:", v.FullName())
-			//fmt.Println("iPos:", ipos)
-			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[func] Def:", ident.Name)
+			log.Debugln("[func] FullName:", v.FullName())
+			log.Debugln("[func] iPos:", ipos)
 			e.funcs[v.FullName()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -292,10 +303,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.Const:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Def:", ident.Name)
-			//fmt.Println("iPos:", ipos)
+			log.Debugln("[const] Def:", ident.Name)
+			log.Debugln("[const] iPos:", ipos)
 			e.consts[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -303,10 +312,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.Var:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Def:", ident.Name)
-			//fmt.Println("iPos:", ipos)
+			log.Debugln("[var] Def:", ident.Name)
+			log.Debugln("[var] iPos:", ipos)
 			e.vars[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -314,10 +321,9 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.TypeName:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Println("Def:", ident.Name)
-			//fmt.Println("Type:", obj.Type())
-			//fmt.Println("Pos:", ipos)
+			log.Debugln("[typename] Def:", ident.Name)
+			log.Debugln("[typename] Type:", obj.Type())
+			log.Debugln("[typename] iPos:", ipos)
 			e.types[obj.Type().String()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -325,10 +331,8 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			}
 
 		case *types.Label:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Def:", ident.Name)
-			//fmt.Println("iPos:", ipos)
+			log.Debugln("[label] Def:", ident.Name)
+			log.Debugln("[label] iPos:", ipos)
 			e.labels[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
@@ -337,23 +341,18 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 
 		case *types.PkgName:
 			// TODO: support import paths are not renamed
+			log.Debugln("[pkgname] Use:", ident)
+			log.Debugln("[pkgname] iPos:", ipos)
 			e.imports[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
 				contents:    contents,
 			}
 
-		// TODO(jchen): case *types.Builtin:
-
-		// TODO(jchen): case *types.Nil:
-
 		default:
-			// TODO(jchen): remove this case-branch
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("(default)")
-			//fmt.Println("Def:", ident)
-			//fmt.Println("Pos:", ipos)
-			//spew.Dump(obj)
+			log.Debugf("[default] ---> %T\n", obj)
+			log.Debugln("[default] Def:", ident)
+			log.Debugln("[default] iPos:", ipos)
 			continue
 		}
 
@@ -387,64 +386,50 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 		var def *defInfo
 		switch v := obj.(type) {
 		case *types.Func:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Use:", ident.Name)
-			//fmt.Println("FullName:", v.FullName())
-			//fmt.Println("Pos:", ipos)
-			//fmt.Println("Scope.Parent.Pos:", p.Fset.Position(v.Scope().Parent().Pos()))
-			//fmt.Println("Scope.Pos:", p.Fset.Position(v.Scope().Pos()))
+			log.Debugln("[func] Use:", ident.Name)
+			log.Debugln("[func] FullName:", v.FullName())
+			log.Debugln("[func] iPos:", ipos)
 			def = e.funcs[v.FullName()]
 
 		case *types.Const:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Use:", ident)
-			//fmt.Println("iPos:", ipos)
-			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[const] Use:", ident)
+			log.Debugln("[const] iPos:", ipos)
+			log.Debugln("[const] vPos:", p.Fset.Position(v.Pos()))
 			def = e.consts[v.Pos()]
 
 		case *types.Var:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Use:", ident)
-			//fmt.Println("iPos:", ipos)
-			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[var] Use:", ident)
+			log.Debugln("[var] iPos:", ipos)
+			log.Debugln("[var] vPos:", p.Fset.Position(v.Pos()))
 			def = e.vars[v.Pos()]
 
-		case *types.PkgName:
-			def = e.imports[v.Pos()]
-
 		case *types.TypeName:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Use:", ident.Name)
-			//fmt.Println("Type:", obj.Type())
-			//fmt.Println("Pos:", ipos)
+			log.Debugln("[typename] Use:", ident.Name)
+			log.Debugln("[typename] Type:", obj.Type())
+			log.Debugln("[typename] iPos:", ipos)
 			def = e.types[obj.Type().String()]
 
 		case *types.Label:
-			// TODO(jchen): support "-verbose" flag
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("Use:", ident.Name)
-			//fmt.Println("iPos:", ipos)
-			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
+			log.Debugln("[label] Use:", ident.Name)
+			log.Debugln("[label] iPos:", ipos)
+			log.Debugln("[label] vPos:", p.Fset.Position(v.Pos()))
 			def = e.labels[v.Pos()]
 
-		// TODO(jchen): case *types.PkgName:
+		case *types.PkgName:
+			log.Debugln("[pkgname] Use:", ident)
+			log.Debugln("[pkgname] iPos:", ipos)
+			log.Debugln("[pkgname] vPos:", p.Fset.Position(v.Pos()))
+			def = e.imports[v.Pos()]
 
 		// TODO(jchen): case *types.Builtin:
 
 		// TODO(jchen): case *types.Nil:
 
 		default:
-			// TODO(jchen): remove this case-branch
-			//fmt.Printf("---> %T\n", obj)
-			//fmt.Println("(default)")
-			//fmt.Println("Use:", ident)
-			//fmt.Println("iPos:", ipos)
-			//fmt.Println("vPos:", p.Fset.Position(v.Pos()))
-			//spew.Dump(obj)
+			log.Debugln("[default] Use:", ident)
+			log.Debugln("[default] iPos:", ipos)
+			log.Debugln("[default] vPos:", p.Fset.Position(v.Pos()))
+			continue
 		}
 
 		if def == nil {

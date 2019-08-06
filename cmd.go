@@ -5,8 +5,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
+
+	"github.com/sourcegraph/lsif-go/log"
 )
 
 // command is a subcommand handler and its flag set.
@@ -47,6 +48,13 @@ func (c commander) run(flagSet *flag.FlagSet, cmdName, usageText string, args []
 	if flagSet.Arg(0) == "help" || flagSet.NArg() == 0 {
 		flagSet.Usage()
 		os.Exit(0)
+	}
+
+	if *verbose {
+		log.SetLevel(log.Info)
+	}
+	if *debug {
+		log.SetLevel(log.Debug)
 	}
 
 	// Configure default usage funcs for commands

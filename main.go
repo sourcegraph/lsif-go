@@ -3,7 +3,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 )
 
@@ -15,6 +14,8 @@ Usage:
 	lsif-go [options] command [command options]
 
 The options are:
+	debug           display debug information
+	verbose         display verbose information
 
 The commands are:
 
@@ -28,10 +29,11 @@ Use "lsif-go [command] -h" for more information about a command.
 // commands contains all registered subcommands.
 var commands commander
 
-func main() {
-	// Configure logging
-	log.SetFlags(0)
-	log.SetPrefix("")
+var (
+	debug   = flag.Bool("debug", false, `To display debug information.`)
+	verbose = flag.Bool("verbose", false, `To display verbose information.`)
+)
 
+func main() {
 	commands.run(flag.CommandLine, "lsif-go", usageText, os.Args[1:])
 }
