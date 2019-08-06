@@ -218,10 +218,14 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 // packages defs map to be exported within a unified process.
 func (e *exporter) addImports(p *packages.Package, f *ast.File, fi *fileInfo) error {
 	for _, ispec := range f.Imports {
+		// The path value comes from *ImportSpec has surrounding double quotes.
+		// We should preserve its original format in constructing related AST objects
+		// for any possible consumers. We use trimmed version here only when we need to
+		// (trimmed version as a map key or an argument).
 		ipath := strings.Trim(ispec.Path.Value, `"`)
 		var name string
 		if ispec.Name == nil {
-			name = ipath
+			name = ispec.Path.Value
 		} else {
 			name = ispec.Name.String()
 		}
