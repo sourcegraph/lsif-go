@@ -201,10 +201,11 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 		}
 	}
 
-	// NOTE: it is a consistent behavior that `go/packages` traverses packages in a depth-first
-	// post-order, so that a package is listed only after all its dependencies, as long as we
-	// pass the flag `packages.NeedDeps` in the load config. It guarantees all defs that would
-	// be referenced in this package are all in place.
+	// NOTE: As long as the flag `packages.NeedDeps` is passed to the load config,
+	// `go/packages` does a post-order traversal of packages. That means
+	// dependencies of a package are visited before the package itself, which
+	// guarantees all defs that would be referenced in this package have been
+	// added by the time this package is visited.
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
 		if err := e.exportUses(p, e.files[fpos.Filename], fpos.Filename); err != nil {
