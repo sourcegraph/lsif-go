@@ -201,9 +201,10 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 		}
 	}
 
-	// NOTE: since we currently only support package-level references, it is OK to export usages
-	// at the end of each package. When repository-level references are implemented, usages must
-	// be exported after all files are processed.
+	// NOTE: it is a consistent behavior that `go/packages` traverses packages in a depth-first
+	// post-order, so that a package is listed only after all its dependencies, as long as we
+	// pass the flag `packages.NeedDeps` in the load config. It guarantees all defs that would
+	// be referenced in this package are all in place.
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
 		if err := e.exportUses(p, e.files[fpos.Filename], fpos.Filename); err != nil {
