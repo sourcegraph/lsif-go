@@ -225,6 +225,12 @@ func (e *exporter) addImports(p *packages.Package, f *ast.File, fi *fileInfo) er
 		// for any possible consumers. We use trimmed version here only when we need to
 		// (trimmed version as a map key or an argument).
 		ipath := strings.Trim(ispec.Path.Value, `"`)
+		if p.Imports[ipath] == nil {
+			// There is no package information if the package cannot be located from the
+			// file system (i.e. missing files of a dependency).
+			continue
+		}
+
 		var name string
 		if ispec.Name == nil {
 			name = ispec.Path.Value
