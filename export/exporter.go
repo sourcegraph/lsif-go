@@ -290,11 +290,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
-		contents, err := findContents(f, obj)
-		if err != nil {
-			return fmt.Errorf("find contents: %v", err)
-		}
-
 		switch v := obj.(type) {
 		case *types.Func:
 			log.Debugln("[func] Def:", ident.Name)
@@ -303,7 +298,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			e.funcs[v.FullName()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
-				contents:    contents,
 			}
 
 		case *types.Const:
@@ -312,7 +306,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			e.consts[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
-				contents:    contents,
 			}
 
 		case *types.Var:
@@ -321,7 +314,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			e.vars[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
-				contents:    contents,
 			}
 
 		case *types.TypeName:
@@ -331,7 +323,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			e.types[obj.Type().String()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
-				contents:    contents,
 			}
 
 		case *types.Label:
@@ -340,7 +331,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			e.labels[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
-				contents:    contents,
 			}
 
 		case *types.PkgName:
@@ -349,7 +339,6 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			e.imports[ident.Pos()] = &defInfo{
 				rangeID:     rangeID,
 				resultSetID: refResult.resultSetID,
-				contents:    contents,
 			}
 
 		default:
@@ -357,6 +346,11 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			log.Debugln("[default] Def:", ident)
 			log.Debugln("[default] iPos:", ipos)
 			continue
+		}
+
+		contents, err := findContents(f, obj)
+		if err != nil {
+			return fmt.Errorf("find contents: %v", err)
 		}
 
 		hoverResultID, err := e.emitHoverResult(contents)
