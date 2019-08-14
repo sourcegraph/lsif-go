@@ -1,9 +1,5 @@
 package export
 
-import (
-	"github.com/sourcegraph/lsif-go/protocol"
-)
-
 // fileInfo contains LSIF information of a file.
 type fileInfo struct {
 	// The vertex ID of the document that represents the file.
@@ -22,8 +18,6 @@ type defInfo struct {
 	rangeID string
 	// The vertex ID of the resultSet that represents the definition.
 	resultSetID string
-	// The contents will be used as the hover information.
-	contents []protocol.MarkedString
 	// The lazily initialized definition result ID upon first use found.
 	defResultID string
 }
