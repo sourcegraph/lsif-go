@@ -290,55 +290,47 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
+		defInfo := &defInfo{
+			rangeID:     rangeID,
+			resultSetID: refResult.resultSetID,
+		}
+
 		switch v := obj.(type) {
 		case *types.Func:
 			log.Debugln("[func] Def:", ident.Name)
 			log.Debugln("[func] FullName:", v.FullName())
 			log.Debugln("[func] iPos:", ipos)
-			e.funcs[v.FullName()] = &defInfo{
-				rangeID:     rangeID,
-				resultSetID: refResult.resultSetID,
-			}
+			e.funcs[v.FullName()] = defInfo
 
 		case *types.Const:
 			log.Debugln("[const] Def:", ident.Name)
 			log.Debugln("[const] iPos:", ipos)
-			e.consts[ident.Pos()] = &defInfo{
-				rangeID:     rangeID,
-				resultSetID: refResult.resultSetID,
-			}
+			e.consts[ident.Pos()] = defInfo
 
 		case *types.Var:
 			log.Debugln("[var] Def:", ident.Name)
 			log.Debugln("[var] iPos:", ipos)
-			e.vars[ident.Pos()] = &defInfo{
-				rangeID:     rangeID,
-				resultSetID: refResult.resultSetID,
-			}
+			e.vars[ident.Pos()] = defInfo
 
 		case *types.TypeName:
 			log.Debugln("[typename] Def:", ident.Name)
 			log.Debugln("[typename] Type:", obj.Type())
 			log.Debugln("[typename] iPos:", ipos)
-			e.types[obj.Type().String()] = &defInfo{
-				rangeID:     rangeID,
-				resultSetID: refResult.resultSetID,
-			}
+			e.types[obj.Type().String()] = defInfo
 
 		case *types.Label:
 			log.Debugln("[label] Def:", ident.Name)
 			log.Debugln("[label] iPos:", ipos)
-			e.labels[ident.Pos()] = &defInfo{
-				rangeID:     rangeID,
-				resultSetID: refResult.resultSetID,
-			}
+			e.labels[ident.Pos()] = defInfo
 
 		case *types.PkgName:
 			log.Debugln("[pkgname] Def:", ident)
 			log.Debugln("[pkgname] iPos:", ipos)
-			e.imports[ident.Pos()] = &defInfo{
-				rangeID:     rangeID,
-				resultSetID: refResult.resultSetID,
+			e.imports[ident.Pos()] = defInfo
+
+			err := e.emitMoniker("import", refResult.resultSetID, ident.String())
+			if err != nil {
+				return fmt.Errorf(`emit moniker": %v`, err)
 			}
 
 		default:
@@ -346,6 +338,13 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			log.Debugln("[default] Def:", ident)
 			log.Debugln("[default] iPos:", ipos)
 			continue
+		}
+
+		if ident.IsExported() {
+			err := e.emitMoniker("export", refResult.resultSetID, fmt.Sprintf("%s.%s", p.String(), ident.String()))
+			if err != nil {
+				return fmt.Errorf(`emit moniker": %v`, err)
+			}
 		}
 
 		contents, err := findContents(f, obj)
@@ -590,4 +589,14 @@ func (e *exporter) emitItemOfDefinitions(outV string, inVs []string, docID strin
 func (e *exporter) emitItemOfReferences(outV string, inVs []string, docID string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItemOfReferences(id, outV, inVs, docID))
+}
+
+func (e *exporter) emitMoniker(kind, sourceID, identifier string) error {
+	monikerID := e.nextID()
+	err := e.emit(protocol.NewMoniker(monikerID, kind, "go", identifier))
+	if err != nil {
+		return err
+	}
+
+	return e.emit(protocol.NewMonikerEdge(e.nextID(), sourceID, monikerID))
 }

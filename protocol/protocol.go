@@ -357,6 +357,28 @@ func NewHoverResult(id string, contents []MarkedString) *HoverResult {
 	}
 }
 
+type Moniker struct {
+	Vertex
+	Kind       string `json:"kind"`
+	Scheme     string `json:"scheme"`
+	Identifier string `json:"identifier"`
+}
+
+func NewMoniker(id, kind, scheme, identifier string) *Moniker {
+	return &Moniker{
+		Vertex: Vertex{
+			Element: Element{
+				ID:   id,
+				Type: ElementVertex,
+			},
+			Label: VertexMoniker,
+		},
+		Kind:       kind,
+		Scheme:     scheme,
+		Identifier: identifier,
+	}
+}
+
 // Edge contains information of an edge in the graph.
 type Edge struct {
 	Element
@@ -544,4 +566,24 @@ func NewItemOfDefinitions(id, outV string, inVs []string, document string) *Item
 // informationand in "references" relationship.
 func NewItemOfReferences(id, outV string, inVs []string, document string) *Item {
 	return NewItemWithProperty(id, outV, inVs, document, "references")
+}
+
+type MonikerEdge struct {
+	Edge
+	OutV string `json:"outV"`
+	InV  string `json:"inV"`
+}
+
+func NewMonikerEdge(id, outV, inV string) *MonikerEdge {
+	return &MonikerEdge{
+		Edge: Edge{
+			Element: Element{
+				ID:   id,
+				Type: ElementEdge,
+			},
+			Label: EdgeMoniker,
+		},
+		OutV: outV,
+		InV:  inV,
+	}
 }
