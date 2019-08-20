@@ -47,7 +47,7 @@ func realMain() error {
 	}
 
 	if outFile == "" && !stdout {
-		return fmt.Errorf("either a output file using --out or --stdout must be specified")
+		return fmt.Errorf("either an output file using --out or --stdout must be specified")
 	}
 
 	if debug {

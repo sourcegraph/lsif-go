@@ -1,187 +1,79 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
+	"io"
 	"os"
-	"regexp"
-	"strings"
 
-	"github.com/google/uuid"
+	"github.com/alecthomas/kingpin"
+	"github.com/sourcegraph/lsif-go/gomod"
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
+const version = "0.4.1"
+const versionString = version + ", protocol version " + protocol.Version
+
 func main() {
-	if err := doMain(); err != nil {
-		panic(err.Error())
+	if err := realMain(); err != nil {
+		fmt.Fprint(os.Stderr, fmt.Sprintf("error: %v\n", err))
+		os.Exit(1)
 	}
 }
 
-func doMain() error {
-	packageName, packageVersion, err := readModFile("go.mod")
+func realMain() error {
+	var (
+		projectRoot string
+		inFile      string
+		stdin       bool
+		outFile     string
+		stdout      bool
+	)
+
+	app := kingpin.New("lsif-go", "lsif-go is an LSIF exporter for Go.").Version(versionString)
+	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
+	app.Flag("in", "Specifies the file that contains a LSIF dump.").StringVar(&inFile)
+	app.Flag("stdin", "Reads the dump from stdin.").Default("false").BoolVar(&stdin)
+	app.Flag("out", "The output file the converted dump is saved to.").StringVar(&outFile)
+	app.Flag("stdout", "Writes the dump to stdout.").Default("false").BoolVar(&stdout)
+
+	_, err := app.Parse(os.Args[1:])
 	if err != nil {
 		return err
 	}
 
-	dependencies, err := readSumFile("go.sum")
-	if err != nil {
-		return err
+	if inFile == "" && !stdin {
+		return fmt.Errorf("either an input file using --in or --stdin must be specified")
 	}
 
-	in, err := os.Open(os.Args[1])
-	if err != nil {
-		return fmt.Errorf("open dump file: %v", err)
+	if outFile == "" && !stdout {
+		return fmt.Errorf("either an output file using --out or --stdout must be specified")
 	}
-	defer in.Close()
 
-	out, err := os.Create("data.lsif")
-	if err != nil {
-		return fmt.Errorf("create dump file: %v", err)
-	}
-	defer out.Close()
-
-	encoder := json.NewEncoder(out)
-
-	lines := 0
-	maxToken := 1024 * 1024 * 1024
-	scanner := bufio.NewScanner(in)
-	scanner.Buffer(make([]byte, maxToken), maxToken)
-
-	for scanner.Scan() {
-		lines++
-		_, err := out.WriteString(scanner.Text() + "\n")
+	var in io.Reader
+	if stdin {
+		in = os.Stdin
+	} else {
+		file, err := os.Open(inFile)
 		if err != nil {
-			return fmt.Errorf("failed to write: %v", err)
+			return fmt.Errorf("open dump file: %v", err)
 		}
 
-		if err := handleLine(scanner.Text(), encoder, packageName, packageVersion, dependencies); err != nil {
-			return err
-		}
+		defer file.Close()
+		in = file
 	}
 
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	return out.Sync()
-}
-
-type moniker struct {
-	ID         string `json:"id"`
-	Type       string `json:"type"`
-	Label      string `json:"label"`
-	Kind       string `json:"kind"`
-	Scheme     string `json:"scheme"`
-	Identifier string `json:"identifier"`
-}
-
-var exportPackageID string
-
-func handleLine(line string, encoder *json.Encoder, packageName, packageVersion string, dependencies map[string]string) error {
-	moniker := &moniker{}
-	if err := json.Unmarshal([]byte(line), &moniker); err != nil {
-		return err
-	}
-
-	if moniker.Type != "vertex" || moniker.Label != "moniker" || moniker.Kind == "local" {
-		return nil
-	}
-
-	if moniker.Kind == "import" {
-		name := strings.Trim(moniker.Identifier, `"`)
-		version, ok := dependencies[name]
-		if ok {
-			id0 := uuid.New().String()
-			v1 := protocol.NewPackageInformation(id0, name, "gomod", version)
-			if err := encoder.Encode(v1); err != nil {
-				return err
-			}
-
-			if err := addMonikers("import", moniker.Identifier, moniker.ID, id0, encoder); err != nil {
-				return err
-			}
-		}
-	}
-
-	if moniker.Kind == "export" {
-		if exportPackageID == "" {
-			exportPackageID = uuid.New().String()
-			v1 := protocol.NewPackageInformation(exportPackageID, packageName, "gomod", packageVersion)
-			if err := encoder.Encode(v1); err != nil {
-				return err
-			}
+	var out io.Writer
+	if stdout {
+		out = os.Stdout
+	} else {
+		file, err := os.Create(outFile)
+		if err != nil {
+			return fmt.Errorf("create dump file: %v", err)
 		}
 
-		if err := addMonikers("export", moniker.Identifier, moniker.ID, exportPackageID, encoder); err != nil {
-			return err
-		}
+		defer file.Close()
+		out = file
 	}
 
-	return nil
-}
-
-func addMonikers(kind string, identifier string, sourceID, packageID string, encoder *json.Encoder) error {
-	id1 := uuid.New().String()
-	v2 := protocol.NewMoniker(id1, kind, "gomod", identifier)
-	if err := encoder.Encode(v2); err != nil {
-		return err
-	}
-
-	id2 := uuid.New().String()
-	e1 := protocol.NewPackageInformationEdge(id2, id1, packageID)
-	if err := encoder.Encode(e1); err != nil {
-		return err
-	}
-
-	id3 := uuid.New().String()
-	e2 := protocol.NewNextMonikerEdge(id3, sourceID, id1)
-	if err := encoder.Encode(e2); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-var (
-	// TODO - also get version
-	modPattern = regexp.MustCompile("^module (.*)$")
-
-	// TODO - read docs to get actual pattern
-	sumPattern = regexp.MustCompile("^([^ ]+) v([^/]+)/go.mod")
-)
-
-func readModFile(filepath string) (string, string, error) {
-	reader, err := os.Open(filepath)
-	if err != nil {
-		return "", "", fmt.Errorf("open dump file: %v", err)
-	}
-	defer reader.Close()
-
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		if matches := modPattern.FindStringSubmatch(scanner.Text()); len(matches) > 0 {
-			return matches[1], "0.1.0", nil
-		}
-	}
-
-	return "", "", nil
-}
-
-func readSumFile(filepath string) (map[string]string, error) {
-	reader, err := os.Open(filepath)
-	if err != nil {
-		return nil, fmt.Errorf("open dump file: %v", err)
-	}
-	defer reader.Close()
-
-	dependencies := map[string]string{}
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		if matches := sumPattern.FindStringSubmatch(scanner.Text()); len(matches) > 0 {
-			dependencies[matches[1]] = matches[2]
-		}
-	}
-
-	return dependencies, nil
+	return gomod.Decorate(in, out, projectRoot)
 }
