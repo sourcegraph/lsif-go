@@ -10,7 +10,7 @@ A first draft specification can be found [here](https://github.com/Microsoft/lan
 
 ## Quickstart
 
-1. Download and build this program via `go get github.com/sourcegraph/lsif-go`.
+1. Download and build this program via `go get github.com/sourcegraph/lsif-go/cmd/lsif-go`.
 2. The binary `lsif-go` should be installed into your `$GOPATH/bin` directory.
 3. Make sure you have added `$GOPATH/bin` to your `$PATH` envrionment variable.
 4. Go to a root directory of a Go project, then execute `lsif-go export`:
