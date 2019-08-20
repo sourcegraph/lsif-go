@@ -328,7 +328,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 			log.Debugln("[pkgname] iPos:", ipos)
 			e.imports[ident.Pos()] = defInfo
 
-			err := e.emitMoniker("import", refResult.resultSetID, ident.String())
+			err := e.emitMoniker("import", refResult.resultSetID, strings.Trim(ident.String(), `"`))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
