@@ -4,6 +4,8 @@ package main
 import (
 	"flag"
 	"os"
+
+	"github.com/alecthomas/kingpin"
 )
 
 const usageText = `lsif-go is an LSIF exporter for Go.
@@ -35,5 +37,8 @@ var (
 )
 
 func main() {
+	// TODO
+	_ = kingpin.Arg("foobar", "ok")
+
 	commands.run(flag.CommandLine, "lsif-go", usageText, os.Args[1:])
 }

@@ -15,4 +15,5 @@
 /.vscode
 /.idea
 /lsif-go
+/lsif-gomod
 /data.lsif
