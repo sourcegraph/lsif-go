@@ -461,11 +461,11 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 			}
 
 			def.defResultID = defResultID
-		}
 
-		_, err = e.emitItem(def.defResultID, []string{def.rangeID}, fi.docID)
-		if err != nil {
-			return fmt.Errorf(`emit "item": %v`, err)
+			_, err = e.emitItem(def.defResultID, []string{def.rangeID}, fi.docID)
+			if err != nil {
+				return fmt.Errorf(`emit "item": %v`, err)
+			}
 		}
 
 		refResult := e.refs[def.rangeID]
