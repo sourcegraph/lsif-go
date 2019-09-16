@@ -41,7 +41,7 @@ func (d *decorator) decorate(line string) error {
 		return fmt.Errorf("unmarshal line: %v", err)
 	}
 
-	if moniker.Type == "vertex" && moniker.Label == "moniker" {
+	if moniker.Type == protocol.ElementVertex && moniker.Label == protocol.VertexMoniker {
 		switch moniker.Kind {
 		case "import":
 			if err := d.addImportMoniker(moniker); err != nil {
