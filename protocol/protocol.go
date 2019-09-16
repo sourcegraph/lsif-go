@@ -395,7 +395,7 @@ type PackageInformation struct {
 	Version string `json:"version"`
 }
 
-// NewPackageInformation returns a new PackageInformation with the given ID< name, manager, and version.
+// NewPackageInformation returns a new PackageInformation with the given ID, name, manager, and version.
 func NewPackageInformation(id, name, manager, version string) *PackageInformation {
 	return &PackageInformation{
 		Vertex: Vertex{
