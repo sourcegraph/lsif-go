@@ -593,7 +593,7 @@ func (e *exporter) emitItemOfReferences(outV string, inVs []string, docID string
 
 func (e *exporter) emitMoniker(kind, sourceID, identifier string) error {
 	monikerID := e.nextID()
-	err := e.emit(protocol.NewMoniker(monikerID, kind, "go", identifier))
+	err := e.emit(protocol.NewMoniker(monikerID, kind, protocol.LanguageID, identifier))
 	if err != nil {
 		return err
 	}
