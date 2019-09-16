@@ -29,7 +29,7 @@ func realMain() error {
 		stdout      bool
 	)
 
-	app := kingpin.New("lsif-go", "lsif-gomod decorates lsif-go output with gomod monikers.").Version(versionString)
+	app := kingpin.New("lsif-gomod", "lsif-gomod decorates lsif-go output with gomod monikers.").Version(versionString)
 	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
 	app.Flag("in", "Specifies the file that contains a LSIF dump.").StringVar(&inFile)
 	app.Flag("stdin", "Reads the dump from stdin.").Default("false").BoolVar(&stdin)
