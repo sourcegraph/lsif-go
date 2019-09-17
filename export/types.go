@@ -15,7 +15,8 @@ type fileInfo struct {
 // defInfo contains LSIF information of a definition.
 type defInfo struct {
 	// The identifier of the containing document. This is necessary
-	// to track when emitting item edges sthat
+	// to track when emitting item edges as we need to store the
+	// document to which it belongs (not where it is referenced).
 	docID string
 	// The vertex ID of the range that represents the definition.
 	rangeID string
