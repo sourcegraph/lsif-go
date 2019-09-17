@@ -121,7 +121,7 @@ func (e *exporter) export(info protocol.ToolInfo) (*Stats, error) {
 				}
 			}
 
-			for docID, rangeIDs := range e.refs[rangeID].defRangeIDs {
+			for docID, rangeIDs := range e.refs[rangeID].refRangeIDs {
 				_, err = e.emitItemOfReferences(refResultID, rangeIDs, docID)
 				if err != nil {
 					return nil, fmt.Errorf(`emit "item": %v`, err)
