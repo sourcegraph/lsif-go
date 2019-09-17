@@ -1,3 +1,4 @@
+// The program lsif-gomod adds gomod moniker support to lsif-go output.
 package main
 
 import (
