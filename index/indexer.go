@@ -1,5 +1,5 @@
-// Package export is used to generate an LSIF dump for a workspace.
-package export
+// Package index is used to generate an LSIF dump for a workspace.
+package index
 
 import (
 	"encoding/json"
@@ -18,10 +18,10 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// Export generates an LSIF dump for a workspace by traversing through source files
+// Index generates an LSIF dump for a workspace by traversing through source files
 // and storing LSP responses to output source that implements io.Writer. It is
 // caller's responsibility to close the output source if applicable.
-func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) (*Stats, error) {
+func Index(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) (*Stats, error) {
 	projectRoot, err := filepath.Abs(workspace)
 	if err != nil {
 		return nil, fmt.Errorf("get abspath of project root: %v", err)
@@ -37,7 +37,7 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		return nil, fmt.Errorf("load packages: %v", err)
 	}
 
-	e := &exporter{
+	e := &indexer{
 		projectRoot:    projectRoot,
 		excludeContent: excludeContent,
 		w:              w,
@@ -52,11 +52,11 @@ func Export(workspace string, excludeContent bool, w io.Writer, toolInfo protoco
 		labels:  make(map[token.Pos]*defInfo),
 		refs:    make(map[string]*refResultInfo),
 	}
-	return e.export(toolInfo)
+	return e.index(toolInfo)
 }
 
-// exporter keeps track of all information needed to generate a LSIF dump.
-type exporter struct {
+// indexer keeps track of all information needed to generate a LSIF dump.
+type indexer struct {
 	projectRoot    string
 	excludeContent bool
 	w              io.Writer
@@ -73,7 +73,7 @@ type exporter struct {
 	refs    map[string]*refResultInfo // Keys: definition range ID
 }
 
-// Stats contains statistics of data processed during export.
+// Stats contains statistics of data processed during index.
 type Stats struct {
 	NumPkgs     int
 	NumFiles    int
@@ -81,7 +81,7 @@ type Stats struct {
 	NumElements int
 }
 
-func (e *exporter) export(info protocol.ToolInfo) (*Stats, error) {
+func (e *indexer) index(info protocol.ToolInfo) (*Stats, error) {
 	_, err := e.emitMetaData("file://"+e.projectRoot, info)
 	if err != nil {
 		return nil, fmt.Errorf(`emit "metadata": %v`, err)
@@ -97,8 +97,8 @@ func (e *exporter) export(info protocol.ToolInfo) (*Stats, error) {
 	}
 
 	for _, p := range e.pkgs {
-		if err := e.exportPkg(p, proID); err != nil {
-			return nil, fmt.Errorf("export package %q: %v", p.Name, err)
+		if err := e.indexPkg(p, proID); err != nil {
+			return nil, fmt.Errorf("index package %q: %v", p.Name, err)
 		}
 	}
 
@@ -165,7 +165,7 @@ func (e *exporter) export(info protocol.ToolInfo) (*Stats, error) {
 	}, nil
 }
 
-func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
+func (e *indexer) indexPkg(p *packages.Package, proID string) (err error) {
 	log.Infoln("Package:", p.Name)
 	defer log.Infoln()
 
@@ -195,11 +195,11 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 		}
 
 		if err = e.addImports(p, f, fi); err != nil {
-			return fmt.Errorf("error exporting imports of %q: %v", p.PkgPath, err)
+			return fmt.Errorf("error indexing imports of %q: %v", p.PkgPath, err)
 		}
 
-		if err = e.exportDefs(p, f, fi, proID, fpos.Filename); err != nil {
-			return fmt.Errorf("error exporting definitions of %q: %v", p.PkgPath, err)
+		if err = e.indexDefs(p, f, fi, proID, fpos.Filename); err != nil {
+			return fmt.Errorf("error indexing definitions of %q: %v", p.PkgPath, err)
 		}
 	}
 
@@ -210,8 +210,8 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 	// added by the time this package is visited.
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
-		if err := e.exportUses(p, e.files[fpos.Filename], fpos.Filename); err != nil {
-			return fmt.Errorf("error exporting uses of %q: %v", p.PkgPath, err)
+		if err := e.indexUses(p, e.files[fpos.Filename], fpos.Filename); err != nil {
+			return fmt.Errorf("error indexing uses of %q: %v", p.PkgPath, err)
 		}
 	}
 
@@ -219,8 +219,8 @@ func (e *exporter) exportPkg(p *packages.Package, proID string) (err error) {
 }
 
 // addImports constructs *ast.Ident and types.Object out of *ImportSpec and inserts them into
-// packages defs map to be exported within a unified process.
-func (e *exporter) addImports(p *packages.Package, f *ast.File, fi *fileInfo) error {
+// packages defs map to be indexed within a unified process.
+func (e *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) error {
 	for _, ispec := range f.Imports {
 		// The path value comes from *ImportSpec has surrounding double quotes.
 		// We should preserve its original format in constructing related AST objects
@@ -251,7 +251,7 @@ func (e *exporter) addImports(p *packages.Package, f *ast.File, fi *fileInfo) er
 	return nil
 }
 
-func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
+func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Defs {
 		// Object is nil when not denote an object
@@ -381,7 +381,7 @@ func (e *exporter) exportDefs(p *packages.Package, f *ast.File, fi *fileInfo, pr
 	return nil
 }
 
-func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string) error {
+func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file
@@ -492,41 +492,41 @@ func (e *exporter) exportUses(p *packages.Package, fi *fileInfo, filename string
 	return nil
 }
 
-func (e *exporter) writeNewLine() error {
+func (e *indexer) writeNewLine() error {
 	_, err := e.w.Write([]byte("\n"))
 	return err
 }
 
-func (e *exporter) nextID() string {
+func (e *indexer) nextID() string {
 	e.id++
 	return strconv.Itoa(e.id)
 }
 
-func (e *exporter) emit(v interface{}) error {
+func (e *indexer) emit(v interface{}) error {
 	return json.NewEncoder(e.w).Encode(v)
 }
 
-func (e *exporter) emitMetaData(root string, info protocol.ToolInfo) (string, error) {
+func (e *indexer) emitMetaData(root string, info protocol.ToolInfo) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewMetaData(id, root, info))
 }
 
-func (e *exporter) emitBeginEvent(scope string, data string) (string, error) {
+func (e *indexer) emitBeginEvent(scope string, data string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewEvent(id, "begin", scope, data))
 }
 
-func (e *exporter) emitEndEvent(scope string, data string) (string, error) {
+func (e *indexer) emitEndEvent(scope string, data string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewEvent(id, "end", scope, data))
 }
 
-func (e *exporter) emitProject() (string, error) {
+func (e *indexer) emitProject() (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewProject(id))
 }
 
-func (e *exporter) emitDocument(path string) (string, error) {
+func (e *indexer) emitDocument(path string) (string, error) {
 	var contents []byte
 	if !e.excludeContent {
 		var err error
@@ -540,72 +540,72 @@ func (e *exporter) emitDocument(path string) (string, error) {
 	return id, e.emit(protocol.NewDocument(id, "file://"+path, contents))
 }
 
-func (e *exporter) emitContains(outV string, inVs []string) (string, error) {
+func (e *indexer) emitContains(outV string, inVs []string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewContains(id, outV, inVs))
 }
 
-func (e *exporter) emitResultSet() (string, error) {
+func (e *indexer) emitResultSet() (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewResultSet(id))
 }
 
-func (e *exporter) emitRange(start, end protocol.Pos) (string, error) {
+func (e *indexer) emitRange(start, end protocol.Pos) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewRange(id, start, end))
 }
 
-func (e *exporter) emitNext(outV, inV string) (string, error) {
+func (e *indexer) emitNext(outV, inV string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewNext(id, outV, inV))
 }
 
-func (e *exporter) emitDefinitionResult() (string, error) {
+func (e *indexer) emitDefinitionResult() (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewDefinitionResult(id))
 }
 
-func (e *exporter) emitTextDocumentDefinition(outV, inV string) (string, error) {
+func (e *indexer) emitTextDocumentDefinition(outV, inV string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewTextDocumentDefinition(id, outV, inV))
 }
 
-func (e *exporter) emitHoverResult(contents []protocol.MarkedString) (string, error) {
+func (e *indexer) emitHoverResult(contents []protocol.MarkedString) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewHoverResult(id, contents))
 }
 
-func (e *exporter) emitTextDocumentHover(outV, inV string) (string, error) {
+func (e *indexer) emitTextDocumentHover(outV, inV string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewTextDocumentHover(id, outV, inV))
 }
 
-func (e *exporter) emitReferenceResult() (string, error) {
+func (e *indexer) emitReferenceResult() (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewReferenceResult(id))
 }
 
-func (e *exporter) emitTextDocumentReferences(outV, inV string) (string, error) {
+func (e *indexer) emitTextDocumentReferences(outV, inV string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewTextDocumentReferences(id, outV, inV))
 }
 
-func (e *exporter) emitItem(outV string, inVs []string, docID string) (string, error) {
+func (e *indexer) emitItem(outV string, inVs []string, docID string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItem(id, outV, inVs, docID))
 }
 
-func (e *exporter) emitItemOfDefinitions(outV string, inVs []string, docID string) (string, error) {
+func (e *indexer) emitItemOfDefinitions(outV string, inVs []string, docID string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItemOfDefinitions(id, outV, inVs, docID))
 }
 
-func (e *exporter) emitItemOfReferences(outV string, inVs []string, docID string) (string, error) {
+func (e *indexer) emitItemOfReferences(outV string, inVs []string, docID string) (string, error) {
 	id := e.nextID()
 	return id, e.emit(protocol.NewItemOfReferences(id, outV, inVs, docID))
 }
 
-func (e *exporter) emitMoniker(kind, sourceID, identifier string) error {
+func (e *indexer) emitMoniker(kind, sourceID, identifier string) error {
 	monikerID := e.nextID()
 	err := e.emit(protocol.NewMoniker(monikerID, kind, protocol.LanguageID, identifier))
 	if err != nil {

@@ -18,12 +18,12 @@ type decorator struct {
 }
 
 type moniker struct {
-	ID         string `json:"id"`
-	Type       string `json:"type"`
-	Label      string `json:"label"`
-	Kind       string `json:"kind"`
-	Scheme     string `json:"scheme"`
-	Identifier string `json:"identifier"`
+	ID         string               `json:"id"`
+	Type       protocol.ElementType `json:"type"`
+	Label      protocol.VertexLabel `json:"label"`
+	Kind       string               `json:"kind"`
+	Scheme     string               `json:"scheme"`
+	Identifier string               `json:"identifier"`
 }
 
 func newDecorator(out io.Writer, packageName, packageVersion string, dependencies map[string]string) *decorator {

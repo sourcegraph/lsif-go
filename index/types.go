@@ -1,4 +1,4 @@
-package export
+package index
 
 // fileInfo contains LSIF information of a file.
 type fileInfo struct {

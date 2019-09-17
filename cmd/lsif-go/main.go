@@ -1,4 +1,4 @@
-// The program lsif-go is an LSIF exporter for Go.
+// The program lsif-go is an LSIF indexer for Go.
 package main
 
 import (
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/sourcegraph/lsif-go/export"
+	"github.com/sourcegraph/lsif-go/index"
 	"github.com/sourcegraph/lsif-go/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 )
@@ -33,7 +33,7 @@ func realMain() error {
 		stdout      bool
 	)
 
-	app := kingpin.New("lsif-go", "lsif-go is an LSIF exporter for Go.").Version(versionString)
+	app := kingpin.New("lsif-go", "lsif-go is an LSIF indexer for Go.").Version(versionString)
 	app.Flag("debug", "Display debug information.").Default("false").BoolVar(&debug)
 	app.Flag("verbose", "Display verbose information.").Short('v').Default("false").BoolVar(&verbose)
 	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
@@ -77,7 +77,7 @@ func realMain() error {
 		out = file
 	}
 
-	s, err := export.Export(
+	s, err := index.Index(
 		projectRoot,
 		noContents,
 		out,
@@ -88,7 +88,7 @@ func realMain() error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("export: %v", err)
+		return fmt.Errorf("index: %v", err)
 	}
 
 	if !stdout {

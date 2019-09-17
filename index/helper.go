@@ -1,4 +1,4 @@
-package export
+package index
 
 import (
 	"bytes"
