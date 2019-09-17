@@ -114,13 +114,15 @@ func (e *indexer) index(info protocol.ToolInfo) (*Stats, error) {
 				return nil, fmt.Errorf(`emit "textDocument/references": %v`, err)
 			}
 
-			_, err = e.emitItemOfDefinitions(refResultID, e.refs[rangeID].defRangeIDs, f.docID)
-			if err != nil {
-				return nil, fmt.Errorf(`emit "item": %v`, err)
+			for docID, rangeIDs := range e.refs[rangeID].defRangeIDs {
+				_, err = e.emitItemOfDefinitions(refResultID, rangeIDs, docID)
+				if err != nil {
+					return nil, fmt.Errorf(`emit "item": %v`, err)
+				}
 			}
 
-			if len(e.refs[rangeID].refRangeIDs) > 0 {
-				_, err = e.emitItemOfReferences(refResultID, e.refs[rangeID].refRangeIDs, f.docID)
+			for docID, rangeIDs := range e.refs[rangeID].refRangeIDs {
+				_, err = e.emitItemOfReferences(refResultID, rangeIDs, docID)
 				if err != nil {
 					return nil, fmt.Errorf(`emit "item": %v`, err)
 				}
@@ -272,11 +274,19 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 
 		refResult, ok := e.refs[rangeID]
 		if !ok {
-			refResult = &refResultInfo{resultSetID: e.nextID()}
+			refResult = &refResultInfo{
+				resultSetID: e.nextID(),
+				defRangeIDs: map[string][]string{},
+				refRangeIDs: map[string][]string{},
+			}
+
 			e.refs[rangeID] = refResult
 		}
 
-		refResult.defRangeIDs = append(refResult.defRangeIDs, rangeID)
+		if _, ok := refResult.defRangeIDs[fi.docID]; !ok {
+			refResult.defRangeIDs[fi.docID] = []string{}
+		}
+		refResult.defRangeIDs[fi.docID] = append(refResult.defRangeIDs[fi.docID], rangeID)
 
 		if !ok {
 			err = e.emit(protocol.NewResultSet(refResult.resultSetID))
@@ -291,6 +301,7 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 		}
 
 		defInfo := &defInfo{
+			docID:       fi.docID,
 			rangeID:     rangeID,
 			resultSetID: refResult.resultSetID,
 		}
@@ -461,7 +472,7 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 
 			def.defResultID = defResultID
 
-			_, err = e.emitItem(def.defResultID, []string{def.rangeID}, fi.docID)
+			_, err = e.emitItem(def.defResultID, []string{def.rangeID}, def.docID)
 			if err != nil {
 				return fmt.Errorf(`emit "item": %v`, err)
 			}
@@ -469,7 +480,10 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 
 		refResult := e.refs[def.rangeID]
 		if refResult != nil {
-			refResult.refRangeIDs = append(refResult.refRangeIDs, rangeID)
+			if _, ok := refResult.refRangeIDs[fi.docID]; !ok {
+				refResult.refRangeIDs[fi.docID] = []string{}
+			}
+			refResult.refRangeIDs[fi.docID] = append(refResult.refRangeIDs[fi.docID], rangeID)
 		}
 	}
 
