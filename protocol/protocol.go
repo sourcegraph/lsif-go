@@ -357,6 +357,60 @@ func NewHoverResult(id string, contents []MarkedString) *HoverResult {
 	}
 }
 
+// Moniker describes a unique name for a result set or range.
+type Moniker struct {
+	Vertex
+	// The kind of moniker (e.g. local, export, import).
+	Kind string `json:"kind"`
+	// The kind of moniker, usually a language or package manager.
+	Scheme string `json:"scheme"`
+	// The unique moniker identifier.
+	Identifier string `json:"identifier"`
+}
+
+// NewMoniker returns a new Moniker wtih the given ID, kind, scheme, and identifier.
+func NewMoniker(id, kind, scheme, identifier string) *Moniker {
+	return &Moniker{
+		Vertex: Vertex{
+			Element: Element{
+				ID:   id,
+				Type: ElementVertex,
+			},
+			Label: VertexMoniker,
+		},
+		Kind:       kind,
+		Scheme:     scheme,
+		Identifier: identifier,
+	}
+}
+
+// PackageInformation describes a package for a moniker.
+type PackageInformation struct {
+	Vertex
+	// The name of the package.
+	Name string `json:"name"`
+	// The package manager.
+	Manager string `json:"manager"`
+	// The version of the package.
+	Version string `json:"version"`
+}
+
+// NewPackageInformation returns a new PackageInformation with the given ID, name, manager, and version.
+func NewPackageInformation(id, name, manager, version string) *PackageInformation {
+	return &PackageInformation{
+		Vertex: Vertex{
+			Element: Element{
+				ID:   id,
+				Type: ElementVertex,
+			},
+			Label: VertexPackageInformation,
+		},
+		Name:    name,
+		Manager: manager,
+		Version: version,
+	}
+}
+
 // Edge contains information of an edge in the graph.
 type Edge struct {
 	Element
@@ -544,4 +598,70 @@ func NewItemOfDefinitions(id, outV string, inVs []string, document string) *Item
 // informationand in "references" relationship.
 func NewItemOfReferences(id, outV string, inVs []string, document string) *Item {
 	return NewItemWithProperty(id, outV, inVs, document, "references")
+}
+
+// MonikerEdge connects a moniker to a range or result set.
+type MonikerEdge struct {
+	Edge
+	OutV string `json:"outV"`
+	InV  string `json:"inV"`
+}
+
+// NewMonikerEdge returns a new MonikerEdge with the given ID and vertices.
+func NewMonikerEdge(id, outV, inV string) *MonikerEdge {
+	return &MonikerEdge{
+		Edge: Edge{
+			Element: Element{
+				ID:   id,
+				Type: ElementEdge,
+			},
+			Label: EdgeMoniker,
+		},
+		OutV: outV,
+		InV:  inV,
+	}
+}
+
+// NextMonikerEdge connects a moniker to another moniker.
+type NextMonikerEdge struct {
+	Edge
+	OutV string `json:"outV"`
+	InV  string `json:"inV"`
+}
+
+// NewNextMonikerEdge returns a new NextMonikerEdge with the given ID and vertices.
+func NewNextMonikerEdge(id, outV, inV string) *NextMonikerEdge {
+	return &NextMonikerEdge{
+		Edge: Edge{
+			Element: Element{
+				ID:   id,
+				Type: ElementEdge,
+			},
+			Label: EdgeNextMoniker,
+		},
+		OutV: outV,
+		InV:  inV,
+	}
+}
+
+// PackageInformationEdge connects a moniker and a package information vertex.
+type PackageInformationEdge struct {
+	Edge
+	OutV string `json:"outV"`
+	InV  string `json:"inV"`
+}
+
+// NewPackageInformationEdge returns a new PackageInformationEdge with the given ID and vertices.
+func NewPackageInformationEdge(id, outV, inV string) *PackageInformationEdge {
+	return &PackageInformationEdge{
+		Edge: Edge{
+			Element: Element{
+				ID:   id,
+				Type: ElementEdge,
+			},
+			Label: EdgePackageInformation,
+		},
+		OutV: outV,
+		InV:  inV,
+	}
 }

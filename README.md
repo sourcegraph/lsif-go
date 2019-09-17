@@ -10,20 +10,20 @@ A first draft specification can be found [here](https://github.com/Microsoft/lan
 
 ## Quickstart
 
-1. Download and build this program via `go get github.com/sourcegraph/lsif-go`.
+1. Download and build this program via `go get github.com/sourcegraph/lsif-go/cmd/lsif-go`.
 2. The binary `lsif-go` should be installed into your `$GOPATH/bin` directory.
 3. Make sure you have added `$GOPATH/bin` to your `$PATH` envrionment variable.
-4. Go to a root directory of a Go project, then execute `lsif-go export`:
+4. Go to a root directory of a Go project, then execute `lsif-go`:
 
 ```
-➜ lsif-go export
+➜ lsif-go --out data.lsif
 4 package(s), 10 file(s), 597 def(s), 11521 element(s)
 Processed in 770.817859ms
 ```
 
-By default, the exporter dumps LSIF data to the file `data.lsif` in the working directory.
+By default, the indexer will read the current directory as the root of the project.
 
-Use `lsif-go -h` for more information
+Use `lsif-go --help` for more information
 
 ## Try it out!
 
