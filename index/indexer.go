@@ -27,6 +27,8 @@ func Index(workspace string, excludeContent bool, w io.Writer, toolInfo protocol
 		return nil, fmt.Errorf("get abspath of project root: %v", err)
 	}
 
+	fmt.Println("Loading packages...")
+
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedImports | packages.NeedDeps |
@@ -36,6 +38,8 @@ func Index(workspace string, excludeContent bool, w io.Writer, toolInfo protocol
 	if err != nil {
 		return nil, fmt.Errorf("load packages: %v", err)
 	}
+
+	fmt.Println("Indexing packages...")
 
 	e := &indexer{
 		projectRoot:    projectRoot,
