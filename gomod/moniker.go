@@ -13,7 +13,7 @@ import (
 type decorator struct {
 	encoder               *json.Encoder
 	packageName           string
-	packageVersion        string
+	moduleVersion         string
 	dependencies          map[string]string
 	packageInformationIDs map[string]string
 }
@@ -27,10 +27,10 @@ type moniker struct {
 	Identifier string               `json:"identifier"`
 }
 
-func newDecorator(out io.Writer, packageName, packageVersion string, dependencies map[string]string) *decorator {
+func newDecorator(out io.Writer, packageName, moduleVersion string, dependencies map[string]string) *decorator {
 	return &decorator{
 		packageName:           packageName,
-		packageVersion:        packageVersion,
+		moduleVersion:         moduleVersion,
 		dependencies:          dependencies,
 		packageInformationIDs: map[string]string{},
 		encoder:               json.NewEncoder(out),
@@ -79,7 +79,7 @@ func (d *decorator) addImportMoniker(moniker *moniker) error {
 }
 
 func (d *decorator) addExportMoniker(moniker *moniker) error {
-	packageInformationID, err := d.ensurePackageInformation(d.packageName, d.packageVersion)
+	packageInformationID, err := d.ensurePackageInformation(d.packageName, d.moduleVersion)
 	if err != nil {
 		return err
 	}
