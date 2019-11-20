@@ -356,7 +356,7 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 		}
 
 		if ident.IsExported() {
-			err := e.emitMoniker("export", refResult.resultSetID, fmt.Sprintf("%s.%s", p.String(), ident.String()))
+			err := e.emitMoniker("export", refResult.resultSetID, fmt.Sprintf("%s:%s", p.String(), ident.String()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -443,7 +443,10 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			continue
 		}
 
-		if def == nil {
+		pkg := obj.Pkg()
+		if def == nil && pkg == nil {
+			// No range to emit because have neither a definition nor a moniker to
+			// attach to the range.
 			continue
 		}
 
@@ -452,6 +455,17 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			return fmt.Errorf(`emit "range": %v`, err)
 		}
 		rangeIDs = append(rangeIDs, rangeID)
+
+		if def == nil {
+			// If we don't have a definition in this package, emit an import moniker
+			// so that we can correlate it with another dump's LSIF data.
+			err = e.emitMoniker("import", rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
+			if err != nil {
+				return fmt.Errorf(`emit moniker": %v`, err)
+			}
+
+			continue
+		}
 
 		_, err = e.emitNext(rangeID, def.resultSetID)
 		if err != nil {
