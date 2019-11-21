@@ -55,7 +55,7 @@ func realMain() error {
 	if moduleVersion == "" {
 		// For future reference, see
 		// https://github.com/golang/vgo/blob/9d567625acf4c5e156b9890bf6feb16eb9fa5c51/vendor/cmd/go/internal/modfetch/coderepo.go#L88
-		return fmt.Errorf("module version cannot be inferred")
+		return fmt.Errorf("module version cannot be inferred so set it explicitly with -moduleVersion=...")
 	}
 
 	var in io.Reader
