@@ -465,9 +465,10 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
 
-			// UHHHHHHHHHHHHH
-			// TODO - explain
-			// UHHHHHHHHHHHHH
+			// Emit a reference result edge and create a small set of edges that link
+			// the reference result to the range (and vice versa). This is necessary to
+			// mark this range as a reference to _something_, even though the definition
+			// does not exist in this source code.
 
 			refResultID, err := e.emitReferenceResult()
 			if err != nil {
