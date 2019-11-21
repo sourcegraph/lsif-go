@@ -464,6 +464,25 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
 
+			// UHHHHHHHHHHHHH
+			// TODO - explain
+			// UHHHHHHHHHHHHH
+
+			refResultID, err := e.emitReferenceResult()
+			if err != nil {
+				return fmt.Errorf(`emit "referenceResult": %v`, err)
+			}
+
+			_, err = e.emitTextDocumentReferences(rangeID, refResultID)
+			if err != nil {
+				return fmt.Errorf(`emit "textDocument/references": %v`, err)
+			}
+
+			_, err = e.emitItemOfReferences(refResultID, []string{rangeID}, fi.docID)
+			if err != nil {
+				return fmt.Errorf(`emit "item": %v`, err)
+			}
+
 			continue
 		}
 
