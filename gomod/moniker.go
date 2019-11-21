@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
 type decorator struct {
-	encoder              *json.Encoder
-	packageName          string
-	packageVersion       string
-	dependencies         map[string]string
-	packageInformationID string
+	encoder               *json.Encoder
+	packageName           string
+	moduleVersion         string
+	dependencies          map[string]string
+	packageInformationIDs map[string]string
 }
 
 type moniker struct {
@@ -26,12 +27,13 @@ type moniker struct {
 	Identifier string               `json:"identifier"`
 }
 
-func newDecorator(out io.Writer, packageName, packageVersion string, dependencies map[string]string) *decorator {
+func newDecorator(out io.Writer, packageName, moduleVersion string, dependencies map[string]string) *decorator {
 	return &decorator{
-		packageName:    packageName,
-		packageVersion: packageVersion,
-		dependencies:   dependencies,
-		encoder:        json.NewEncoder(out),
+		packageName:           packageName,
+		moduleVersion:         moduleVersion,
+		dependencies:          dependencies,
+		packageInformationIDs: map[string]string{},
+		encoder:               json.NewEncoder(out),
 	}
 }
 
@@ -59,32 +61,45 @@ func (d *decorator) decorate(line string) error {
 }
 
 func (d *decorator) addImportMoniker(moniker *moniker) error {
-	version, ok := d.dependencies[moniker.Identifier]
-	if !ok {
-		return nil
+	for _, packageName := range packagePrefixes(strings.Split(moniker.Identifier, ":")[0]) {
+		packageVersion, ok := d.dependencies[packageName]
+		if !ok {
+			continue
+		}
+
+		packageInformationID, err := d.ensurePackageInformation(packageName, packageVersion)
+		if err != nil {
+			return err
+		}
+
+		return d.addMonikers("import", moniker.Identifier, moniker.ID, packageInformationID)
 	}
 
-	packageInformationID := uuid.New().String()
-	vertex := protocol.NewPackageInformation(packageInformationID, moniker.Identifier, "gomod", version)
-	if err := d.encoder.Encode(vertex); err != nil {
-		return err
-	}
-
-	return d.addMonikers("import", moniker.Identifier, moniker.ID, packageInformationID)
+	return nil
 }
 
 func (d *decorator) addExportMoniker(moniker *moniker) error {
-	// If we haven't exported our own package information, do so now.
-	// If the vertex is needed again later, we can use the same identifier.
-	if d.packageInformationID == "" {
-		d.packageInformationID = uuid.New().String()
-		vertex := protocol.NewPackageInformation(d.packageInformationID, d.packageName, "gomod", d.packageVersion)
-		if err := d.encoder.Encode(vertex); err != nil {
-			return err
-		}
+	packageInformationID, err := d.ensurePackageInformation(d.packageName, d.moduleVersion)
+	if err != nil {
+		return err
 	}
 
-	return d.addMonikers("export", moniker.Identifier, moniker.ID, d.packageInformationID)
+	return d.addMonikers("export", moniker.Identifier, moniker.ID, packageInformationID)
+}
+
+func (d *decorator) ensurePackageInformation(packageName, version string) (string, error) {
+	packageInformationID, ok := d.packageInformationIDs[packageName]
+	if !ok {
+		packageInformationID = uuid.New().String()
+		vertex := protocol.NewPackageInformation(packageInformationID, packageName, "gomod", version)
+		if err := d.encoder.Encode(vertex); err != nil {
+			return "", err
+		}
+
+		d.packageInformationIDs[packageName] = packageInformationID
+	}
+
+	return packageInformationID, nil
 }
 
 // addMonikers outputs a "gomod" moniker vertex, attaches the given package vertex
@@ -107,4 +122,15 @@ func (d *decorator) addMonikers(kind string, identifier string, sourceID, packag
 	}
 
 	return nil
+}
+
+func packagePrefixes(packageName string) []string {
+	parts := strings.Split(packageName, "/")
+	prefixes := make([]string, len(parts))
+
+	for i := 1; i <= len(parts); i++ {
+		prefixes[len(parts)-i] = strings.Join(parts[:i], "/")
+	}
+
+	return prefixes
 }

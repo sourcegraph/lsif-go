@@ -23,15 +23,17 @@ func main() {
 
 func realMain() error {
 	var (
-		projectRoot string
-		inFile      string
-		stdin       bool
-		outFile     string
-		stdout      bool
+		projectRoot   string
+		moduleVersion string
+		inFile        string
+		stdin         bool
+		outFile       string
+		stdout        bool
 	)
 
 	app := kingpin.New("lsif-gomod", "lsif-gomod decorates lsif-go output with gomod monikers.").Version(versionString)
 	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
+	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").StringVar(&moduleVersion)
 	app.Flag("in", "Specifies the file that contains a LSIF dump.").StringVar(&inFile)
 	app.Flag("stdin", "Reads the dump from stdin.").Default("false").BoolVar(&stdin)
 	app.Flag("out", "The output file the converted dump is saved to.").StringVar(&outFile)
@@ -48,6 +50,12 @@ func realMain() error {
 
 	if outFile == "" && !stdout {
 		return fmt.Errorf("either an output file using --out or --stdout must be specified")
+	}
+
+	if moduleVersion == "" {
+		// For future reference, see
+		// https://github.com/golang/vgo/blob/9d567625acf4c5e156b9890bf6feb16eb9fa5c51/vendor/cmd/go/internal/modfetch/coderepo.go#L88
+		return fmt.Errorf("module version cannot be inferred so set it explicitly with -moduleVersion=...")
 	}
 
 	var in io.Reader
@@ -76,5 +84,5 @@ func realMain() error {
 		out = file
 	}
 
-	return gomod.Decorate(in, out, projectRoot)
+	return gomod.Decorate(in, out, projectRoot, moduleVersion)
 }

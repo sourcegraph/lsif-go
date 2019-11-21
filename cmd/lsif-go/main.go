@@ -50,12 +50,12 @@ func realMain() error {
 		return fmt.Errorf("either an output file using --out or --stdout must be specified")
 	}
 
-	if debug {
-		log.SetLevel(log.Debug)
-	}
-
 	if verbose {
 		log.SetLevel(log.Info)
+	}
+
+	if debug {
+		log.SetLevel(log.Debug)
 	}
 
 	if stdout && (verbose || debug) {
