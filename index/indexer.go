@@ -33,7 +33,8 @@ func Index(workspace string, excludeContent bool, w io.Writer, toolInfo protocol
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedImports | packages.NeedDeps |
 			packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
-		Dir: projectRoot,
+		Dir:   projectRoot,
+		Tests: true,
 	}, "./...")
 	if err != nil {
 		return nil, fmt.Errorf("load packages: %v", err)
