@@ -33,7 +33,8 @@ func Index(workspace string, excludeContent bool, w io.Writer, toolInfo protocol
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedImports | packages.NeedDeps |
 			packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
-		Dir: projectRoot,
+		Dir:   projectRoot,
+		Tests: true,
 	}, "./...")
 	if err != nil {
 		return nil, fmt.Errorf("load packages: %v", err)
@@ -462,6 +463,26 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			err = e.emitMoniker("import", rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
+			}
+
+			// Emit a reference result edge and create a small set of edges that link
+			// the reference result to the range (and vice versa). This is necessary to
+			// mark this range as a reference to _something_, even though the definition
+			// does not exist in this source code.
+
+			refResultID, err := e.emitReferenceResult()
+			if err != nil {
+				return fmt.Errorf(`emit "referenceResult": %v`, err)
+			}
+
+			_, err = e.emitTextDocumentReferences(rangeID, refResultID)
+			if err != nil {
+				return fmt.Errorf(`emit "textDocument/references": %v`, err)
+			}
+
+			_, err = e.emitItemOfReferences(refResultID, []string{rangeID}, fi.docID)
+			if err != nil {
+				return fmt.Errorf(`emit "item": %v`, err)
 			}
 
 			continue
