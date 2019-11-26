@@ -39,7 +39,7 @@ func InferModuleVersion(projectRoot string) (string, error) {
 		mostRecentTag = "v0.0.0"
 	}
 
-	//f Step 3: Determine the current commit and suffix it with the most
+	// Step 3: Determine the current commit and suffix it with the most
 	// recent tag.
 	commit, err := run(projectRoot, "git", "rev-parse", "HEAD")
 	if err != nil {
