@@ -15,19 +15,14 @@ const MaxToken = 1024 * 1024 * 1024
 // moniker for which there is information in the project's go.mod/go.sum will
 // be decorated.
 func Decorate(in io.Reader, out io.Writer, projectRoot, moduleVersion string) error {
-	packageName, err := readModFile(projectRoot)
-	if err != nil {
-		return err
-	}
-
-	dependencies, err := readSumFile(projectRoot)
+	moduleName, dependencies, err := listModules(projectRoot)
 	if err != nil {
 		return err
 	}
 
 	scanner := bufio.NewScanner(in)
 	scanner.Buffer(make([]byte, MaxToken), MaxToken)
-	decorator := newDecorator(out, packageName, moduleVersion, dependencies)
+	decorator := newDecorator(out, moduleName, moduleVersion, dependencies)
 
 	for scanner.Scan() {
 		// Always write original line

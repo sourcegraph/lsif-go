@@ -12,7 +12,7 @@ import (
 
 type decorator struct {
 	encoder               *json.Encoder
-	packageName           string
+	moduleName            string
 	moduleVersion         string
 	dependencies          map[string]string
 	packageInformationIDs map[string]string
@@ -27,9 +27,9 @@ type moniker struct {
 	Identifier string               `json:"identifier"`
 }
 
-func newDecorator(out io.Writer, packageName, moduleVersion string, dependencies map[string]string) *decorator {
+func newDecorator(out io.Writer, moduleName, moduleVersion string, dependencies map[string]string) *decorator {
 	return &decorator{
-		packageName:           packageName,
+		moduleName:            moduleName,
 		moduleVersion:         moduleVersion,
 		dependencies:          dependencies,
 		packageInformationIDs: map[string]string{},
@@ -61,13 +61,13 @@ func (d *decorator) decorate(line string) error {
 }
 
 func (d *decorator) addImportMoniker(moniker *moniker) error {
-	for _, packageName := range packagePrefixes(strings.Split(moniker.Identifier, ":")[0]) {
-		packageVersion, ok := d.dependencies[packageName]
+	for _, moduleName := range packagePrefixes(strings.Split(moniker.Identifier, ":")[0]) {
+		moduleVersion, ok := d.dependencies[moduleName]
 		if !ok {
 			continue
 		}
 
-		packageInformationID, err := d.ensurePackageInformation(packageName, packageVersion)
+		packageInformationID, err := d.ensurePackageInformation(moduleName, moduleVersion)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func (d *decorator) addImportMoniker(moniker *moniker) error {
 }
 
 func (d *decorator) addExportMoniker(moniker *moniker) error {
-	packageInformationID, err := d.ensurePackageInformation(d.packageName, d.moduleVersion)
+	packageInformationID, err := d.ensurePackageInformation(d.moduleName, d.moduleVersion)
 	if err != nil {
 		return err
 	}
