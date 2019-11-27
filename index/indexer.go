@@ -720,6 +720,11 @@ func (e *indexer) addMonikers(kind string, identifier string, sourceID, packageI
 	return nil
 }
 
+// packagePrefixes returns all prefixes of the go package path.
+// For example, the package `foo/bar/baz` will return
+//   - `foo/bar/baz`
+//   - `foo/bar`
+//   - `foo`
 func packagePrefixes(packageName string) []string {
 	parts := strings.Split(packageName, "/")
 	prefixes := make([]string, len(parts))
