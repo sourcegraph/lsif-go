@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/sourcegraph/lsif-go/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
@@ -57,6 +56,12 @@ func Index(workspace string, excludeContent bool, w io.Writer, moduleName, modul
 		types:   make(map[string]*defInfo),
 		labels:  make(map[token.Pos]*defInfo),
 		refs:    make(map[string]*refResultInfo),
+
+		// Monikers
+		moduleName:            moduleName,
+		moduleVersion:         moduleVersion,
+		dependencies:          dependencies,
+		packageInformationIDs: map[string]string{},
 	}
 	return e.index(toolInfo)
 }
@@ -663,7 +668,7 @@ func (e *indexer) emitImportMoniker(sourceID, identifier string) error {
 			return err
 		}
 
-		return e.addMonikers("import", e.nextID(), sourceID, packageInformationID)
+		return e.addMonikers("import", identifier, sourceID, packageInformationID)
 	}
 
 	return nil
@@ -675,13 +680,13 @@ func (e *indexer) emitExportMoniker(sourceID, identifier string) error {
 		return err
 	}
 
-	return e.addMonikers("export", e.nextID(), sourceID, packageInformationID)
+	return e.addMonikers("export", identifier, sourceID, packageInformationID)
 }
 
 func (e *indexer) ensurePackageInformation(packageName, version string) (string, error) {
 	packageInformationID, ok := e.packageInformationIDs[packageName]
 	if !ok {
-		packageInformationID = uuid.New().String()
+		packageInformationID = e.nextID()
 		err := e.emit(protocol.NewPackageInformation(packageInformationID, packageName, "gomod", version))
 		if err != nil {
 			return "", err
@@ -696,18 +701,18 @@ func (e *indexer) ensurePackageInformation(packageName, version string) (string,
 // addMonikers outputs a "gomod" moniker vertex, attaches the given package vertex
 // identifier to it, and attaches the new moniker to the source moniker vertex.
 func (e *indexer) addMonikers(kind string, identifier string, sourceID, packageID string) error {
-	monikerID := uuid.New().String()
+	monikerID := e.nextID()
 	err := e.emit(protocol.NewMoniker(monikerID, kind, "gomod", identifier))
 	if err != nil {
 		return err
 	}
 
-	err = e.emit(protocol.NewPackageInformationEdge(uuid.New().String(), monikerID, packageID))
+	err = e.emit(protocol.NewPackageInformationEdge(e.nextID(), monikerID, packageID))
 	if err != nil {
 		return err
 	}
 
-	err = e.emit(protocol.NewNextMonikerEdge(uuid.New().String(), sourceID, monikerID))
+	err = e.emit(protocol.NewMonikerEdge(e.nextID(), sourceID, monikerID))
 	if err != nil {
 		return err
 	}
