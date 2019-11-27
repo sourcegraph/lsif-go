@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/sourcegraph/lsif-go/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
@@ -21,7 +22,7 @@ import (
 // Index generates an LSIF dump for a workspace by traversing through source files
 // and storing LSP responses to output source that implements io.Writer. It is
 // caller's responsibility to close the output source if applicable.
-func Index(workspace string, excludeContent bool, w io.Writer, toolInfo protocol.ToolInfo) (*Stats, error) {
+func Index(workspace string, excludeContent bool, w io.Writer, moduleName, moduleVersion string, dependencies map[string]string, toolInfo protocol.ToolInfo) (*Stats, error) {
 	projectRoot, err := filepath.Abs(workspace)
 	if err != nil {
 		return nil, fmt.Errorf("get abspath of project root: %v", err)
@@ -76,6 +77,12 @@ type indexer struct {
 	types   map[string]*defInfo       // Keys: type name
 	labels  map[token.Pos]*defInfo    // Keys: definition position
 	refs    map[string]*refResultInfo // Keys: definition range ID
+
+	// Monikers
+	moduleName            string
+	moduleVersion         string
+	dependencies          map[string]string
+	packageInformationIDs map[string]string
 }
 
 // Stats contains statistics of data processed during index.
@@ -344,7 +351,7 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 			log.Debugln("[pkgname] iPos:", ipos)
 			e.imports[ident.Pos()] = defInfo
 
-			err := e.emitMoniker("import", refResult.resultSetID, strings.Trim(ident.String(), `"`))
+			err := e.emitImportMoniker(refResult.resultSetID, strings.Trim(ident.String(), `"`))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -357,7 +364,7 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 		}
 
 		if ident.IsExported() {
-			err := e.emitMoniker("export", refResult.resultSetID, fmt.Sprintf("%s:%s", p.String(), ident.String()))
+			err := e.emitExportMoniker(refResult.resultSetID, fmt.Sprintf("%s:%s", p.String(), ident.String()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -460,7 +467,7 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 		if def == nil {
 			// If we don't have a definition in this package, emit an import moniker
 			// so that we can correlate it with another dump's LSIF data.
-			err = e.emitMoniker("import", rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
+			err = e.emitImportMoniker(rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -644,12 +651,77 @@ func (e *indexer) emitItemOfReferences(outV string, inVs []string, docID string)
 	return id, e.emit(protocol.NewItemOfReferences(id, outV, inVs, docID))
 }
 
-func (e *indexer) emitMoniker(kind, sourceID, identifier string) error {
-	monikerID := e.nextID()
-	err := e.emit(protocol.NewMoniker(monikerID, kind, protocol.LanguageID, identifier))
+func (e *indexer) emitImportMoniker(sourceID, identifier string) error {
+	for _, moduleName := range packagePrefixes(strings.Split(identifier, ":")[0]) {
+		moduleVersion, ok := e.dependencies[moduleName]
+		if !ok {
+			continue
+		}
+
+		packageInformationID, err := e.ensurePackageInformation(moduleName, moduleVersion)
+		if err != nil {
+			return err
+		}
+
+		return e.addMonikers("import", e.nextID(), sourceID, packageInformationID)
+	}
+
+	return nil
+}
+
+func (e *indexer) emitExportMoniker(sourceID, identifier string) error {
+	packageInformationID, err := e.ensurePackageInformation(e.moduleName, e.moduleVersion)
 	if err != nil {
 		return err
 	}
 
-	return e.emit(protocol.NewMonikerEdge(e.nextID(), sourceID, monikerID))
+	return e.addMonikers("export", e.nextID(), sourceID, packageInformationID)
+}
+
+func (e *indexer) ensurePackageInformation(packageName, version string) (string, error) {
+	packageInformationID, ok := e.packageInformationIDs[packageName]
+	if !ok {
+		packageInformationID = uuid.New().String()
+		err := e.emit(protocol.NewPackageInformation(packageInformationID, packageName, "gomod", version))
+		if err != nil {
+			return "", err
+		}
+
+		e.packageInformationIDs[packageName] = packageInformationID
+	}
+
+	return packageInformationID, nil
+}
+
+// addMonikers outputs a "gomod" moniker vertex, attaches the given package vertex
+// identifier to it, and attaches the new moniker to the source moniker vertex.
+func (e *indexer) addMonikers(kind string, identifier string, sourceID, packageID string) error {
+	monikerID := uuid.New().String()
+	err := e.emit(protocol.NewMoniker(monikerID, kind, "gomod", identifier))
+	if err != nil {
+		return err
+	}
+
+	err = e.emit(protocol.NewPackageInformationEdge(uuid.New().String(), monikerID, packageID))
+	if err != nil {
+		return err
+	}
+
+	err = e.emit(protocol.NewNextMonikerEdge(uuid.New().String(), sourceID, monikerID))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func packagePrefixes(packageName string) []string {
+	parts := strings.Split(packageName, "/")
+	prefixes := make([]string, len(parts))
+
+	for i := 1; i <= len(parts); i++ {
+		prefixes[len(parts)-i] = strings.Join(parts[:i], "/")
+	}
+
+	return prefixes
 }

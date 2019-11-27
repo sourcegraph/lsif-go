@@ -48,9 +48,9 @@ func InferModuleVersion(projectRoot string) (string, error) {
 	return fmt.Sprintf("%s-%s", mostRecentTag, commit[:12]), nil
 }
 
-// listModules returns the module name provided by the project root as well
+// ListModules returns the module name provided by the project root as well
 // as a map from names to versions of each module the project depends on.
-func listModules(projectRoot string) (string, map[string]string, error) {
+func ListModules(projectRoot string) (string, map[string]string, error) {
 	out, err := run(projectRoot, "go", "list", "-m", "all")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to list modules: %v", err)
