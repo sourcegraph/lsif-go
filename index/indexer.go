@@ -364,7 +364,7 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 		}
 
 		if ident.IsExported() {
-			err := e.emitExportMoniker(refResult.resultSetID, fmt.Sprintf("%s:%s", p.String(), ident.String()))
+			err := e.emitExportMoniker(refResult.resultSetID, fmt.Sprintf("%s:%s", p.PkgPath, ident.String()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
