@@ -15,9 +15,11 @@ go get github.com/sourcegraph/lsif-go/cmd/lsif-go
 ## Indexing your repository
 
 ```
-$ lsif-go --projectRoot . --out dump.lsif
-4 package(s), 10 file(s), 597 def(s), 11521 element(s)
-Processed in 770.817859ms
+$ lsif-go
+...........
+
+5 package(s), 8 file(s), 689 def(s), 13681 element(s)
+Processed in 1.002227943s
 ```
 
 By default, the indexer will read the current directory as the root of the project.

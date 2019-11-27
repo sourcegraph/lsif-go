@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -22,7 +23,7 @@ import (
 // Index generates an LSIF dump for a workspace by traversing through source files
 // and storing LSP responses to output source that implements io.Writer. It is
 // caller's responsibility to close the output source if applicable.
-func Index(workspace string, excludeContent bool, w io.Writer, moduleName, moduleVersion string, dependencies map[string]string, toolInfo protocol.ToolInfo) (*Stats, error) {
+func Index(workspace string, excludeContent bool, w io.Writer, moduleName, moduleVersion string, dependencies map[string]string, toolInfo protocol.ToolInfo, printProgressDots bool) (*Stats, error) {
 	projectRoot, err := filepath.Abs(workspace)
 	if err != nil {
 		return nil, fmt.Errorf("get abspath of project root: %v", err)
@@ -36,6 +37,14 @@ func Index(workspace string, excludeContent bool, w io.Writer, moduleName, modul
 			packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
 		Dir:   projectRoot,
 		Tests: true,
+		Logf: func(format string, args ...interface{}) {
+			// Print progress while the packages are loading
+			// We don't need to log this information, though
+			// (it's incredibly verbose)
+			if printProgressDots {
+				fmt.Fprintf(os.Stdout, ".")
+			}
+		},
 	}, "./...")
 	if err != nil {
 		return nil, fmt.Errorf("load packages: %v", err)
@@ -44,9 +53,10 @@ func Index(workspace string, excludeContent bool, w io.Writer, moduleName, modul
 	log.Infoln("Indexing packages...")
 
 	e := &indexer{
-		projectRoot:    projectRoot,
-		excludeContent: excludeContent,
-		w:              w,
+		projectRoot:       projectRoot,
+		excludeContent:    excludeContent,
+		printProgressDots: printProgressDots,
+		w:                 w,
 
 		pkgs:    pkgs,
 		files:   make(map[string]*fileInfo),
@@ -57,15 +67,22 @@ func Index(workspace string, excludeContent bool, w io.Writer, moduleName, modul
 		types:   make(map[string]*defInfo),
 		labels:  make(map[token.Pos]*defInfo),
 		refs:    make(map[string]*refResultInfo),
+
+		// Monikers
+		moduleName:            moduleName,
+		moduleVersion:         moduleVersion,
+		dependencies:          dependencies,
+		packageInformationIDs: map[string]string{},
 	}
 	return e.index(toolInfo)
 }
 
 // indexer keeps track of all information needed to generate a LSIF dump.
 type indexer struct {
-	projectRoot    string
-	excludeContent bool
-	w              io.Writer
+	projectRoot       string
+	excludeContent    bool
+	printProgressDots bool
+	w                 io.Writer
 
 	id      int // The ID counter of the last element emitted
 	pkgs    []*packages.Package
@@ -115,6 +132,10 @@ func (e *indexer) index(info protocol.ToolInfo) (*Stats, error) {
 	}
 
 	for _, f := range e.files {
+		if e.printProgressDots {
+			fmt.Fprintf(os.Stdout, ".")
+		}
+
 		for _, rangeID := range f.defRangeIDs {
 			refResultID, err := e.emitReferenceResult()
 			if err != nil {

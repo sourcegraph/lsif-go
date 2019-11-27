@@ -58,6 +58,9 @@ func realMain() error {
 		log.SetLevel(log.Debug)
 	}
 
+	// Print progress dots if we have no other output
+	printProgressDots := !verbose && !debug
+
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
 	if err != nil {
 		return err
@@ -90,7 +93,14 @@ func realMain() error {
 			Version: version,
 			Args:    os.Args[1:],
 		},
+		printProgressDots,
 	)
+
+	if printProgressDots {
+		// End progress line before printing summary or error
+		log.Println()
+		log.Println()
+	}
 
 	if err != nil {
 		return fmt.Errorf("index: %v", err)
