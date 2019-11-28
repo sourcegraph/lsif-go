@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/alecthomas/kingpin"
@@ -58,6 +59,9 @@ func realMain() error {
 		log.SetLevel(log.Debug)
 	}
 
+	// Print progress dots if we have no other output
+	printProgressDots := !verbose && !debug
+
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
 	if err != nil {
 		return err
@@ -76,21 +80,35 @@ func realMain() error {
 
 	defer out.Close()
 
-	start := time.Now()
+	projectRoot, err = filepath.Abs(projectRoot)
+	if err != nil {
+		return fmt.Errorf("get abspath of project root: %v", err)
+	}
 
-	s, err := index.Index(
+	toolInfo := protocol.ToolInfo{
+		Name:    "lsif-go",
+		Version: version,
+		Args:    os.Args[1:],
+	}
+
+	indexer := index.NewIndexer(
 		projectRoot,
-		noContents,
-		out,
 		moduleName,
 		moduleVersion,
 		dependencies,
-		protocol.ToolInfo{
-			Name:    "lsif-go",
-			Version: version,
-			Args:    os.Args[1:],
-		},
+		noContents,
+		printProgressDots,
+		toolInfo,
+		out,
 	)
+
+	start := time.Now()
+	s, err := indexer.Index()
+	if printProgressDots {
+		// End progress line before printing summary or error
+		log.Println()
+		log.Println()
+	}
 
 	if err != nil {
 		return fmt.Errorf("index: %v", err)
