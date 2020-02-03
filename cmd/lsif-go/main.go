@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin"
-	"github.com/sourcegraph/lsif-go/gomod"
-	"github.com/sourcegraph/lsif-go/index"
-	"github.com/sourcegraph/lsif-go/log"
+	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/lsif-go/internal/index"
+	"github.com/sourcegraph/lsif-go/internal/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
