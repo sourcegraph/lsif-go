@@ -30,7 +30,7 @@ type Stats struct {
 	NumElements int
 }
 
-// indexer keeps track of all information needed to generate a LSIF dump.
+// indexer keeps track of all information needed to generate an LSIF dump.
 type indexer struct {
 	projectRoot       string
 	printProgressDots bool
@@ -86,9 +86,9 @@ func NewIndexer(projectRoot, moduleName, moduleVersion string, dependencies map[
 	}
 }
 
-// Index generates an LSIF dump for a workspace by traversing through source files
-// and storing LSP responses to output source that implements io.Writer. It is
-// caller's responsibility to close the output source if applicable.
+// Index generates an LSIF dump from a workspace by traversing through source files
+// and writing the LSIF equivalent to the output source that implements io.Writer.
+// It is caller's responsibility to close the output source if applicable.
 func (i *indexer) Index() (*Stats, error) {
 	pkgs, err := i.packages()
 	if err != nil {
