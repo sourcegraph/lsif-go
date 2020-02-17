@@ -8,6 +8,8 @@ import (
 	"strconv"
 )
 
+// Writer emits vertices and edges to the underlying writer. This struct
+// will guarantee that unique identifiers are generated for each element.
 type Writer struct {
 	w              io.Writer
 	excludeContent bool
@@ -15,6 +17,7 @@ type Writer struct {
 	numElements    int
 }
 
+// NewWriter creates a new Writer.
 func NewWriter(w io.Writer, excludeContent bool) *Writer {
 	return &Writer{
 		w:              w,
