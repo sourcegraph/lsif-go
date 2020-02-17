@@ -40,15 +40,11 @@ func realMain() error {
 	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
 	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").StringVar(&moduleVersion)
 	app.Flag("noContents", "File contents will not be embedded into the dump.").Default("false").BoolVar(&noContents)
-	app.Flag("out", "The output file the dump is saved to.").StringVar(&outFile)
+	app.Flag("out", "The output file the dump is saved to.").Default("dump.lsif").StringVar(&outFile)
 
 	_, err := app.Parse(os.Args[1:])
 	if err != nil {
 		return err
-	}
-
-	if outFile == "" {
-		outFile = "dump.lsif"
 	}
 
 	if verbose {
