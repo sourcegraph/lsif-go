@@ -514,7 +514,6 @@ func (i *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 	}
 
 	fi.defRangeIDs = append(fi.defRangeIDs, rangeIDs...)
-
 	return nil
 }
 
@@ -595,7 +594,6 @@ func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			}
 			i.ranges[filename][ipos.Offset] = rangeID
 		}
-
 		rangeIDs = append(rangeIDs, rangeID)
 
 		if def == nil {
