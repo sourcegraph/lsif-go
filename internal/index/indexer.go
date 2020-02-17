@@ -60,7 +60,16 @@ type indexer struct {
 }
 
 // NewIndexer creates a new Indexer.
-func NewIndexer(projectRoot, moduleName, moduleVersion string, dependencies map[string]string, excludeContent, printProgressDots bool, toolInfo protocol.ToolInfo, w io.Writer) Indexer {
+func NewIndexer(
+	projectRoot string,
+	moduleName string,
+	moduleVersion string,
+	dependencies map[string]string,
+	excludeContent bool,
+	printProgressDots bool,
+	toolInfo protocol.ToolInfo,
+	w io.Writer,
+) Indexer {
 	return &indexer{
 		projectRoot:       projectRoot,
 		moduleName:        moduleName,
