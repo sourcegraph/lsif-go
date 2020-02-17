@@ -6,15 +6,11 @@ import (
 	"strings"
 )
 
-/*
-	Reference: https://github.com/microsoft/lsif-node/blob/master/protocol/src/protocol.ts
-*/
+// Reference: https://github.com/microsoft/lsif-node/blob/master/protocol/src/protocol.ts
 
 const (
 	// Version represnets the current LSIF version of implementation.
-	Version = "0.4.0"
-	// LanguageID is the language ID in LSP, For Go it's "go".
-	LanguageID = "go"
+	Version = "0.4.3"
 	// PositionEncoding is the encoding used to compute line and character values in positions and ranges.
 	PositionEncoding = "utf-16"
 )
@@ -147,7 +143,7 @@ type Project struct {
 }
 
 // NewProject returns a new Project object with given ID.
-func NewProject(id string) *Project {
+func NewProject(id string, languageID string) *Project {
 	return &Project{
 		Vertex: Vertex{
 			Element: Element{
@@ -156,7 +152,7 @@ func NewProject(id string) *Project {
 			},
 			Label: VertexProject,
 		},
-		Kind: LanguageID,
+		Kind: languageID,
 	}
 }
 
@@ -172,7 +168,7 @@ type Document struct {
 }
 
 // NewDocument returns a new Document object with given ID, URI and contents.
-func NewDocument(id, uri string, contents []byte) *Document {
+func NewDocument(id, languageID, uri string, contents []byte) *Document {
 	d := &Document{
 		Vertex: Vertex{
 			Element: Element{
@@ -182,7 +178,7 @@ func NewDocument(id, uri string, contents []byte) *Document {
 			Label: VertexDocument,
 		},
 		URI:        uri,
-		LanguageID: LanguageID,
+		LanguageID: languageID,
 	}
 
 	if len(contents) > 0 {
@@ -314,9 +310,9 @@ func (m MarkedString) MarshalJSON() ([]byte, error) {
 }
 
 // NewMarkedString returns a MarkedString with given string in language "go".
-func NewMarkedString(s string) MarkedString {
+func NewMarkedString(s, languageID string) MarkedString {
 	return MarkedString{
-		Language: LanguageID,
+		Language: languageID,
 		Value:    s,
 	}
 }

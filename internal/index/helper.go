@@ -51,7 +51,7 @@ func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error
 	}
 
 	contents := []protocol.MarkedString{
-		protocol.NewMarkedString(s),
+		protocol.NewMarkedString(s, LanguageGo),
 	}
 	comments, err := findComments(f, obj)
 	if err != nil {
@@ -63,7 +63,7 @@ func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error
 		contents = append(contents, protocol.RawMarkedString(b.String()))
 	}
 	if extra != "" {
-		contents = append(contents, protocol.NewMarkedString(extra))
+		contents = append(contents, protocol.NewMarkedString(extra, LanguageGo))
 	}
 	return contents, nil
 }

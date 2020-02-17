@@ -2,21 +2,20 @@
 package index
 
 import (
-	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"io"
-	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 
-	"github.com/sourcegraph/lsif-go/log"
+	"github.com/sourcegraph/lsif-go/internal/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
+
+const LanguageGo = "go"
 
 // Indexer reads source files and outputs LSIF data.
 type Indexer interface {
@@ -31,13 +30,12 @@ type Stats struct {
 	NumElements int
 }
 
-// indexer keeps track of all information needed to generate a LSIF dump.
+// indexer keeps track of all information needed to generate an LSIF dump.
 type indexer struct {
 	projectRoot       string
-	excludeContent    bool
 	printProgressDots bool
 	toolInfo          protocol.ToolInfo
-	w                 io.Writer
+	w                 *protocol.Writer
 
 	// De-duplication
 	defsIndexed map[string]bool
@@ -45,7 +43,6 @@ type indexer struct {
 	ranges      map[string]map[int]string // filename -> offset -> rangeID
 
 	// Type correlation
-	id      int                       // The ID counter of the last element emitted
 	files   map[string]*fileInfo      // Keys: filename
 	imports map[token.Pos]*defInfo    // Keys: definition position
 	funcs   map[string]*defInfo       // Keys: full name (with receiver for methods)
@@ -63,16 +60,24 @@ type indexer struct {
 }
 
 // NewIndexer creates a new Indexer.
-func NewIndexer(projectRoot, moduleName, moduleVersion string, dependencies map[string]string, excludeContent, printProgressDots bool, toolInfo protocol.ToolInfo, w io.Writer) Indexer {
+func NewIndexer(
+	projectRoot string,
+	moduleName string,
+	moduleVersion string,
+	dependencies map[string]string,
+	excludeContent bool,
+	printProgressDots bool,
+	toolInfo protocol.ToolInfo,
+	w io.Writer,
+) Indexer {
 	return &indexer{
 		projectRoot:       projectRoot,
 		moduleName:        moduleName,
 		moduleVersion:     moduleVersion,
 		dependencies:      dependencies,
-		excludeContent:    excludeContent,
 		printProgressDots: printProgressDots,
 		toolInfo:          toolInfo,
-		w:                 w,
+		w:                 protocol.NewWriter(w, excludeContent),
 
 		// Empty maps
 		defsIndexed:           map[string]bool{},
@@ -90,32 +95,32 @@ func NewIndexer(projectRoot, moduleName, moduleVersion string, dependencies map[
 	}
 }
 
-// Index generates an LSIF dump for a workspace by traversing through source files
-// and storing LSP responses to output source that implements io.Writer. It is
-// caller's responsibility to close the output source if applicable.
-func (e *indexer) Index() (*Stats, error) {
-	pkgs, err := e.packages()
+// Index generates an LSIF dump from a workspace by traversing through source files
+// and writing the LSIF equivalent to the output source that implements io.Writer.
+// It is caller's responsibility to close the output source if applicable.
+func (i *indexer) Index() (*Stats, error) {
+	pkgs, err := i.packages()
 	if err != nil {
 		return nil, err
 	}
 
-	return e.index(pkgs)
+	return i.index(pkgs)
 }
 
-func (e *indexer) packages() ([]*packages.Package, error) {
+func (i *indexer) packages() ([]*packages.Package, error) {
 	log.Infoln("Loading packages...")
 
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedImports | packages.NeedDeps |
 			packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
-		Dir:   e.projectRoot,
+		Dir:   i.projectRoot,
 		Tests: true,
 		Logf: func(format string, args ...interface{}) {
 			// Print progress while the packages are loading
 			// We don't need to log this information, though
 			// (it's incredibly verbose)
-			if e.printProgressDots {
+			if i.printProgressDots {
 				fmt.Fprintf(os.Stdout, ".")
 			}
 		},
@@ -127,64 +132,64 @@ func (e *indexer) packages() ([]*packages.Package, error) {
 	return pkgs, nil
 }
 
-func (e *indexer) index(pkgs []*packages.Package) (*Stats, error) {
-	_, err := e.emitMetaData("file://"+e.projectRoot, e.toolInfo)
+func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
+	_, err := i.w.EmitMetaData("file://"+i.projectRoot, i.toolInfo)
 	if err != nil {
 		return nil, fmt.Errorf(`emit "metadata": %v`, err)
 	}
-	proID, err := e.emitProject()
+	proID, err := i.w.EmitProject(LanguageGo)
 	if err != nil {
 		return nil, fmt.Errorf(`emit "project": %v`, err)
 	}
 
-	_, err = e.emitBeginEvent("project", proID)
+	_, err = i.w.EmitBeginEvent("project", proID)
 	if err != nil {
 		return nil, fmt.Errorf(`emit "begin": %v`, err)
 	}
 
 	for _, p := range pkgs {
-		if err := e.indexPkgDocs(p, proID); err != nil {
+		if err := i.indexPkgDocs(p, proID); err != nil {
 			return nil, fmt.Errorf("index package %q: %v", p.Name, err)
 		}
 
-		if err := e.indexPkgDefs(p, proID); err != nil {
+		if err := i.indexPkgDefs(p, proID); err != nil {
 			return nil, fmt.Errorf("index package defs %q: %v", p.Name, err)
 		}
 	}
 
 	for _, p := range pkgs {
-		if err := e.indexPkgUses(p, proID); err != nil {
+		if err := i.indexPkgUses(p, proID); err != nil {
 			return nil, fmt.Errorf("index package uses %q: %v", p.Name, err)
 		}
 	}
 
 	log.Infoln("Linking references...")
 
-	for _, f := range e.files {
-		if e.printProgressDots {
+	for _, f := range i.files {
+		if i.printProgressDots {
 			fmt.Fprintf(os.Stdout, ".")
 		}
 
 		for _, rangeID := range f.defRangeIDs {
-			refResultID, err := e.emitReferenceResult()
+			refResultID, err := i.w.EmitReferenceResult()
 			if err != nil {
 				return nil, fmt.Errorf(`emit "referenceResult": %v`, err)
 			}
 
-			_, err = e.emitTextDocumentReferences(e.refs[rangeID].resultSetID, refResultID)
+			_, err = i.w.EmitTextDocumentReferences(i.refs[rangeID].resultSetID, refResultID)
 			if err != nil {
 				return nil, fmt.Errorf(`emit "textDocument/references": %v`, err)
 			}
 
-			for docID, rangeIDs := range e.refs[rangeID].defRangeIDs {
-				_, err = e.emitItemOfDefinitions(refResultID, rangeIDs, docID)
+			for docID, rangeIDs := range i.refs[rangeID].defRangeIDs {
+				_, err = i.w.EmitItemOfDefinitions(refResultID, rangeIDs, docID)
 				if err != nil {
 					return nil, fmt.Errorf(`emit "item": %v`, err)
 				}
 			}
 
-			for docID, rangeIDs := range e.refs[rangeID].refRangeIDs {
-				_, err = e.emitItemOfReferences(refResultID, rangeIDs, docID)
+			for docID, rangeIDs := range i.refs[rangeID].refRangeIDs {
+				_, err = i.w.EmitItemOfReferences(refResultID, rangeIDs, docID)
 				if err != nil {
 					return nil, fmt.Errorf(`emit "item": %v`, err)
 				}
@@ -205,7 +210,7 @@ func (e *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 				allRanges = append(allRanges, id)
 			}
 
-			_, err = e.emitContains(f.docID, allRanges)
+			_, err = i.w.EmitContains(f.docID, allRanges)
 			if err != nil {
 				return nil, fmt.Errorf(`emit "contains": %v`, err)
 			}
@@ -215,96 +220,96 @@ func (e *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 	// Close all documents. This must be done as a last step as we need
 	// to emit everything about a document before sending the end event.
 
-	for _, info := range e.files {
-		_, err = e.emitEndEvent("document", info.docID)
+	for _, info := range i.files {
+		_, err = i.w.EmitEndEvent("document", info.docID)
 		if err != nil {
 			return nil, fmt.Errorf(`emit "end": %v`, err)
 		}
 	}
 
-	_, err = e.emitEndEvent("project", proID)
+	_, err = i.w.EmitEndEvent("project", proID)
 	if err != nil {
 		return nil, fmt.Errorf(`emit "end": %v`, err)
 	}
 
 	return &Stats{
 		NumPkgs:     len(pkgs),
-		NumFiles:    len(e.files),
-		NumDefs:     len(e.imports) + len(e.funcs) + len(e.consts) + len(e.vars) + len(e.types) + len(e.labels),
-		NumElements: e.id,
+		NumFiles:    len(i.files),
+		NumDefs:     len(i.imports) + len(i.funcs) + len(i.consts) + len(i.vars) + len(i.types) + len(i.labels),
+		NumElements: i.w.NumElements(),
 	}, nil
 }
 
-func (e *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
+func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
 	log.Infoln("Emitting documents for package", p.Name)
 	defer log.Infoln()
 
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
-		if !strings.HasPrefix(fpos.Filename, e.projectRoot) {
+		if !strings.HasPrefix(fpos.Filename, i.projectRoot) {
 			// Indexing test files means that we're also indexing the code generated by go test;
 			// e.g. file://Users/efritz/Library/Caches/go-build/07/{64-character identifier}-d
 			continue
 		}
 
-		if _, ok := e.files[fpos.Filename]; ok {
+		if _, ok := i.files[fpos.Filename]; ok {
 			// Emit each document only once
 			continue
 		}
 
 		log.Infoln("\tFile:", fpos.Filename)
 
-		docID, err := e.emitDocument(fpos.Filename)
+		docID, err := i.w.EmitDocument(LanguageGo, fpos.Filename)
 		if err != nil {
 			return fmt.Errorf(`emit "document": %v`, err)
 		}
 
-		_, err = e.emitBeginEvent("document", docID)
+		_, err = i.w.EmitBeginEvent("document", docID)
 		if err != nil {
 			return fmt.Errorf(`emit "begin": %v`, err)
 		}
 
-		_, err = e.emitContains(proID, []string{docID})
+		_, err = i.w.EmitContains(proID, []string{docID})
 		if err != nil {
 			return fmt.Errorf(`emit "contains": %v`, err)
 		}
 
 		fi := &fileInfo{docID: docID}
-		e.files[fpos.Filename] = fi
+		i.files[fpos.Filename] = fi
 
 		// Create the map used to deduplicate ids within this file. This will be used
 		// by indexPkgDefs and indexPkgUses, which assumes this key is already populated.
-		e.ranges[fpos.Filename] = map[int]string{}
+		i.ranges[fpos.Filename] = map[int]string{}
 	}
 
 	return nil
 }
 
-func (e *indexer) indexPkgDefs(p *packages.Package, proID string) (err error) {
+func (i *indexer) indexPkgDefs(p *packages.Package, proID string) (err error) {
 	log.Infoln("Emitting definitions for package", p.Name)
 	defer log.Infoln()
 
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
-		fi, ok := e.files[fpos.Filename]
+		fi, ok := i.files[fpos.Filename]
 		if !ok {
 			// File skipped in the loop above
 			continue
 		}
 
-		if _, ok := e.defsIndexed[fpos.Filename]; ok {
+		if _, ok := i.defsIndexed[fpos.Filename]; ok {
 			// Defs already indexed
 			continue
 		}
-		e.defsIndexed[fpos.Filename] = true
+		i.defsIndexed[fpos.Filename] = true
 
 		log.Infoln("\tFile:", fpos.Filename)
 
-		if err = e.addImports(p, f, fi); err != nil {
+		if err = i.addImports(p, f, fi); err != nil {
 			return fmt.Errorf("error indexing imports of %q: %v", p.PkgPath, err)
 		}
 
-		if err = e.indexDefs(p, f, fi, proID, fpos.Filename); err != nil {
+		if err = i.indexDefs(p, f, fi, proID, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing definitions of %q: %v", p.PkgPath, err)
 		}
 	}
@@ -312,27 +317,27 @@ func (e *indexer) indexPkgDefs(p *packages.Package, proID string) (err error) {
 	return nil
 }
 
-func (e *indexer) indexPkgUses(p *packages.Package, proID string) (err error) {
+func (i *indexer) indexPkgUses(p *packages.Package, proID string) (err error) {
 	log.Infoln("Emitting references for package", p.Name)
 	defer log.Infoln()
 
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
-		fi, ok := e.files[fpos.Filename]
+		fi, ok := i.files[fpos.Filename]
 		if !ok {
 			// File skipped in the loop above
 			continue
 		}
 
-		if _, ok := e.usesIndexed[fpos.Filename]; ok {
+		if _, ok := i.usesIndexed[fpos.Filename]; ok {
 			// Uses already indexed
 			continue
 		}
-		e.usesIndexed[fpos.Filename] = true
+		i.usesIndexed[fpos.Filename] = true
 
 		log.Infoln("\tFile:", fpos.Filename)
 
-		if err := e.indexUses(p, fi, fpos.Filename); err != nil {
+		if err := i.indexUses(p, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing uses of %q: %v", p.PkgPath, err)
 		}
 	}
@@ -342,7 +347,7 @@ func (e *indexer) indexPkgUses(p *packages.Package, proID string) (err error) {
 
 // addImports constructs *ast.Ident and types.Object out of *ImportSpec and inserts them into
 // packages defs map to be indexed within a unified process.
-func (e *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) error {
+func (i *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) error {
 	for _, ispec := range f.Imports {
 		// The path value comes from *ImportSpec has surrounding double quotes.
 		// We should preserve its original format in constructing related AST objects
@@ -351,7 +356,7 @@ func (e *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) err
 		ipath := strings.Trim(ispec.Path.Value, `"`)
 		if p.Imports[ipath] == nil {
 			// There is no package information if the package cannot be located from the
-			// file system (i.e. missing files of a dependency).
+			// file system (i.i. missing files of a dependency).
 			continue
 		}
 
@@ -373,7 +378,7 @@ func (e *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) err
 	return nil
 }
 
-func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
+func (i *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Defs {
 		// Object is nil when not denote an object
@@ -389,25 +394,30 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 
 		// If we have a range for this offset then we've already indexed
 		// this definition. Just early out in this situation.
-		if _, ok := e.ranges[filename][ipos.Offset]; ok {
+		if _, ok := i.ranges[filename][ipos.Offset]; ok {
 			continue
 		}
 
-		rangeID, err := e.emitRange(lspRange(ipos, ident.Name))
+		rangeID, err := i.w.EmitRange(lspRange(ipos, ident.Name))
 		if err != nil {
 			return fmt.Errorf(`emit "range": %v`, err)
 		}
-		e.ranges[filename][ipos.Offset] = rangeID
+		i.ranges[filename][ipos.Offset] = rangeID
 
-		refResult, ok := e.refs[rangeID]
+		refResult, ok := i.refs[rangeID]
 		if !ok {
+			resultSetID, err := i.w.EmitResultSet()
+			if err != nil {
+				return fmt.Errorf(`emit "resultSet": %v`, err)
+			}
+
 			refResult = &refResultInfo{
-				resultSetID: e.nextID(),
+				resultSetID: resultSetID,
 				defRangeIDs: map[string][]string{},
 				refRangeIDs: map[string][]string{},
 			}
 
-			e.refs[rangeID] = refResult
+			i.refs[rangeID] = refResult
 		}
 
 		if _, ok := refResult.defRangeIDs[fi.docID]; !ok {
@@ -415,29 +425,22 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 		}
 		refResult.defRangeIDs[fi.docID] = append(refResult.defRangeIDs[fi.docID], rangeID)
 
-		if !ok {
-			err = e.emit(protocol.NewResultSet(refResult.resultSetID))
-			if err != nil {
-				return fmt.Errorf(`emit "resultSet": %v`, err)
-			}
-		}
-
-		_, err = e.emitNext(rangeID, refResult.resultSetID)
+		_, err = i.w.EmitNext(rangeID, refResult.resultSetID)
 		if err != nil {
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
-		defResultID, err := e.emitDefinitionResult()
+		defResultID, err := i.w.EmitDefinitionResult()
 		if err != nil {
 			return fmt.Errorf(`emit "definitionResult": %v`, err)
 		}
 
-		_, err = e.emitTextDocumentDefinition(refResult.resultSetID, defResultID)
+		_, err = i.w.EmitTextDocumentDefinition(refResult.resultSetID, defResultID)
 		if err != nil {
 			return fmt.Errorf(`emit "textDocument/definition": %v`, err)
 		}
 
-		_, err = e.emitItem(defResultID, []string{rangeID}, fi.docID)
+		_, err = i.w.EmitItem(defResultID, []string{rangeID}, fi.docID)
 		if err != nil {
 			return fmt.Errorf(`emit "item": %v`, err)
 		}
@@ -454,35 +457,35 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 			log.Debugln("[func] Def:", ident.Name)
 			log.Debugln("[func] FullName:", v.FullName())
 			log.Debugln("[func] iPos:", ipos)
-			e.funcs[v.FullName()] = defInfo
+			i.funcs[v.FullName()] = defInfo
 
 		case *types.Const:
 			log.Debugln("[const] Def:", ident.Name)
 			log.Debugln("[const] iPos:", ipos)
-			e.consts[ident.Pos()] = defInfo
+			i.consts[ident.Pos()] = defInfo
 
 		case *types.Var:
 			log.Debugln("[var] Def:", ident.Name)
 			log.Debugln("[var] iPos:", ipos)
-			e.vars[ident.Pos()] = defInfo
+			i.vars[ident.Pos()] = defInfo
 
 		case *types.TypeName:
 			log.Debugln("[typename] Def:", ident.Name)
 			log.Debugln("[typename] Type:", obj.Type())
 			log.Debugln("[typename] iPos:", ipos)
-			e.types[obj.Type().String()] = defInfo
+			i.types[obj.Type().String()] = defInfo
 
 		case *types.Label:
 			log.Debugln("[label] Def:", ident.Name)
 			log.Debugln("[label] iPos:", ipos)
-			e.labels[ident.Pos()] = defInfo
+			i.labels[ident.Pos()] = defInfo
 
 		case *types.PkgName:
 			log.Debugln("[pkgname] Def:", ident)
 			log.Debugln("[pkgname] iPos:", ipos)
-			e.imports[ident.Pos()] = defInfo
+			i.imports[ident.Pos()] = defInfo
 
-			err := e.emitImportMoniker(refResult.resultSetID, strings.Trim(ident.String(), `"`))
+			err := i.emitImportMoniker(refResult.resultSetID, strings.Trim(ident.String(), `"`))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -495,7 +498,7 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 		}
 
 		if ident.IsExported() {
-			err := e.emitExportMoniker(refResult.resultSetID, fmt.Sprintf("%s:%s", p.PkgPath, ident.String()))
+			err := i.emitExportMoniker(refResult.resultSetID, fmt.Sprintf("%s:%s", p.PkgPath, ident.String()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -506,12 +509,12 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 			return fmt.Errorf("find contents: %v", err)
 		}
 
-		hoverResultID, err := e.emitHoverResult(contents)
+		hoverResultID, err := i.w.EmitHoverResult(contents)
 		if err != nil {
 			return fmt.Errorf(`emit "hoverResult": %v`, err)
 		}
 
-		_, err = e.emitTextDocumentHover(refResult.resultSetID, hoverResultID)
+		_, err = i.w.EmitTextDocumentHover(refResult.resultSetID, hoverResultID)
 		if err != nil {
 			return fmt.Errorf(`emit "textDocument/hover": %v`, err)
 		}
@@ -520,11 +523,10 @@ func (e *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 	}
 
 	fi.defRangeIDs = append(fi.defRangeIDs, rangeIDs...)
-
 	return nil
 }
 
-func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) error {
+func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file
@@ -539,37 +541,37 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			log.Debugln("[func] Use:", ident.Name)
 			log.Debugln("[func] FullName:", v.FullName())
 			log.Debugln("[func] iPos:", ipos)
-			def = e.funcs[v.FullName()]
+			def = i.funcs[v.FullName()]
 
 		case *types.Const:
 			log.Debugln("[const] Use:", ident)
 			log.Debugln("[const] iPos:", ipos)
 			log.Debugln("[const] vPos:", p.Fset.Position(v.Pos()))
-			def = e.consts[v.Pos()]
+			def = i.consts[v.Pos()]
 
 		case *types.Var:
 			log.Debugln("[var] Use:", ident)
 			log.Debugln("[var] iPos:", ipos)
 			log.Debugln("[var] vPos:", p.Fset.Position(v.Pos()))
-			def = e.vars[v.Pos()]
+			def = i.vars[v.Pos()]
 
 		case *types.TypeName:
 			log.Debugln("[typename] Use:", ident.Name)
 			log.Debugln("[typename] Type:", obj.Type())
 			log.Debugln("[typename] iPos:", ipos)
-			def = e.types[obj.Type().String()]
+			def = i.types[obj.Type().String()]
 
 		case *types.Label:
 			log.Debugln("[label] Use:", ident.Name)
 			log.Debugln("[label] iPos:", ipos)
 			log.Debugln("[label] vPos:", p.Fset.Position(v.Pos()))
-			def = e.labels[v.Pos()]
+			def = i.labels[v.Pos()]
 
 		case *types.PkgName:
 			log.Debugln("[pkgname] Use:", ident)
 			log.Debugln("[pkgname] iPos:", ipos)
 			log.Debugln("[pkgname] vPos:", p.Fset.Position(v.Pos()))
-			def = e.imports[v.Pos()]
+			def = i.imports[v.Pos()]
 
 		// TODO(jchen): case *types.Builtin:
 
@@ -593,21 +595,20 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 
 		// Make a new range if we haven't already seen a def or a use that had
 		// constructed a range at the same position.
-		rangeID, ok := e.ranges[filename][ipos.Offset]
+		rangeID, ok := i.ranges[filename][ipos.Offset]
 		if !ok {
-			rangeID, err = e.emitRange(lspRange(ipos, ident.Name))
+			rangeID, err = i.w.EmitRange(lspRange(ipos, ident.Name))
 			if err != nil {
 				return fmt.Errorf(`emit "range": %v`, err)
 			}
-			e.ranges[filename][ipos.Offset] = rangeID
+			i.ranges[filename][ipos.Offset] = rangeID
 		}
-
 		rangeIDs = append(rangeIDs, rangeID)
 
 		if def == nil {
 			// If we don't have a definition in this package, emit an import moniker
 			// so that we can correlate it with another dump's LSIF data.
-			err = e.emitImportMoniker(rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
+			err = i.emitImportMoniker(rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -617,17 +618,17 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			// mark this range as a reference to _something_, even though the definition
 			// does not exist in this source code.
 
-			refResultID, err := e.emitReferenceResult()
+			refResultID, err := i.w.EmitReferenceResult()
 			if err != nil {
 				return fmt.Errorf(`emit "referenceResult": %v`, err)
 			}
 
-			_, err = e.emitTextDocumentReferences(rangeID, refResultID)
+			_, err = i.w.EmitTextDocumentReferences(rangeID, refResultID)
 			if err != nil {
 				return fmt.Errorf(`emit "textDocument/references": %v`, err)
 			}
 
-			_, err = e.emitItemOfReferences(refResultID, []string{rangeID}, fi.docID)
+			_, err = i.w.EmitItemOfReferences(refResultID, []string{rangeID}, fi.docID)
 			if err != nil {
 				return fmt.Errorf(`emit "item": %v`, err)
 			}
@@ -635,12 +636,12 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 			continue
 		}
 
-		_, err = e.emitNext(rangeID, def.resultSetID)
+		_, err = i.w.EmitNext(rangeID, def.resultSetID)
 		if err != nil {
 			return fmt.Errorf(`emit "next": %v`, err)
 		}
 
-		refResult := e.refs[def.rangeID]
+		refResult := i.refs[def.rangeID]
 		if refResult != nil {
 			if _, ok := refResult.refRangeIDs[fi.docID]; !ok {
 				refResult.refRangeIDs[fi.docID] = []string{}
@@ -653,177 +654,60 @@ func (e *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 	return nil
 }
 
-func (e *indexer) writeNewLine() error {
-	_, err := e.w.Write([]byte("\n"))
-	return err
-}
-
-func (e *indexer) nextID() string {
-	e.id++
-	return strconv.Itoa(e.id)
-}
-
-func (e *indexer) emit(v interface{}) error {
-	return json.NewEncoder(e.w).Encode(v)
-}
-
-func (e *indexer) emitMetaData(root string, info protocol.ToolInfo) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewMetaData(id, root, info))
-}
-
-func (e *indexer) emitBeginEvent(scope string, data string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewEvent(id, "begin", scope, data))
-}
-
-func (e *indexer) emitEndEvent(scope string, data string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewEvent(id, "end", scope, data))
-}
-
-func (e *indexer) emitProject() (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewProject(id))
-}
-
-func (e *indexer) emitDocument(path string) (string, error) {
-	var contents []byte
-	if !e.excludeContent {
-		var err error
-		contents, err = ioutil.ReadFile(path)
-		if err != nil {
-			return "", fmt.Errorf("read file: %v", err)
-		}
-	}
-
-	id := e.nextID()
-	return id, e.emit(protocol.NewDocument(id, "file://"+path, contents))
-}
-
-func (e *indexer) emitContains(outV string, inVs []string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewContains(id, outV, inVs))
-}
-
-func (e *indexer) emitResultSet() (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewResultSet(id))
-}
-
-func (e *indexer) emitRange(start, end protocol.Pos) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewRange(id, start, end))
-}
-
-func (e *indexer) emitNext(outV, inV string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewNext(id, outV, inV))
-}
-
-func (e *indexer) emitDefinitionResult() (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewDefinitionResult(id))
-}
-
-func (e *indexer) emitTextDocumentDefinition(outV, inV string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewTextDocumentDefinition(id, outV, inV))
-}
-
-func (e *indexer) emitHoverResult(contents []protocol.MarkedString) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewHoverResult(id, contents))
-}
-
-func (e *indexer) emitTextDocumentHover(outV, inV string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewTextDocumentHover(id, outV, inV))
-}
-
-func (e *indexer) emitReferenceResult() (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewReferenceResult(id))
-}
-
-func (e *indexer) emitTextDocumentReferences(outV, inV string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewTextDocumentReferences(id, outV, inV))
-}
-
-func (e *indexer) emitItem(outV string, inVs []string, docID string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewItem(id, outV, inVs, docID))
-}
-
-func (e *indexer) emitItemOfDefinitions(outV string, inVs []string, docID string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewItemOfDefinitions(id, outV, inVs, docID))
-}
-
-func (e *indexer) emitItemOfReferences(outV string, inVs []string, docID string) (string, error) {
-	id := e.nextID()
-	return id, e.emit(protocol.NewItemOfReferences(id, outV, inVs, docID))
-}
-
-func (e *indexer) emitImportMoniker(sourceID, identifier string) error {
-	for _, moduleName := range packagePrefixes(strings.Split(identifier, ":")[0]) {
-		moduleVersion, ok := e.dependencies[moduleName]
-		if !ok {
-			continue
-		}
-
-		packageInformationID, err := e.ensurePackageInformation(moduleName, moduleVersion)
-		if err != nil {
-			return err
-		}
-
-		return e.addMonikers("import", identifier, sourceID, packageInformationID)
-	}
-
-	return nil
-}
-
-func (e *indexer) emitExportMoniker(sourceID, identifier string) error {
-	packageInformationID, err := e.ensurePackageInformation(e.moduleName, e.moduleVersion)
-	if err != nil {
-		return err
-	}
-
-	return e.addMonikers("export", identifier, sourceID, packageInformationID)
-}
-
-func (e *indexer) ensurePackageInformation(packageName, version string) (string, error) {
-	packageInformationID, ok := e.packageInformationIDs[packageName]
+func (i *indexer) ensurePackageInformation(packageName, version string) (string, error) {
+	packageInformationID, ok := i.packageInformationIDs[packageName]
 	if !ok {
-		packageInformationID = e.nextID()
-		err := e.emit(protocol.NewPackageInformation(packageInformationID, packageName, "gomod", version))
+		packageInformationID, err := i.w.EmitPackageInformation(packageName, "gomod", version)
 		if err != nil {
 			return "", err
 		}
 
-		e.packageInformationIDs[packageName] = packageInformationID
+		i.packageInformationIDs[packageName] = packageInformationID
 	}
 
 	return packageInformationID, nil
 }
 
+func (i *indexer) emitImportMoniker(sourceID, identifier string) error {
+	for _, moduleName := range packagePrefixes(strings.Split(identifier, ":")[0]) {
+		moduleVersion, ok := i.dependencies[moduleName]
+		if !ok {
+			continue
+		}
+
+		packageInformationID, err := i.ensurePackageInformation(moduleName, moduleVersion)
+		if err != nil {
+			return err
+		}
+
+		return i.addMonikers("import", identifier, sourceID, packageInformationID)
+	}
+
+	return nil
+}
+
+func (i *indexer) emitExportMoniker(sourceID, identifier string) error {
+	packageInformationID, err := i.ensurePackageInformation(i.moduleName, i.moduleVersion)
+	if err != nil {
+		return err
+	}
+
+	return i.addMonikers("export", identifier, sourceID, packageInformationID)
+}
+
 // addMonikers outputs a "gomod" moniker vertex, attaches the given package vertex
 // identifier to it, and attaches the new moniker to the source moniker vertex.
-func (e *indexer) addMonikers(kind string, identifier string, sourceID, packageID string) error {
-	monikerID := e.nextID()
-	err := e.emit(protocol.NewMoniker(monikerID, kind, "gomod", identifier))
+func (i *indexer) addMonikers(kind string, identifier string, sourceID, packageID string) error {
+	monikerID, err := i.w.EmitMoniker(kind, "gomod", identifier)
 	if err != nil {
 		return err
 	}
 
-	err = e.emit(protocol.NewPackageInformationEdge(e.nextID(), monikerID, packageID))
-	if err != nil {
+	if _, err := i.w.EmitPackageInformationEdge(monikerID, packageID); err != nil {
 		return err
 	}
 
-	err = e.emit(protocol.NewMonikerEdge(e.nextID(), sourceID, monikerID))
-	if err != nil {
+	if _, err := i.w.EmitMonikerEdge(sourceID, monikerID); err != nil {
 		return err
 	}
 
