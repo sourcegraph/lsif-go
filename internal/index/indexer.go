@@ -606,6 +606,23 @@ func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 		rangeIDs = append(rangeIDs, rangeID)
 
 		if def == nil {
+			contents, err := externalHoverContents(p, obj, pkg)
+			if err != nil {
+				return err
+			}
+
+			if contents != nil {
+				hoverResultID, err := i.w.EmitHoverResult(contents)
+				if err != nil {
+					return fmt.Errorf(`emit "hoverResult": %v`, err)
+				}
+
+				_, err = i.w.EmitTextDocumentHover(rangeID, hoverResultID)
+				if err != nil {
+					return fmt.Errorf(`emit "textDocument/hover": %v`, err)
+				}
+			}
+
 			// If we don't have a definition in this package, emit an import moniker
 			// so that we can correlate it with another dump's LSIF data.
 			err = i.emitImportMoniker(rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
