@@ -656,15 +656,16 @@ func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 
 func (i *indexer) ensurePackageInformation(packageName, version string) (string, error) {
 	packageInformationID, ok := i.packageInformationIDs[packageName]
-	if !ok {
-		packageInformationID, err := i.w.EmitPackageInformation(packageName, "gomod", version)
-		if err != nil {
-			return "", err
-		}
-
-		i.packageInformationIDs[packageName] = packageInformationID
+	if ok {
+		return packageInformationID, nil
 	}
 
+	packageInformationID, err := i.w.EmitPackageInformation(packageName, "gomod", version)
+	if err != nil {
+		return "", err
+	}
+
+	i.packageInformationIDs[packageName] = packageInformationID
 	return packageInformationID, nil
 }
 
