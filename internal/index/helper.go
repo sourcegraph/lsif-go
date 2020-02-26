@@ -11,6 +11,7 @@ import (
 	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 // lspRange transforms go/token.Position (1-based) to LSP start and end ranges (0-based)
@@ -23,6 +24,30 @@ func lspRange(pos token.Position, name string) (start protocol.Pos, end protocol
 			Line:      pos.Line - 1,
 			Character: pos.Column - 1 + len(name),
 		}
+}
+
+// externalHoverContents returns contents used as hover info for objects that are not
+// defined in any of the (directly) analyzed source files. This will attempt to find
+// the definition in the AST of the dependency and pull the hover text from that.
+func externalHoverContents(p *packages.Package, obj types.Object, pkg *types.Package) ([]protocol.MarkedString, error) {
+	dependencyPackage := p.Imports[pkg.Path()]
+	if dependencyPackage == nil {
+		return nil, nil
+	}
+
+	// TODO (efritz) - this only works for some top-level declarations
+	// Does not currently work for fields or functions with receivers.
+
+	for _, f := range dependencyPackage.Syntax {
+		if f.Scope.Lookup(obj.Id()) == nil {
+			// Definition is not in this file of the package
+			continue
+		}
+
+		return findContents(f, obj)
+	}
+
+	return nil, nil
 }
 
 // findContents returns contents used as hover info for given object.
