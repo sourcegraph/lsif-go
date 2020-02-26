@@ -35,6 +35,9 @@ func externalHoverContents(p *packages.Package, obj types.Object, pkg *types.Pac
 		return nil, nil
 	}
 
+	// TODO (efritz) - this only works for some top-level declarations
+	// Does not currently work for fields or functions with receivers.
+
 	for _, f := range dependencyPackage.Syntax {
 		if f.Scope.Lookup(obj.Id()) == nil {
 			// Definition is not in this file of the package
