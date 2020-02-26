@@ -3,7 +3,9 @@ package gomod
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -51,6 +53,11 @@ func InferModuleVersion(projectRoot string) (string, error) {
 // ListModules returns the module name provided by the project root as well
 // as a map from names to versions of each module the project depends on.
 func ListModules(projectRoot string) (string, map[string]string, error) {
+	_, err := os.Stat(filepath.Join(projectRoot, "go.mod"))
+	if os.IsNotExist(err) {
+		return "", nil, nil
+	}
+
 	out, err := run(projectRoot, "go", "list", "-m", "all")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to list modules: %v", err)
