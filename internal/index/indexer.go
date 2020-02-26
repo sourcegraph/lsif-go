@@ -687,6 +687,11 @@ func (i *indexer) emitImportMoniker(sourceID, identifier string) error {
 }
 
 func (i *indexer) emitExportMoniker(sourceID, identifier string) error {
+	if i.moduleName == "" {
+		// Unknown dependencies, skip export monikers
+		return nil
+	}
+
 	packageInformationID, err := i.ensurePackageInformation(i.moduleName, i.moduleVersion)
 	if err != nil {
 		return err
