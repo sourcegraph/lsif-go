@@ -63,6 +63,24 @@ func realMain() error {
 		return fmt.Errorf("get abspath of repository root: %v", err)
 	}
 
+	if repositoryRoot == "" {
+		toplevel, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+		if err != nil {
+			return fmt.Errorf("get git root: %v", err)
+		}
+		repositoryRoot = string(toplevel)
+	}
+
+	projectRoot, err = filepath.Abs(projectRoot)
+	if err != nil {
+		return fmt.Errorf("get abspath of project root: %v", err)
+	}
+
+	repositoryRoot, err = filepath.Abs(repositoryRoot)
+	if err != nil {
+		return fmt.Errorf("get abspath of repository root: %v", err)
+	}
+
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
 	if err != nil {
 		return err
