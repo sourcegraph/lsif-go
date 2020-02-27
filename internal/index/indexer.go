@@ -65,7 +65,7 @@ func NewIndexer(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]string,
-	excludeContent bool,
+	addContents bool,
 	printProgressDots bool,
 	toolInfo protocol.ToolInfo,
 	w io.Writer,
@@ -77,7 +77,7 @@ func NewIndexer(
 		dependencies:      dependencies,
 		printProgressDots: printProgressDots,
 		toolInfo:          toolInfo,
-		w:                 protocol.NewWriter(w, excludeContent),
+		w:                 protocol.NewWriter(w, addContents),
 
 		// Empty maps
 		defsIndexed:           map[string]bool{},
