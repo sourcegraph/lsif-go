@@ -15,14 +15,20 @@ import (
 )
 
 // lspRange transforms go/token.Position (1-based) to LSP start and end ranges (0-based)
-// which takes in consideration of identifier's name length.
-func lspRange(pos token.Position, name string) (start protocol.Pos, end protocol.Pos) {
+// which takes in consideration of identifier's name length. If the token is a quoted
+// package name, we'll create a range that covers only the string contents, not the quotes.
+func lspRange(pos token.Position, name string, isQuotedPkgName bool) (start protocol.Pos, end protocol.Pos) {
+	adjustment := 0
+	if isQuotedPkgName {
+		adjustment = 1
+	}
+
 	return protocol.Pos{
 			Line:      pos.Line - 1,
-			Character: pos.Column - 1,
+			Character: pos.Column - 1 + adjustment,
 		}, protocol.Pos{
 			Line:      pos.Line - 1,
-			Character: pos.Column - 1 + len(name),
+			Character: pos.Column - 1 + len(name) - adjustment,
 		}
 }
 
