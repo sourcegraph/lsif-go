@@ -11,17 +11,17 @@ import (
 // Writer emits vertices and edges to the underlying writer. This struct
 // will guarantee that unique identifiers are generated for each element.
 type Writer struct {
-	w              io.Writer
-	excludeContent bool
-	id             int
-	numElements    int
+	w           io.Writer
+	addContents bool
+	id          int
+	numElements int
 }
 
 // NewWriter creates a new Writer.
-func NewWriter(w io.Writer, excludeContent bool) *Writer {
+func NewWriter(w io.Writer, addContents bool) *Writer {
 	return &Writer{
-		w:              w,
-		excludeContent: excludeContent,
+		w:           w,
+		addContents: addContents,
 	}
 }
 
@@ -61,7 +61,7 @@ func (w *Writer) EmitProject(languageID string) (string, error) {
 
 func (w *Writer) EmitDocument(languageID, path string) (string, error) {
 	var contents []byte
-	if !w.excludeContent {
+	if w.addContents {
 		var err error
 		contents, err = ioutil.ReadFile(path)
 		if err != nil {

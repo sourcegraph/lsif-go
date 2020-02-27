@@ -30,7 +30,7 @@ func realMain() error {
 		verbose       bool
 		projectRoot   string
 		moduleVersion string
-		noContents    bool
+		addContents   bool
 		outFile       string
 	)
 
@@ -39,7 +39,7 @@ func realMain() error {
 	app.Flag("verbose", "Display verbose information.").Short('v').Default("false").BoolVar(&verbose)
 	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
 	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").StringVar(&moduleVersion)
-	app.Flag("noContents", "File contents will not be embedded into the dump.").Default("false").BoolVar(&noContents)
+	app.Flag("addContents", "File contents will be embedded into the dump.").Default("false").BoolVar(&addContents)
 	app.Flag("out", "The output file the dump is saved to.").Default("dump.lsif").StringVar(&outFile)
 
 	_, err := app.Parse(os.Args[1:])
@@ -92,7 +92,7 @@ func realMain() error {
 		moduleName,
 		moduleVersion,
 		dependencies,
-		noContents,
+		addContents,
 		printProgressDots,
 		toolInfo,
 		out,
