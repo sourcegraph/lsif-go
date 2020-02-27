@@ -26,6 +26,17 @@ func lspRange(pos token.Position, name string) (start protocol.Pos, end protocol
 		}
 }
 
+// findContents returns contents used as hover info for given object.
+func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error) {
+	s, extra := typeString(obj)
+	comments, err := findComments(f, obj)
+	if err != nil {
+		return nil, fmt.Errorf("find comments: %v", err)
+	}
+
+	return constructMarkedString(s, comments, extra)
+}
+
 // externalHoverContents returns contents used as hover info for objects that are not
 // defined in any of the (directly) analyzed source files. This will attempt to find
 // the definition in the AST of the dependency and pull the hover text from that.
@@ -35,23 +46,40 @@ func externalHoverContents(p *packages.Package, obj types.Object, pkg *types.Pac
 		return nil, nil
 	}
 
-	// TODO (efritz) - this only works for some top-level declarations
-	// Does not currently work for fields or functions with receivers.
+	s, extra := typeString(obj)
 
+	var comments string
 	for _, f := range dependencyPackage.Syntax {
-		if f.Scope.Lookup(obj.Id()) == nil {
-			// Definition is not in this file of the package
-			continue
+		var err error
+		comments, err = findComments(f, obj)
+		if err != nil {
+			return nil, fmt.Errorf("find comments: %v", err)
 		}
 
-		return findContents(f, obj)
+		if comments != "" {
+			break
+		}
 	}
 
-	return nil, nil
+	return constructMarkedString(s, comments, extra)
 }
 
-// findContents returns contents used as hover info for given object.
-func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error) {
+func constructMarkedString(s, comments, extra string) ([]protocol.MarkedString, error) {
+	contents := []protocol.MarkedString{
+		protocol.NewMarkedString(s, LanguageGo),
+	}
+	if comments != "" {
+		var b bytes.Buffer
+		doc.ToMarkdown(&b, comments, nil)
+		contents = append(contents, protocol.RawMarkedString(b.String()))
+	}
+	if extra != "" {
+		contents = append(contents, protocol.NewMarkedString(extra, LanguageGo))
+	}
+	return contents, nil
+}
+
+func typeString(obj types.Object) (string, string) {
 	qf := func(*types.Package) string { return "" }
 	var s string
 	var extra string
@@ -75,22 +103,7 @@ func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error
 		}
 	}
 
-	contents := []protocol.MarkedString{
-		protocol.NewMarkedString(s, LanguageGo),
-	}
-	comments, err := findComments(f, obj)
-	if err != nil {
-		return nil, fmt.Errorf("find comments: %v", err)
-	}
-	if comments != "" {
-		var b bytes.Buffer
-		doc.ToMarkdown(&b, comments, nil)
-		contents = append(contents, protocol.RawMarkedString(b.String()))
-	}
-	if extra != "" {
-		contents = append(contents, protocol.NewMarkedString(extra, LanguageGo))
-	}
-	return contents, nil
+	return s, extra
 }
 
 // prettyPrintTypesString is pretty printing specific to the output of
@@ -170,8 +183,8 @@ func findComments(f *ast.File, o types.Object) (string, error) {
 	}
 
 	// Resolve the object o into its respective ast.Node
-	paths, _ := astutil.PathEnclosingInterval(f, o.Pos(), o.Pos())
-	if paths == nil {
+	paths, exact := astutil.PathEnclosingInterval(f, o.Pos(), o.Pos())
+	if !exact {
 		return "", nil
 	}
 
