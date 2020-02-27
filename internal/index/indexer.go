@@ -152,13 +152,13 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 			return nil, fmt.Errorf("index package %q: %v", p.Name, err)
 		}
 
-		if err := i.indexPkgDefs(p, proID); err != nil {
+		if err := i.indexPkgDefs(pkgs, p, proID); err != nil {
 			return nil, fmt.Errorf("index package defs %q: %v", p.Name, err)
 		}
 	}
 
 	for _, p := range pkgs {
-		if err := i.indexPkgUses(p, proID); err != nil {
+		if err := i.indexPkgUses(pkgs, p, proID); err != nil {
 			return nil, fmt.Errorf("index package uses %q: %v", p.Name, err)
 		}
 	}
@@ -285,7 +285,7 @@ func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
 	return nil
 }
 
-func (i *indexer) indexPkgDefs(p *packages.Package, proID string) (err error) {
+func (i *indexer) indexPkgDefs(pkgs []*packages.Package, p *packages.Package, proID string) (err error) {
 	log.Infoln("Emitting definitions for package", p.Name)
 	defer log.Infoln()
 
@@ -309,7 +309,7 @@ func (i *indexer) indexPkgDefs(p *packages.Package, proID string) (err error) {
 			return fmt.Errorf("error indexing imports of %q: %v", p.PkgPath, err)
 		}
 
-		if err = i.indexDefs(p, f, fi, proID, fpos.Filename); err != nil {
+		if err = i.indexDefs(pkgs, p, f, fi, proID, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing definitions of %q: %v", p.PkgPath, err)
 		}
 	}
@@ -317,7 +317,7 @@ func (i *indexer) indexPkgDefs(p *packages.Package, proID string) (err error) {
 	return nil
 }
 
-func (i *indexer) indexPkgUses(p *packages.Package, proID string) (err error) {
+func (i *indexer) indexPkgUses(pkgs []*packages.Package, p *packages.Package, proID string) (err error) {
 	log.Infoln("Emitting references for package", p.Name)
 	defer log.Infoln()
 
@@ -337,7 +337,7 @@ func (i *indexer) indexPkgUses(p *packages.Package, proID string) (err error) {
 
 		log.Infoln("\tFile:", fpos.Filename)
 
-		if err := i.indexUses(p, fi, fpos.Filename); err != nil {
+		if err := i.indexUses(pkgs, p, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing uses of %q: %v", p.PkgPath, err)
 		}
 	}
@@ -378,7 +378,7 @@ func (i *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) err
 	return nil
 }
 
-func (i *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
+func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Defs {
 		// Object is nil when not denote an object
@@ -504,7 +504,7 @@ func (i *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 			}
 		}
 
-		contents, err := findContents(f, obj)
+		contents, err := findContents(pkgs, p, f, obj)
 		if err != nil {
 			return fmt.Errorf("find contents: %v", err)
 		}
@@ -526,7 +526,7 @@ func (i *indexer) indexDefs(p *packages.Package, f *ast.File, fi *fileInfo, proI
 	return nil
 }
 
-func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) error {
+func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *fileInfo, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file
@@ -580,7 +580,6 @@ func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 		}
 
 		pkg := obj.Pkg()
-
 		if def == nil && pkg == nil {
 			// No range to emit because have neither a definition nor a moniker to
 			// attach to the range.
@@ -602,7 +601,7 @@ func (i *indexer) indexUses(p *packages.Package, fi *fileInfo, filename string) 
 		rangeIDs = append(rangeIDs, rangeID)
 
 		if def == nil {
-			contents, err := externalHoverContents(p, obj, pkg)
+			contents, err := externalHoverContents(pkgs, p, obj, pkg)
 			if err != nil {
 				return err
 			}

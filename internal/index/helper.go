@@ -27,9 +27,9 @@ func lspRange(pos token.Position, name string) (start protocol.Pos, end protocol
 }
 
 // findContents returns contents used as hover info for given object.
-func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error) {
+func findContents(pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) ([]protocol.MarkedString, error) {
 	s, extra := typeString(obj)
-	comments, err := findComments(f, obj)
+	comments, err := findComments(pkgs, p, f, obj)
 	if err != nil {
 		return nil, fmt.Errorf("find comments: %v", err)
 	}
@@ -40,7 +40,7 @@ func findContents(f *ast.File, obj types.Object) ([]protocol.MarkedString, error
 // externalHoverContents returns contents used as hover info for objects that are not
 // defined in any of the (directly) analyzed source files. This will attempt to find
 // the definition in the AST of the dependency and pull the hover text from that.
-func externalHoverContents(p *packages.Package, obj types.Object, pkg *types.Package) ([]protocol.MarkedString, error) {
+func externalHoverContents(pkgs []*packages.Package, p *packages.Package, obj types.Object, pkg *types.Package) ([]protocol.MarkedString, error) {
 	dependencyPackage := p.Imports[pkg.Path()]
 	if dependencyPackage == nil {
 		return nil, nil
@@ -51,7 +51,7 @@ func externalHoverContents(p *packages.Package, obj types.Object, pkg *types.Pac
 	var comments string
 	for _, f := range dependencyPackage.Syntax {
 		var err error
-		comments, err = findComments(f, obj)
+		comments, err = findComments(pkgs, p, f, obj)
 		if err != nil {
 			return nil, fmt.Errorf("find comments: %v", err)
 		}
@@ -99,7 +99,11 @@ func typeString(obj types.Object) (string, string) {
 			}
 		}
 		if s == "" {
-			s = types.ObjectString(obj, qf)
+			if v, ok := obj.(*types.PkgName); ok {
+				s = "package " + v.Name()
+			} else {
+				s = types.ObjectString(obj, qf)
+			}
 		}
 	}
 
@@ -172,13 +176,25 @@ func prettyPrintTypesString(s string) string {
 //
 // This function is modified from
 // https://sourcegraph.com/github.com/sourcegraph/go-langserver@02f4198/-/blob/langserver/hover.go#L106
-func findComments(f *ast.File, o types.Object) (string, error) {
+func findComments(pkgs []*packages.Package, p *packages.Package, f *ast.File, o types.Object) (string, error) {
 	if o == nil {
 		return "", nil
 	}
 
-	if _, ok := o.(*types.PkgName); ok {
-		// TODO(jchen): add helper to find package doc
+	if pkgName, ok := o.(*types.PkgName); ok {
+		pkgPath := pkgName.Imported().Path()
+
+		for _, px := range pkgs {
+			if comment := getPackageComment(px, pkgPath); comment != "" {
+				return comment, nil
+			}
+		}
+
+		dependencyPackage, ok := p.Imports[pkgPath]
+		if ok {
+			return getPackageComment(dependencyPackage, pkgPath), nil
+		}
+
 		return "", nil
 	}
 
@@ -207,6 +223,20 @@ func findComments(f *ast.File, o types.Object) (string, error) {
 		}
 	}
 	return comments, nil
+}
+
+func getPackageComment(dependencyPackage *packages.Package, pkgPath string) string {
+	if dependencyPackage.PkgPath != pkgPath {
+		return ""
+	}
+
+	for _, f := range dependencyPackage.Syntax {
+		if f.Doc.Text() != "" {
+			return f.Doc.Text()
+		}
+	}
+
+	return ""
 }
 
 // joinCommentGroups joins the resultant non-empty comment text from two
