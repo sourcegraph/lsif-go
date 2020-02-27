@@ -108,7 +108,7 @@ func realMain() error {
 		return fmt.Errorf("index: %v", err)
 	}
 
-	fmt.Printf("%d package(s), %d file(s), %d def(s), %d element(s)", s.NumPkgs, s.NumFiles, s.NumDefs, s.NumElements)
+	fmt.Printf("%d package(s), %d file(s), %d def(s), %d element(s)\n", s.NumPkgs, s.NumFiles, s.NumDefs, s.NumElements)
 	fmt.Println("Processed in", time.Since(start))
 	return nil
 }
