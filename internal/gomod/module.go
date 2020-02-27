@@ -3,6 +3,7 @@ package gomod
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,6 +56,7 @@ func InferModuleVersion(projectRoot string) (string, error) {
 func ListModules(projectRoot string) (string, map[string]string, error) {
 	_, err := os.Stat(filepath.Join(projectRoot, "go.mod"))
 	if os.IsNotExist(err) {
+		log.Println("WARNING: No go.mod file found in current directory.")
 		return "", nil, nil
 	}
 

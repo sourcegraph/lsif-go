@@ -14,14 +14,13 @@ go get github.com/sourcegraph/lsif-go/cmd/lsif-go
 
 ## Indexing your repository
 
+After installing `lsif-go` onto your PATH, run the command in the root where your `go.mod` file is located.
+
 ```
 $ lsif-go
 ...........
-
 5 package(s), 8 file(s), 689 def(s), 13681 element(s)
 Processed in 1.002227943s
 ```
-
-By default, the indexer will read the current directory as the root of the project.
 
 Use `lsif-go --help` for more information.
