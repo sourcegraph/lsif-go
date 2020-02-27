@@ -26,19 +26,17 @@ func main() {
 
 func realMain() error {
 	var (
-		projectRoot    string
-		repositoryRoot string
-		moduleVersion  string
-		addContents    bool
 		outFile        string
+		moduleVersion  string
+		repositoryRoot string
+		addContents    bool
 	)
 
 	app := kingpin.New("lsif-go", "lsif-go is an LSIF indexer for Go.").Version(versionString)
-	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
-	app.Flag("repositoryRoot", "Specifies the repository root.").StringVar(&repositoryRoot)
-	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").StringVar(&moduleVersion)
-	app.Flag("addContents", "File contents will be embedded into the dump.").Default("false").BoolVar(&addContents)
-	app.Flag("out", "The output file the dump is saved to.").Default("dump.lsif").StringVar(&outFile)
+	app.Flag("out", "The output file").Default("dump.lsif").StringVar(&outFile)
+	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").PlaceHolder("version").StringVar(&moduleVersion)
+	app.Flag("repositoryRoot", "Specifies the path of the current repository (inferred automatically via git).").PlaceHolder("root").StringVar(&repositoryRoot)
+	app.Flag("addContents", "Embedded file contents into the dump.").Default("false").BoolVar(&addContents)
 
 	_, err := app.Parse(os.Args[1:])
 	if err != nil {
@@ -53,7 +51,7 @@ func realMain() error {
 		repositoryRoot = string(toplevel)
 	}
 
-	projectRoot, err = filepath.Abs(projectRoot)
+	projectRoot, err := filepath.Abs(".")
 	if err != nil {
 		return fmt.Errorf("get abspath of project root: %v", err)
 	}
