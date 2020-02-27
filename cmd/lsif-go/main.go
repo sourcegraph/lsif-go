@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -26,18 +27,20 @@ func main() {
 
 func realMain() error {
 	var (
-		debug         bool
-		verbose       bool
-		projectRoot   string
-		moduleVersion string
-		addContents   bool
-		outFile       string
+		debug          bool
+		verbose        bool
+		projectRoot    string
+		repositoryRoot string
+		moduleVersion  string
+		addContents    bool
+		outFile        string
 	)
 
 	app := kingpin.New("lsif-go", "lsif-go is an LSIF indexer for Go.").Version(versionString)
 	app.Flag("debug", "Display debug information.").Default("false").BoolVar(&debug)
 	app.Flag("verbose", "Display verbose information.").Short('v').Default("false").BoolVar(&verbose)
 	app.Flag("projectRoot", "Specifies the project root. Defaults to the current working directory.").Default(".").StringVar(&projectRoot)
+	app.Flag("repositoryRoot", "Specifies the repository root.").StringVar(&repositoryRoot)
 	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").StringVar(&moduleVersion)
 	app.Flag("addContents", "File contents will be embedded into the dump.").Default("false").BoolVar(&addContents)
 	app.Flag("out", "The output file the dump is saved to.").Default("dump.lsif").StringVar(&outFile)
@@ -58,6 +61,24 @@ func realMain() error {
 	// Print progress dots if we have no other output
 	printProgressDots := !verbose && !debug
 
+	if repositoryRoot == "" {
+		toplevel, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+		if err != nil {
+			return fmt.Errorf("get git root: %v", err)
+		}
+		repositoryRoot = string(toplevel)
+	}
+
+	projectRoot, err = filepath.Abs(projectRoot)
+	if err != nil {
+		return fmt.Errorf("get abspath of project root: %v", err)
+	}
+
+	repositoryRoot, err = filepath.Abs(repositoryRoot)
+	if err != nil {
+		return fmt.Errorf("get abspath of repository root: %v", err)
+	}
+
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
 	if err != nil {
 		return err
@@ -76,11 +97,6 @@ func realMain() error {
 
 	defer out.Close()
 
-	projectRoot, err = filepath.Abs(projectRoot)
-	if err != nil {
-		return fmt.Errorf("get abspath of project root: %v", err)
-	}
-
 	toolInfo := protocol.ToolInfo{
 		Name:    "lsif-go",
 		Version: version,
@@ -89,6 +105,7 @@ func realMain() error {
 
 	indexer := index.NewIndexer(
 		projectRoot,
+		repositoryRoot,
 		moduleName,
 		moduleVersion,
 		dependencies,
