@@ -47,7 +47,7 @@ func realMain() error {
 	app.Flag("out", "The output file.").Short('o').Default("dump.lsif").StringVar(&outFile)
 	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").PlaceHolder("version").StringVar(&moduleVersion)
 	app.Flag("repositoryRoot", "Specifies the path of the current repository (inferred automatically via git).").PlaceHolder("root").StringVar(&repositoryRoot)
-	app.Flag("addContents", "Embedded file contents into the dump.").Default("false").BoolVar(&addContents)
+	app.Flag("addContents", "Embed file contents into the dump.").Default("false").BoolVar(&addContents)
 
 	_, err := app.Parse(os.Args[1:])
 	if err != nil {
