@@ -67,7 +67,7 @@ func NewIndexer(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]string,
-	excludeContent bool,
+	addContents bool,
 	printProgressDots bool,
 	toolInfo protocol.ToolInfo,
 	w io.Writer,
@@ -80,7 +80,7 @@ func NewIndexer(
 		dependencies:      dependencies,
 		printProgressDots: printProgressDots,
 		toolInfo:          toolInfo,
-		w:                 protocol.NewWriter(w, excludeContent),
+		w:                 protocol.NewWriter(w, addContents),
 
 		// Empty maps
 		defsIndexed:           map[string]bool{},
@@ -401,7 +401,12 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 			continue
 		}
 
-		rangeID, err := i.w.EmitRange(lspRange(ipos, ident.Name))
+		isQuotedPkgName := false
+		if pkgName, ok := obj.(*types.PkgName); ok {
+			isQuotedPkgName = strings.HasPrefix(pkgName.Name(), `"`)
+		}
+
+		rangeID, err := i.w.EmitRange(lspRange(ipos, ident.Name, isQuotedPkgName))
 		if err != nil {
 			return fmt.Errorf(`emit "range": %v`, err)
 		}
@@ -595,7 +600,7 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 		// constructed a range at the same position.
 		rangeID, ok := i.ranges[filename][ipos.Offset]
 		if !ok {
-			rangeID, err = i.w.EmitRange(lspRange(ipos, ident.Name))
+			rangeID, err = i.w.EmitRange(lspRange(ipos, ident.Name, false))
 			if err != nil {
 				return fmt.Errorf(`emit "range": %v`, err)
 			}
