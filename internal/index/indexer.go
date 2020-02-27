@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sourcegraph/lsif-go/internal/log"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
@@ -32,11 +31,10 @@ type Stats struct {
 
 // indexer keeps track of all information needed to generate an LSIF dump.
 type indexer struct {
-	projectRoot       string
-	repositoryRoot    string
-	printProgressDots bool
-	toolInfo          protocol.ToolInfo
-	w                 *protocol.Writer
+	projectRoot    string
+	repositoryRoot string
+	toolInfo       protocol.ToolInfo
+	w              *protocol.Writer
 
 	// De-duplication
 	defsIndexed map[string]bool
@@ -68,19 +66,17 @@ func NewIndexer(
 	moduleVersion string,
 	dependencies map[string]string,
 	addContents bool,
-	printProgressDots bool,
 	toolInfo protocol.ToolInfo,
 	w io.Writer,
 ) Indexer {
 	return &indexer{
-		projectRoot:       projectRoot,
-		repositoryRoot:    repositoryRoot,
-		moduleName:        moduleName,
-		moduleVersion:     moduleVersion,
-		dependencies:      dependencies,
-		printProgressDots: printProgressDots,
-		toolInfo:          toolInfo,
-		w:                 protocol.NewWriter(w, addContents),
+		projectRoot:    projectRoot,
+		repositoryRoot: repositoryRoot,
+		moduleName:     moduleName,
+		moduleVersion:  moduleVersion,
+		dependencies:   dependencies,
+		toolInfo:       toolInfo,
+		w:              protocol.NewWriter(w, addContents),
 
 		// Empty maps
 		defsIndexed:           map[string]bool{},
@@ -111,8 +107,6 @@ func (i *indexer) Index() (*Stats, error) {
 }
 
 func (i *indexer) packages() ([]*packages.Package, error) {
-	log.Infoln("Loading packages...")
-
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedImports | packages.NeedDeps |
@@ -123,9 +117,7 @@ func (i *indexer) packages() ([]*packages.Package, error) {
 			// Print progress while the packages are loading
 			// We don't need to log this information, though
 			// (it's incredibly verbose)
-			if i.printProgressDots {
-				fmt.Fprintf(os.Stdout, ".")
-			}
+			fmt.Fprintf(os.Stdout, ".")
 		},
 	}, "./...")
 	if err != nil {
@@ -166,12 +158,8 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 		}
 	}
 
-	log.Infoln("Linking references...")
-
 	for _, f := range i.files {
-		if i.printProgressDots {
-			fmt.Fprintf(os.Stdout, ".")
-		}
+		fmt.Fprintf(os.Stdout, ".")
 
 		for _, rangeID := range f.defRangeIDs {
 			refResultID, err := i.w.EmitReferenceResult()
@@ -244,9 +232,6 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 }
 
 func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
-	log.Infoln("Emitting documents for package", p.Name)
-	defer log.Infoln()
-
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
 		if !strings.HasPrefix(fpos.Filename, i.projectRoot) {
@@ -259,8 +244,6 @@ func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
 			// Emit each document only once
 			continue
 		}
-
-		log.Infoln("\tFile:", fpos.Filename)
 
 		docID, err := i.w.EmitDocument(LanguageGo, fpos.Filename)
 		if err != nil {
@@ -289,9 +272,6 @@ func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
 }
 
 func (i *indexer) indexPkgDefs(pkgs []*packages.Package, p *packages.Package, proID string) (err error) {
-	log.Infoln("Emitting definitions for package", p.Name)
-	defer log.Infoln()
-
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
 		fi, ok := i.files[fpos.Filename]
@@ -306,8 +286,6 @@ func (i *indexer) indexPkgDefs(pkgs []*packages.Package, p *packages.Package, pr
 		}
 		i.defsIndexed[fpos.Filename] = true
 
-		log.Infoln("\tFile:", fpos.Filename)
-
 		if err = i.addImports(p, f, fi); err != nil {
 			return fmt.Errorf("error indexing imports of %q: %v", p.PkgPath, err)
 		}
@@ -321,9 +299,6 @@ func (i *indexer) indexPkgDefs(pkgs []*packages.Package, p *packages.Package, pr
 }
 
 func (i *indexer) indexPkgUses(pkgs []*packages.Package, p *packages.Package, proID string) (err error) {
-	log.Infoln("Emitting references for package", p.Name)
-	defer log.Infoln()
-
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
 		fi, ok := i.files[fpos.Filename]
@@ -337,8 +312,6 @@ func (i *indexer) indexPkgUses(pkgs []*packages.Package, p *packages.Package, pr
 			continue
 		}
 		i.usesIndexed[fpos.Filename] = true
-
-		log.Infoln("\tFile:", fpos.Filename)
 
 		if err := i.indexUses(pkgs, p, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing uses of %q: %v", p.PkgPath, err)
@@ -374,9 +347,6 @@ func (i *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) err
 			Name:    name,
 			Obj:     ast.NewObj(ast.Pkg, name),
 		}] = types.NewPkgName(ispec.Pos(), p.Types, name, p.Imports[ipath].Types)
-		log.Debugln("[import] Path:", ipath)
-		log.Debugln("[import] Name:", ispec.Name)
-		log.Debugln("[import] iPos:", p.Fset.Position(ispec.Pos()))
 	}
 	return nil
 }
@@ -462,35 +432,21 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 
 		switch v := obj.(type) {
 		case *types.Func:
-			log.Debugln("[func] Def:", ident.Name)
-			log.Debugln("[func] FullName:", v.FullName())
-			log.Debugln("[func] iPos:", ipos)
 			i.funcs[v.FullName()] = defInfo
 
 		case *types.Const:
-			log.Debugln("[const] Def:", ident.Name)
-			log.Debugln("[const] iPos:", ipos)
 			i.consts[ident.Pos()] = defInfo
 
 		case *types.Var:
-			log.Debugln("[var] Def:", ident.Name)
-			log.Debugln("[var] iPos:", ipos)
 			i.vars[ident.Pos()] = defInfo
 
 		case *types.TypeName:
-			log.Debugln("[typename] Def:", ident.Name)
-			log.Debugln("[typename] Type:", obj.Type())
-			log.Debugln("[typename] iPos:", ipos)
 			i.types[obj.Type().String()] = defInfo
 
 		case *types.Label:
-			log.Debugln("[label] Def:", ident.Name)
-			log.Debugln("[label] iPos:", ipos)
 			i.labels[ident.Pos()] = defInfo
 
 		case *types.PkgName:
-			log.Debugln("[pkgname] Def:", ident)
-			log.Debugln("[pkgname] iPos:", ipos)
 			i.imports[ident.Pos()] = defInfo
 
 			err := i.emitImportMoniker(refResult.resultSetID, strings.Trim(ident.String(), `"`))
@@ -499,9 +455,6 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 			}
 
 		default:
-			log.Debugf("[default] ---> %T\n", obj)
-			log.Debugln("[default] Def:", ident)
-			log.Debugln("[default] iPos:", ipos)
 			continue
 		}
 
@@ -546,45 +499,22 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 		var def *defInfo
 		switch v := obj.(type) {
 		case *types.Func:
-			log.Debugln("[func] Use:", ident.Name)
-			log.Debugln("[func] FullName:", v.FullName())
-			log.Debugln("[func] iPos:", ipos)
 			def = i.funcs[v.FullName()]
 
 		case *types.Const:
-			log.Debugln("[const] Use:", ident)
-			log.Debugln("[const] iPos:", ipos)
-			log.Debugln("[const] vPos:", p.Fset.Position(v.Pos()))
 			def = i.consts[v.Pos()]
 
 		case *types.Var:
-			log.Debugln("[var] Use:", ident)
-			log.Debugln("[var] iPos:", ipos)
-			log.Debugln("[var] vPos:", p.Fset.Position(v.Pos()))
 			def = i.vars[v.Pos()]
 
 		case *types.TypeName:
-			log.Debugln("[typename] Use:", ident.Name)
-			log.Debugln("[typename] Type:", obj.Type())
-			log.Debugln("[typename] iPos:", ipos)
 			def = i.types[obj.Type().String()]
 
 		case *types.Label:
-			log.Debugln("[label] Use:", ident.Name)
-			log.Debugln("[label] iPos:", ipos)
-			log.Debugln("[label] vPos:", p.Fset.Position(v.Pos()))
 			def = i.labels[v.Pos()]
 
 		case *types.PkgName:
-			log.Debugln("[pkgname] Use:", ident)
-			log.Debugln("[pkgname] iPos:", ipos)
-			log.Debugln("[pkgname] vPos:", p.Fset.Position(v.Pos()))
 			def = i.imports[v.Pos()]
-
-		default:
-			log.Debugln("[default] Use:", ident)
-			log.Debugln("[default] iPos:", ipos)
-			log.Debugln("[default] vPos:", p.Fset.Position(v.Pos()))
 		}
 
 		pkg := obj.Pkg()
