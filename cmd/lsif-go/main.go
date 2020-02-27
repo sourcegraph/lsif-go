@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,12 @@ import (
 
 const version = "0.4.1"
 const versionString = version + ", protocol version " + protocol.Version
+
+func init() {
+	log.SetFlags(0)
+	log.SetPrefix("")
+	log.SetOutput(os.Stdout)
+}
 
 func main() {
 	if err := realMain(); err != nil {
