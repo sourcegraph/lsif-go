@@ -33,6 +33,7 @@ type Stats struct {
 // indexer keeps track of all information needed to generate an LSIF dump.
 type indexer struct {
 	projectRoot       string
+	repositoryRoot    string
 	printProgressDots bool
 	toolInfo          protocol.ToolInfo
 	w                 *protocol.Writer
@@ -62,6 +63,7 @@ type indexer struct {
 // NewIndexer creates a new Indexer.
 func NewIndexer(
 	projectRoot string,
+	repositoryRoot string,
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]string,
@@ -72,6 +74,7 @@ func NewIndexer(
 ) Indexer {
 	return &indexer{
 		projectRoot:       projectRoot,
+		repositoryRoot:    repositoryRoot,
 		moduleName:        moduleName,
 		moduleVersion:     moduleVersion,
 		dependencies:      dependencies,
@@ -133,7 +136,7 @@ func (i *indexer) packages() ([]*packages.Package, error) {
 }
 
 func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
-	_, err := i.w.EmitMetaData("file://"+i.projectRoot, i.toolInfo)
+	_, err := i.w.EmitMetaData("file://"+i.repositoryRoot, i.toolInfo)
 	if err != nil {
 		return nil, fmt.Errorf(`emit "metadata": %v`, err)
 	}
