@@ -37,9 +37,10 @@ type indexer struct {
 	w              *protocol.Writer
 
 	// De-duplication
-	defsIndexed map[string]bool
-	usesIndexed map[string]bool
-	ranges      map[string]map[int]string // filename -> offset -> rangeID
+	defsIndexed              map[string]bool
+	usesIndexed              map[string]bool
+	ranges                   map[string]map[int]string // filename -> offset -> rangeID
+	externalHoverResultCache map[string]string
 
 	// Type correlation
 	files   map[string]*fileInfo      // Keys: filename
@@ -79,18 +80,19 @@ func NewIndexer(
 		w:              protocol.NewWriter(w, addContents),
 
 		// Empty maps
-		defsIndexed:           map[string]bool{},
-		usesIndexed:           map[string]bool{},
-		ranges:                map[string]map[int]string{},
-		files:                 map[string]*fileInfo{},
-		imports:               map[token.Pos]*defInfo{},
-		funcs:                 map[string]*defInfo{},
-		consts:                map[token.Pos]*defInfo{},
-		vars:                  map[token.Pos]*defInfo{},
-		types:                 map[string]*defInfo{},
-		labels:                map[token.Pos]*defInfo{},
-		refs:                  map[string]*refResultInfo{},
-		packageInformationIDs: map[string]string{},
+		defsIndexed:              map[string]bool{},
+		usesIndexed:              map[string]bool{},
+		ranges:                   map[string]map[int]string{},
+		externalHoverResultCache: map[string]string{},
+		files:                    map[string]*fileInfo{},
+		imports:                  map[token.Pos]*defInfo{},
+		funcs:                    map[string]*defInfo{},
+		consts:                   map[token.Pos]*defInfo{},
+		vars:                     map[token.Pos]*defInfo{},
+		types:                    map[string]*defInfo{},
+		labels:                   map[token.Pos]*defInfo{},
+		refs:                     map[string]*refResultInfo{},
+		packageInformationIDs:    map[string]string{},
 	}
 }
 
@@ -539,17 +541,12 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 		rangeIDs = append(rangeIDs, rangeID)
 
 		if def == nil {
-			contents, err := externalHoverContents(pkgs, p, obj, pkg)
+			hoverResultID, err := i.makeHoverContents(pkgs, p, obj, pkg)
 			if err != nil {
 				return err
 			}
 
-			if contents != nil {
-				hoverResultID, err := i.w.EmitHoverResult(contents)
-				if err != nil {
-					return fmt.Errorf(`emit "hoverResult": %v`, err)
-				}
-
+			if hoverResultID != "" {
 				_, err = i.w.EmitTextDocumentHover(rangeID, hoverResultID)
 				if err != nil {
 					return fmt.Errorf(`emit "textDocument/hover": %v`, err)
@@ -602,6 +599,26 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 
 	fi.useRangeIDs = append(fi.useRangeIDs, rangeIDs...)
 	return nil
+}
+
+func (i *indexer) makeHoverContents(pkgs []*packages.Package, p *packages.Package, obj types.Object, pkg *types.Package) (string, error) {
+	key := fmt.Sprintf("%s::%d", pkg.Path(), obj.Pos())
+	if hoverResultID, ok := i.externalHoverResultCache[key]; ok {
+		return hoverResultID, nil
+	}
+
+	contents, err := externalHoverContents(pkgs, p, obj, pkg)
+	if err != nil || contents == nil {
+		return "", err
+	}
+
+	hoverResultID, err := i.w.EmitHoverResult(contents)
+	if err != nil {
+		return "", fmt.Errorf(`emit "hoverResult": %v`, err)
+	}
+	i.externalHoverResultCache[key] = hoverResultID
+
+	return hoverResultID, nil
 }
 
 func (i *indexer) ensurePackageInformation(packageName, version string) (string, error) {
