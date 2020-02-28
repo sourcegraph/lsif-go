@@ -37,10 +37,10 @@ type indexer struct {
 	w              *protocol.Writer
 
 	// De-duplication
-	defsIndexed              map[string]bool
-	usesIndexed              map[string]bool
-	ranges                   map[string]map[int]string // filename -> offset -> rangeID
-	externalHoverResultCache map[string]string
+	defsIndexed      map[string]bool
+	usesIndexed      map[string]bool
+	ranges           map[string]map[int]string // filename -> offset -> rangeID
+	hoverResultCache map[string]string
 
 	// Type correlation
 	files   map[string]*fileInfo      // Keys: filename
@@ -80,19 +80,19 @@ func NewIndexer(
 		w:              protocol.NewWriter(w, addContents),
 
 		// Empty maps
-		defsIndexed:              map[string]bool{},
-		usesIndexed:              map[string]bool{},
-		ranges:                   map[string]map[int]string{},
-		externalHoverResultCache: map[string]string{},
-		files:                    map[string]*fileInfo{},
-		imports:                  map[token.Pos]*defInfo{},
-		funcs:                    map[string]*defInfo{},
-		consts:                   map[token.Pos]*defInfo{},
-		vars:                     map[token.Pos]*defInfo{},
-		types:                    map[string]*defInfo{},
-		labels:                   map[token.Pos]*defInfo{},
-		refs:                     map[string]*refResultInfo{},
-		packageInformationIDs:    map[string]string{},
+		defsIndexed:           map[string]bool{},
+		usesIndexed:           map[string]bool{},
+		ranges:                map[string]map[int]string{},
+		hoverResultCache:      map[string]string{},
+		files:                 map[string]*fileInfo{},
+		imports:               map[token.Pos]*defInfo{},
+		funcs:                 map[string]*defInfo{},
+		consts:                map[token.Pos]*defInfo{},
+		vars:                  map[token.Pos]*defInfo{},
+		types:                 map[string]*defInfo{},
+		labels:                map[token.Pos]*defInfo{},
+		refs:                  map[string]*refResultInfo{},
+		packageInformationIDs: map[string]string{},
 	}
 }
 
@@ -467,14 +467,9 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 			}
 		}
 
-		contents, err := findContents(pkgs, p, f, obj)
+		hoverResultID, err := i.makeCachedHoverResult(pkgs, p, f, obj)
 		if err != nil {
-			return fmt.Errorf("find contents: %v", err)
-		}
-
-		hoverResultID, err := i.w.EmitHoverResult(contents)
-		if err != nil {
-			return fmt.Errorf(`emit "hoverResult": %v`, err)
+			return err
 		}
 
 		_, err = i.w.EmitTextDocumentHover(refResult.resultSetID, hoverResultID)
@@ -541,7 +536,7 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 		rangeIDs = append(rangeIDs, rangeID)
 
 		if def == nil {
-			hoverResultID, err := i.makeHoverContents(pkgs, p, obj, pkg)
+			hoverResultID, err := i.makeCachedExternalHoverResult(pkgs, p, obj, pkg)
 			if err != nil {
 				return err
 			}
@@ -601,9 +596,58 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 	return nil
 }
 
-func (i *indexer) makeHoverContents(pkgs []*packages.Package, p *packages.Package, obj types.Object, pkg *types.Package) (string, error) {
+// makeCachedHoverResult creates a hover result vertex and returns its iD. This
+// method should be called for each definition in the set of indexed files. This
+// method will not create a new vertex for a pkgName object that has been seen
+// before. Because package text is likely to be large, and repeated at each import
+// and each use in the file (over many multiple files), this can save many copies
+// of the same text.
+func (i *indexer) makeCachedHoverResult(pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) (string, error) {
+	pkgName, ok := obj.(*types.PkgName)
+	if !ok {
+		// Defined in file, generate unique text
+		return i.makeHoverResult(pkgs, p, f, obj)
+	}
+
+	key := pkgName.Imported().Path()
+	if hoverResultID, ok := i.hoverResultCache[key]; ok {
+		return hoverResultID, nil
+	}
+
+	hoverResultID, err := i.makeHoverResult(pkgs, p, f, obj)
+	if err != nil {
+		return "", err
+	}
+	i.hoverResultCache[key] = hoverResultID
+
+	return hoverResultID, nil
+}
+
+// makeHoverResult create a hover result vertex and returns its ID. This method
+// should be called for each definition in the set of indexed files.
+func (i *indexer) makeHoverResult(pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) (string, error) {
+	contents, err := findContents(pkgs, p, f, obj)
+	if err != nil {
+		return "", fmt.Errorf("find contents: %v", err)
+	}
+
+	hoverResultID, err := i.w.EmitHoverResult(contents)
+	if err != nil {
+		return "", fmt.Errorf(`emit "hoverResult": %v`, err)
+	}
+
+	return hoverResultID, nil
+}
+
+// makeCachedExternalHoverResult creates a hover result vertex and returns its ID.
+// This method should be called for objects defined externally with a resolvable
+// package. This method will only make a new vertex if the path and object-position
+// pair has not been seen before. Because some methods in an external package are
+// likely to be used more than once in a project, this can save many copies of the
+// same text.
+func (i *indexer) makeCachedExternalHoverResult(pkgs []*packages.Package, p *packages.Package, obj types.Object, pkg *types.Package) (string, error) {
 	key := fmt.Sprintf("%s::%d", pkg.Path(), obj.Pos())
-	if hoverResultID, ok := i.externalHoverResultCache[key]; ok {
+	if hoverResultID, ok := i.hoverResultCache[key]; ok {
 		return hoverResultID, nil
 	}
 
@@ -616,7 +660,7 @@ func (i *indexer) makeHoverContents(pkgs []*packages.Package, p *packages.Packag
 	if err != nil {
 		return "", fmt.Errorf(`emit "hoverResult": %v`, err)
 	}
-	i.externalHoverResultCache[key] = hoverResultID
+	i.hoverResultCache[key] = hoverResultID
 
 	return hoverResultID, nil
 }
