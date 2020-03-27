@@ -60,7 +60,7 @@ func ListModules(projectRoot string) (string, map[string]string, error) {
 		return "", nil, nil
 	}
 
-	out, err := run(projectRoot, "go", "list", "-m", "all")
+	out, err := run(projectRoot, "go", "list", "-mod=readonly", "-m", "all")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to list modules: %v", err)
 	}

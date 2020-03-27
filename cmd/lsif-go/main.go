@@ -2,11 +2,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/alecthomas/kingpin"
@@ -36,6 +38,7 @@ func realMain() error {
 		outFile        string
 		moduleVersion  string
 		repositoryRoot string
+		moduleRoot     string
 		addContents    bool
 	)
 
@@ -47,6 +50,7 @@ func realMain() error {
 	app.Flag("out", "The output file.").Short('o').Default("dump.lsif").StringVar(&outFile)
 	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").PlaceHolder("version").StringVar(&moduleVersion)
 	app.Flag("repositoryRoot", "Specifies the path of the current repository (inferred automatically via git).").PlaceHolder("root").StringVar(&repositoryRoot)
+	app.Flag("moduleRoot", "Specifies the module root directory relative to the repository").Default(".").StringVar(&moduleRoot)
 	app.Flag("addContents", "Embed file contents into the dump.").Default("false").BoolVar(&addContents)
 
 	_, err := app.Parse(os.Args[1:])
@@ -59,10 +63,10 @@ func realMain() error {
 		if err != nil {
 			return fmt.Errorf("get git root: %v", err)
 		}
-		repositoryRoot = string(toplevel)
+		repositoryRoot = strings.TrimSpace(string(toplevel))
 	}
 
-	projectRoot, err := filepath.Abs(".")
+	projectRoot, err := filepath.Abs(moduleRoot)
 	if err != nil {
 		return fmt.Errorf("get abspath of project root: %v", err)
 	}
@@ -70,6 +74,11 @@ func realMain() error {
 	repositoryRoot, err = filepath.Abs(repositoryRoot)
 	if err != nil {
 		return fmt.Errorf("get abspath of repository root: %v", err)
+	}
+
+	// Sanity check: Ensure the module root is inside the repository.
+	if !strings.HasPrefix(projectRoot, repositoryRoot) {
+		return errors.New("module root is outside the repository")
 	}
 
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
@@ -96,6 +105,9 @@ func realMain() error {
 		Args:    os.Args[1:],
 	}
 
+	// TODO(@creachadair): Packages built with cgo may not include assembly
+	// files.  To index such a package you need to set CGO_ENABLED=0.  Consider
+	// maybe doing this explicitly, always.
 	indexer := index.NewIndexer(
 		projectRoot,
 		repositoryRoot,
