@@ -105,9 +105,9 @@ func realMain() error {
 		Args:    os.Args[1:],
 	}
 
-	// TODO(@creachadair): Packages built with cgo may not include assembly
-	// files.  To index such a package you need to set CGO_ENABLED=0.  Consider
-	// maybe doing this explicitly, always.
+	// TODO(@creachadair): With cgo enabled, the indexer cannot handle packages
+	// that include assembly (.s) files.  To index such a package you need to
+	// set CGO_ENABLED=0.  Consider maybe doing this explicitly, always.
 	indexer := index.NewIndexer(
 		projectRoot,
 		repositoryRoot,
