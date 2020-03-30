@@ -81,6 +81,11 @@ func realMain() error {
 		return errors.New("module root is outside the repository")
 	}
 
+	// Ensure all the dependencies of the specified module are cached.
+	if err := gomod.Download(projectRoot); err != nil {
+		return fmt.Errof("fetching dependencies: %v", err)
+	}
+
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
 	if err != nil {
 		return err

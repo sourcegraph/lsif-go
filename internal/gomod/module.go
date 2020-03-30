@@ -81,6 +81,13 @@ func ListModules(projectRoot string) (string, map[string]string, error) {
 	return lines[0], dependencies, nil
 }
 
+// Download fetches all the dependencies of the module in projectRoot.
+func Download(projectRoot string) error {
+	cmd := exec.Command("go", "mod", "download")
+	cmd.Dir = projectRoot
+	return cmd.Run()
+}
+
 // versionPattern matches the form vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
 var versionPattern = regexp.MustCompile(`^(.*)-(\d{14})-([a-f0-9]{12})$`)
 
