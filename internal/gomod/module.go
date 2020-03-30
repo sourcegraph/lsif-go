@@ -60,7 +60,7 @@ func ListModules(projectRoot string) (string, map[string]string, error) {
 		return "", nil, nil
 	}
 
-	out, err := run(projectRoot, "go", "list", "-m", "all")
+	out, err := run(projectRoot, "go", "list", "-mod=readonly", "-m", "all")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to list modules: %v", err)
 	}
@@ -79,6 +79,13 @@ func ListModules(projectRoot string) (string, map[string]string, error) {
 	}
 
 	return lines[0], dependencies, nil
+}
+
+// Download fetches all the dependencies of the module in projectRoot.
+func Download(projectRoot string) error {
+	cmd := exec.Command("go", "mod", "download")
+	cmd.Dir = projectRoot
+	return cmd.Run()
 }
 
 // versionPattern matches the form vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
