@@ -83,7 +83,7 @@ func realMain() error {
 
 	// Ensure all the dependencies of the specified module are cached.
 	if err := gomod.Download(projectRoot); err != nil {
-		return fmt.Errof("fetching dependencies: %v", err)
+		return fmt.Errorf("fetching dependencies: %v", err)
 	}
 
 	moduleName, dependencies, err := gomod.ListModules(projectRoot)
