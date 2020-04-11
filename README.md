@@ -24,3 +24,7 @@ Processed in 1.002227943s
 ```
 
 Use `lsif-go --help` for more information.
+
+## Updating your index
+
+To keep your index up-to-date, you can add a step to your CI to generate new data when your repository changes.  For example, you can use our [LSIF Go action workflow](https://github.com/sourcegraph/lsif-go-action) to generate and upload an index in GitHub Actions.
