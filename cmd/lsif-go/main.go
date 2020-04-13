@@ -17,7 +17,7 @@ import (
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
-const version = "0.5.0"
+const version = "0.5.1"
 const versionString = version + ", protocol version " + protocol.Version
 
 func init() {
