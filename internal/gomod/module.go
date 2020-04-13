@@ -54,9 +54,7 @@ func InferModuleVersion(projectRoot string) (string, error) {
 // ListModules returns the module name provided by the project root as well
 // as a map from names to versions of each module the project depends on.
 func ListModules(projectRoot string) (string, map[string]string, error) {
-	if ok, err := isModule(projectRoot); err != nil {
-		return "", nil, err
-	} else if !ok {
+	if !isModule(projectRoot) {
 		log.Println("WARNING: No go.mod file found in current directory.")
 		return "", nil, nil
 	}
@@ -84,9 +82,7 @@ func ListModules(projectRoot string) (string, map[string]string, error) {
 
 // Download fetches all the dependencies of the module in projectRoot.
 func Download(projectRoot string) error {
-	if ok, err := isModule(projectRoot); err != nil {
-		return err
-	} else if !ok {
+	if !isModule(projectRoot) {
 		return nil
 	}
 
@@ -123,13 +119,7 @@ func run(dir, command string, args ...string) (string, error) {
 }
 
 // isModule determines if there is a go.mod file in the given project root.
-func isModule(projectRoot string) (bool, error) {
-	if _, err := os.Stat(filepath.Join(projectRoot, "go.mod")); err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
-	return true, nil
+func isModule(projectRoot string) bool {
+	_, err := os.Stat(filepath.Join(projectRoot, "go.mod"))
+	return err == nil
 }
