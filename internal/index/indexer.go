@@ -354,8 +354,6 @@ func (i *indexer) addImports(p *packages.Package, f *ast.File, fi *fileInfo) err
 }
 
 func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *ast.File, fi *fileInfo, proID, filename string) error {
-	fmt.Fprintf(os.Stdout, ".")
-
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Defs {
 		// Object is nil when not denote an object
@@ -487,8 +485,6 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 }
 
 func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *fileInfo, filename string) error {
-	fmt.Fprintf(os.Stdout, ".")
-
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file

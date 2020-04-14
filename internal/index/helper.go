@@ -10,6 +10,7 @@ import (
 
 	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/lsif-go/protocol"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -204,7 +205,7 @@ func findComments(pkgs []*packages.Package, p *packages.Package, f *ast.File, o 
 	}
 
 	// Resolve the object o into its respective ast.Node
-	paths, exact := pathEnclosingInterval(f, o.Pos(), o.Pos())
+	paths, exact := astutil.PathEnclosingInterval(f, o.Pos(), o.Pos())
 	if !exact {
 		return "", nil
 	}
