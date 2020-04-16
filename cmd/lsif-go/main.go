@@ -17,8 +17,7 @@ import (
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
-const version = "0.5.1"
-const versionString = version + ", protocol version " + protocol.Version
+var version string
 
 func init() {
 	log.SetFlags(0)
@@ -42,6 +41,7 @@ func realMain() error {
 		addContents    bool
 	)
 
+	versionString := version + ", protocol version " + protocol.Version
 	app := kingpin.New("lsif-go", "lsif-go is an LSIF indexer for Go.").Version(versionString)
 	app.HelpFlag.Short('h')
 	app.VersionFlag.Short('v')

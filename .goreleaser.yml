@@ -16,7 +16,7 @@ builds:
   main: ./cmd/lsif-go/
   binary: lsif-go
   ldflags:
-    - -X main.buildTag={{.Version}}
+    - -X main.version={{.Version}}
   goos:
     - linux
     - windows
