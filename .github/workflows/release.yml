@@ -1,7 +1,9 @@
 name: release
 
 on:
-  branch: garo/fix-ci
+  push:
+    branches:
+      - garo/fix-ci
 
 jobs:
   goreleaser:
