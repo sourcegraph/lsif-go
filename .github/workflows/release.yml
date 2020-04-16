@@ -1,9 +1,7 @@
 name: release
 
 on:
-  push:
-    tags:
-      - v*
+  branch: garo/fix-ci
 
 jobs:
   goreleaser:
@@ -22,12 +20,12 @@ jobs:
           go-version: 1.14.x
       -
         name: Docker login
-        run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
       -
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v1
         with:
           version: v0.131.1
-          args: release --rm-dist
+          args: release --rm-dist --skip-publish --snapshot
         # env:
         #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
