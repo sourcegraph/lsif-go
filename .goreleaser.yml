@@ -37,8 +37,8 @@ dockers:
     - lsif-go
     image_templates:
     - "sourcegraph/lsif-go:{{ .Tag }}"
-    - "sourcegraph/lsif-go:{{ .Major }}"
-    - "sourcegraph/lsif-go:{{ .Major }}.{{ .Minor }}"
+    - "sourcegraph/lsif-go:v{{ .Major }}"
+    - "sourcegraph/lsif-go:v{{ .Major }}.{{ .Minor }}"
     - "sourcegraph/lsif-go:latest"
 
 changelog:
