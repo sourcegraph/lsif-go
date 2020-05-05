@@ -315,7 +315,7 @@ func (i *indexer) indexPkgUses(pkgs []*packages.Package, p *packages.Package, pr
 		}
 		i.usesIndexed[fpos.Filename] = true
 
-		if err := i.indexUses(pkgs, p, fi, fpos.Filename); err != nil {
+		if err := i.indexUses(pkgs, p, f, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing uses of %q: %v", p.PkgPath, err)
 		}
 	}
@@ -461,7 +461,7 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 		}
 
 		if ident.IsExported() {
-			err := i.emitExportMoniker(refResult.resultSetID, fmt.Sprintf("%s:%s", p.PkgPath, ident.String()))
+			err := i.emitExportMoniker(refResult.resultSetID, monikerIdentifier(f, p.PkgPath, ident, obj))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}
@@ -484,7 +484,7 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 	return nil
 }
 
-func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *fileInfo, filename string) error {
+func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, f *ast.File, fi *fileInfo, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file
@@ -550,7 +550,7 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, fi *f
 
 			// If we don't have a definition in this package, emit an import moniker
 			// so that we can correlate it with another dump's LSIF data.
-			err = i.emitImportMoniker(rangeID, fmt.Sprintf("%s:%s", pkg.Path(), obj.Id()))
+			err = i.emitImportMoniker(rangeID, monikerIdentifier(f, pkg.Path(), ident, obj))
 			if err != nil {
 				return fmt.Errorf(`emit moniker": %v`, err)
 			}

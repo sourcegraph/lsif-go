@@ -14,6 +14,46 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// monikerIdentifier constructs a moniker identifier from an ident. We can't just use the
+// ident name itself as this causes non-unique moniker generations (such as a String function
+// and a struct that conforms to the Stringer interface).
+func monikerIdentifier(f *ast.File, pkgPath string, ident *ast.Ident, obj types.Object) string {
+	// See if the ident is a signature with a receiver. If so, then we want to trim
+	// any leading * indicating a pointer receiver, then try to trim the package path.
+	// This constructs something like `{pkg}:{struct}.{method}`.
+	if signature, ok := obj.Type().(*types.Signature); ok {
+		if recv := signature.Recv(); recv != nil {
+			return fmt.Sprintf(
+				"%s:%s.%s",
+				pkgPath,
+				safeTrim(safeTrim(recv.Type().String(), "*"), pkgPath+"."),
+				ident.String(),
+			)
+		}
+	}
+
+	// See if the ident is a field of an outer type. If so, then we need to find the
+	// type spec that encloses it. This construct something like `{pkg}:{struct}.{field}`.
+	if v, ok := obj.(*types.Var); ok && v.IsField() {
+		if path, exact := astutil.PathEnclosingInterval(f, ident.Pos(), ident.Pos()); exact {
+			for _, node := range path {
+				if spec, ok := node.(*ast.TypeSpec); ok {
+					return fmt.Sprintf("%s:%s.%s", pkgPath, spec.Name.String(), ident.String())
+				}
+			}
+		}
+	}
+
+	return fmt.Sprintf("%s:%s", pkgPath, ident.String())
+}
+
+func safeTrim(s, prefix string) string {
+	if strings.HasPrefix(s, prefix) {
+		return s[len(prefix):]
+	}
+	return s
+}
+
 // lspRange transforms go/token.Position (1-based) to LSP start and end ranges (0-based)
 // which takes in consideration of identifier's name length. If the token is a quoted
 // package name, we'll create a range that covers only the string contents, not the quotes.
