@@ -26,7 +26,7 @@ func monikerIdentifier(f *ast.File, pkgPath string, ident *ast.Ident, obj types.
 			return fmt.Sprintf(
 				"%s:%s.%s",
 				pkgPath,
-				safeTrim(safeTrim(recv.Type().String(), "*"), pkgPath+"."),
+				strings.TrimPrefix(strings.TrimPrefix(recv.Type().String(), "*"), pkgPath+"."),
 				ident.String(),
 			)
 		}
@@ -45,13 +45,6 @@ func monikerIdentifier(f *ast.File, pkgPath string, ident *ast.Ident, obj types.
 	}
 
 	return fmt.Sprintf("%s:%s", pkgPath, ident.String())
-}
-
-func safeTrim(s, prefix string) string {
-	if strings.HasPrefix(s, prefix) {
-		return s[len(prefix):]
-	}
-	return s
 }
 
 // lspRange transforms go/token.Position (1-based) to LSP start and end ranges (0-based)
