@@ -1,4 +1,4 @@
-FROM sourcegraph/src-cli:3.16@sha256:77bb8714e0eee04a12348696892f21a84b1ba2adee94ecc53683ca8e2d66cc86 AS src-cli
+FROM sourcegraph/src-cli:3.16.1@sha256:b5dd688d25557eaa5fb0ec33cf2cc15a87bc72a7f5d9efa6d5e461644e93ac09 AS src-cli
 
 FROM golang:1.14-buster@sha256:71f35a85bbd89645bc9f95abe4da751958677d66094bebfa5d9a7fcaadc8fa27
 
