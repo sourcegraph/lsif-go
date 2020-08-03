@@ -122,6 +122,7 @@ func findDocumentURIContaining(elements []interface{}, id string) string {
 	return ""
 }
 
+// findRangeByID returns the range with the given identifier.
 func findRangeByID(elements []interface{}, id string) *protocol.Range {
 	for _, elem := range elements {
 		switch v := elem.(type) {
@@ -135,6 +136,7 @@ func findRangeByID(elements []interface{}, id string) *protocol.Range {
 	return nil
 }
 
+// findDefintionRangesByDefinitionResultID returns the ranges attached to the definition result with the given identifier.
 func findDefintionRangesByDefinitionResultID(elements []interface{}, id string) (ranges []*protocol.Range) {
 	for _, elem := range elements {
 		switch e := elem.(type) {
@@ -152,6 +154,7 @@ func findDefintionRangesByDefinitionResultID(elements []interface{}, id string) 
 	return ranges
 }
 
+// findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set with the given identifier.
 func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id string) (ranges []*protocol.Range) {
 	// First see if we're attached to definition result directly
 	for _, elem := range elements {
@@ -176,6 +179,7 @@ func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id string)
 	return ranges
 }
 
+// findReferenceRangesByReferenceResultID returns the ranges attached to the reference result with the given identifier.
 func findReferenceRangesByReferenceResultID(elements []interface{}, id string) (ranges []*protocol.Range) {
 	for _, elem := range elements {
 		switch e := elem.(type) {
@@ -193,6 +197,7 @@ func findReferenceRangesByReferenceResultID(elements []interface{}, id string) (
 	return ranges
 }
 
+// findReferenceRangesByRangeOrResultSetID returns the reference ranges attached to the range or result set with the given identifier.
 func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id string) (ranges []*protocol.Range) {
 	// First see if we're attached to reference result directly
 	for _, elem := range elements {
