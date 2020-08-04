@@ -144,20 +144,67 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 		return nil, fmt.Errorf(`emit "begin": %v`, err)
 	}
 
+	if err := i.prepareDocuments(pkgs, proID); err != nil {
+		return nil, fmt.Errorf("prepare documents: %s", err)
+	}
+
+	if err := i.preloadHoverText(pkgs); err != nil {
+		return nil, fmt.Errorf("preload hover text: %s", err)
+	}
+
+	if err := i.indexDefinitions(pkgs, proID); err != nil {
+		return nil, fmt.Errorf("index definitions: %s", err)
+	}
+
+	if err := i.indexUses(pkgs, proID); err != nil {
+		return nil, fmt.Errorf("index uses: %s", err)
+	}
+
+	if err := i.finalizeReferenceResults(); err != nil {
+		return nil, fmt.Errorf("finalize reference results: %s", err)
+	}
+
+	// Close all documents. This must be done as a last step as we need
+	// to emit everything about a document before sending the end event.
+
+	for _, info := range i.files {
+		_, err = i.w.EmitEndEvent("document", info.docID)
+		if err != nil {
+			return nil, fmt.Errorf(`emit "end": %v`, err)
+		}
+	}
+
+	_, err = i.w.EmitEndEvent("project", proID)
+	if err != nil {
+		return nil, fmt.Errorf(`emit "end": %v`, err)
+	}
+
+	return &Stats{
+		NumPkgs:     len(pkgs),
+		NumFiles:    len(i.files),
+		NumDefs:     len(i.imports) + len(i.funcs) + len(i.consts) + len(i.vars) + len(i.types) + len(i.labels),
+		NumElements: i.w.NumElements(),
+	}, nil
+}
+
+func (i *indexer) prepareDocuments(pkgs []*packages.Package, proID string) error {
 	fmt.Fprintf(os.Stdout, "Preparing documents\n")
 	for _, p := range pkgs {
 		fmt.Fprintf(os.Stdout, ".")
 
 		if err := i.indexPkgDocs(p, proID); err != nil {
-			return nil, fmt.Errorf("index package %q: %v", p.Name, err)
+			return fmt.Errorf("index package %q: %v", p.Name, err)
 		}
 
 		if err := i.addPkgImports(pkgs, p, proID); err != nil {
-			return nil, fmt.Errorf("add package imports %q: %v", p.Name, err)
+			return fmt.Errorf("add package imports %q: %v", p.Name, err)
 		}
 	}
 	fmt.Fprintf(os.Stdout, "\n")
+	return nil
+}
 
+func (i *indexer) preloadHoverText(pkgs []*packages.Package) error {
 	allPackages := map[*packages.Package]struct{}{}
 	for _, p := range pkgs {
 		allPackages[p] = struct{}{}
@@ -200,27 +247,36 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 	}
 	wg.Wait()
 	fmt.Fprintf(os.Stdout, "\n")
+	return nil
+}
 
+func (i *indexer) indexDefinitions(pkgs []*packages.Package, proID string) error {
 	fmt.Fprintf(os.Stdout, "Indexing definitions\n")
 	for _, p := range pkgs {
 		fmt.Fprintf(os.Stdout, ".")
 
 		if err := i.indexPkgDefs(pkgs, p, proID); err != nil {
-			return nil, fmt.Errorf("index package defs %q: %v", p.Name, err)
+			return fmt.Errorf("index package defs %q: %v", p.Name, err)
 		}
 	}
 	fmt.Fprintf(os.Stdout, "\n")
+	return nil
+}
 
+func (i *indexer) indexUses(pkgs []*packages.Package, proID string) error {
 	fmt.Fprintf(os.Stdout, "Indexing uses\n")
 	for _, p := range pkgs {
 		fmt.Fprintf(os.Stdout, ".")
 
 		if err := i.indexPkgUses(pkgs, p, proID); err != nil {
-			return nil, fmt.Errorf("index package uses %q: %v", p.Name, err)
+			return fmt.Errorf("index package uses %q: %v", p.Name, err)
 		}
 	}
 	fmt.Fprintf(os.Stdout, "\n")
+	return nil
+}
 
+func (i *indexer) finalizeReferenceResults() error {
 	fmt.Fprintf(os.Stdout, "Finalizing reference results\n")
 	for _, f := range i.files {
 		fmt.Fprintf(os.Stdout, ".")
@@ -228,25 +284,25 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 		for _, rangeID := range f.defRangeIDs {
 			refResultID, err := i.w.EmitReferenceResult()
 			if err != nil {
-				return nil, fmt.Errorf(`emit "referenceResult": %v`, err)
+				return fmt.Errorf(`emit "referenceResult": %v`, err)
 			}
 
 			_, err = i.w.EmitTextDocumentReferences(i.refs[rangeID].resultSetID, refResultID)
 			if err != nil {
-				return nil, fmt.Errorf(`emit "textDocument/references": %v`, err)
+				return fmt.Errorf(`emit "textDocument/references": %v`, err)
 			}
 
 			for docID, rangeIDs := range i.refs[rangeID].defRangeIDs {
 				_, err = i.w.EmitItemOfDefinitions(refResultID, rangeIDs, docID)
 				if err != nil {
-					return nil, fmt.Errorf(`emit "item": %v`, err)
+					return fmt.Errorf(`emit "item": %v`, err)
 				}
 			}
 
 			for docID, rangeIDs := range i.refs[rangeID].refRangeIDs {
 				_, err = i.w.EmitItemOfReferences(refResultID, rangeIDs, docID)
 				if err != nil {
-					return nil, fmt.Errorf(`emit "item": %v`, err)
+					return fmt.Errorf(`emit "item": %v`, err)
 				}
 			}
 		}
@@ -265,35 +321,14 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 				allRanges = append(allRanges, id)
 			}
 
-			_, err = i.w.EmitContains(f.docID, allRanges)
+			_, err := i.w.EmitContains(f.docID, allRanges)
 			if err != nil {
-				return nil, fmt.Errorf(`emit "contains": %v`, err)
+				return fmt.Errorf(`emit "contains": %v`, err)
 			}
 		}
 	}
 	fmt.Fprintf(os.Stdout, "\n")
-
-	// Close all documents. This must be done as a last step as we need
-	// to emit everything about a document before sending the end event.
-
-	for _, info := range i.files {
-		_, err = i.w.EmitEndEvent("document", info.docID)
-		if err != nil {
-			return nil, fmt.Errorf(`emit "end": %v`, err)
-		}
-	}
-
-	_, err = i.w.EmitEndEvent("project", proID)
-	if err != nil {
-		return nil, fmt.Errorf(`emit "end": %v`, err)
-	}
-
-	return &Stats{
-		NumPkgs:     len(pkgs),
-		NumFiles:    len(i.files),
-		NumDefs:     len(i.imports) + len(i.funcs) + len(i.consts) + len(i.vars) + len(i.types) + len(i.labels),
-		NumElements: i.w.NumElements(),
-	}, nil
+	return nil
 }
 
 func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
@@ -397,7 +432,7 @@ func (i *indexer) indexPkgUses(pkgs []*packages.Package, p *packages.Package, pr
 		}
 		i.usesIndexed[fpos.Filename] = true
 
-		if err := i.indexUses(pkgs, p, f, fi, fpos.Filename); err != nil {
+		if err := i.indexFileUses(pkgs, p, f, fi, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing uses of %q: %v", p.PkgPath, err)
 		}
 	}
@@ -563,7 +598,7 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 	return nil
 }
 
-func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, f *ast.File, fi *fileInfo, filename string) error {
+func (i *indexer) indexFileUses(pkgs []*packages.Package, p *packages.Package, f *ast.File, fi *fileInfo, filename string) error {
 	var rangeIDs []string
 	for ident, obj := range p.TypesInfo.Uses {
 		// Only emit if the object belongs to current file
