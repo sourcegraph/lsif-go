@@ -66,9 +66,9 @@ func lspRange(pos token.Position, name string, isQuotedPkgName bool) (start prot
 }
 
 // findContents returns contents used as hover info for given object.
-func findContents(pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) ([]protocol.MarkedString, error) {
+func findContents(pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object, hoverLoader *HoverLoader) ([]protocol.MarkedString, error) {
 	s, extra := typeString(obj)
-	comments, err := findComments(pkgs, p, f, obj)
+	comments, err := findComments(pkgs, p, f, obj, hoverLoader)
 	if err != nil {
 		return nil, fmt.Errorf("find comments: %v", err)
 	}
@@ -79,7 +79,7 @@ func findContents(pkgs []*packages.Package, p *packages.Package, f *ast.File, ob
 // externalHoverContents returns contents used as hover info for objects that are not
 // defined in any of the (directly) analyzed source files. This will attempt to find
 // the definition in the AST of the dependency and pull the hover text from that.
-func externalHoverContents(pkgs []*packages.Package, p *packages.Package, obj types.Object, pkg *types.Package) ([]protocol.MarkedString, error) {
+func externalHoverContents(pkgs []*packages.Package, p *packages.Package, obj types.Object, pkg *types.Package, hoverLoader *HoverLoader) ([]protocol.MarkedString, error) {
 	dependencyPackage := p.Imports[pkg.Path()]
 	if dependencyPackage == nil {
 		return nil, nil
@@ -90,7 +90,7 @@ func externalHoverContents(pkgs []*packages.Package, p *packages.Package, obj ty
 	var comments string
 	for _, f := range dependencyPackage.Syntax {
 		var err error
-		comments, err = findComments(pkgs, p, f, obj)
+		comments, err = findComments(pkgs, p, f, obj, hoverLoader)
 		if err != nil {
 			return nil, fmt.Errorf("find comments: %v", err)
 		}
@@ -215,7 +215,7 @@ func prettyPrintTypesString(s string) string {
 //
 // This function is modified from
 // https://sourcegraph.com/github.com/sourcegraph/go-langserver@02f4198/-/blob/langserver/hover.go#L106
-func findComments(pkgs []*packages.Package, p *packages.Package, f *ast.File, o types.Object) (string, error) {
+func findComments(pkgs []*packages.Package, p *packages.Package, f *ast.File, o types.Object, hoverLoader *HoverLoader) (string, error) {
 	if o == nil {
 		return "", nil
 	}
@@ -238,30 +238,7 @@ func findComments(pkgs []*packages.Package, p *packages.Package, f *ast.File, o 
 	}
 
 	// Resolve the object o into its respective ast.Node
-	paths, exact := astutil.PathEnclosingInterval(f, o.Pos(), o.Pos())
-	if !exact {
-		return "", nil
-	}
-
-	// Pull the comment out of the comment map for the file. Do
-	// not search too far away from the current path.
-	var comments string
-	for i := 0; i < 3 && i < len(paths) && comments == ""; i++ {
-		switch v := paths[i].(type) {
-		case *ast.Field:
-			// Concat associated documentation with any inline comments
-			comments = joinCommentGroups(v.Doc, v.Comment)
-		case *ast.ValueSpec:
-			comments = v.Doc.Text()
-		case *ast.TypeSpec:
-			comments = v.Doc.Text()
-		case *ast.GenDecl:
-			comments = v.Doc.Text()
-		case *ast.FuncDecl:
-			comments = v.Doc.Text()
-		}
-	}
-	return comments, nil
+	return hoverLoader.Text(f, o.Pos()), nil
 }
 
 func getPackageComment(dependencyPackage *packages.Package, pkgPath string) string {

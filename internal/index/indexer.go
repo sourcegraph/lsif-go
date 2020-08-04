@@ -7,7 +7,9 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
@@ -34,8 +36,10 @@ type indexer struct {
 	repositoryRoot string
 	toolInfo       protocol.ToolInfo
 	w              *protocol.Writer
+	hoverLoader    *HoverLoader
 
 	// De-duplication
+	packagesImported map[string]bool
 	defsIndexed      map[string]bool
 	usesIndexed      map[string]bool
 	ranges           map[string]map[int]string // filename -> offset -> rangeID
@@ -77,8 +81,10 @@ func NewIndexer(
 		dependencies:   dependencies,
 		toolInfo:       toolInfo,
 		w:              protocol.NewWriter(w, addContents),
+		hoverLoader:    newHoverLoader(),
 
 		// Empty maps
+		packagesImported:      map[string]bool{},
 		defsIndexed:           map[string]bool{},
 		usesIndexed:           map[string]bool{},
 		ranges:                map[string]map[int]string{},
@@ -99,6 +105,7 @@ func NewIndexer(
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
 func (i *indexer) Index() (*Stats, error) {
+	fmt.Fprintf(os.Stdout, "Loading packages\n")
 	pkgs, err := i.packages()
 	if err != nil {
 		return nil, err
@@ -114,12 +121,6 @@ func (i *indexer) packages() ([]*packages.Package, error) {
 			packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
 		Dir:   i.projectRoot,
 		Tests: true,
-		Logf: func(format string, args ...interface{}) {
-			// Print progress while the packages are loading
-			// We don't need to log this information, though
-			// (it's incredibly verbose)
-			fmt.Fprintf(os.Stdout, ".")
-		},
 	}, "./...")
 	if err != nil {
 		return nil, fmt.Errorf("load packages: %v", err)
@@ -143,22 +144,84 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 		return nil, fmt.Errorf(`emit "begin": %v`, err)
 	}
 
+	fmt.Fprintf(os.Stdout, "Preparing documents\n")
 	for _, p := range pkgs {
+		fmt.Fprintf(os.Stdout, ".")
+
 		if err := i.indexPkgDocs(p, proID); err != nil {
 			return nil, fmt.Errorf("index package %q: %v", p.Name, err)
 		}
+
+		if err := i.addPkgImports(pkgs, p, proID); err != nil {
+			return nil, fmt.Errorf("add package imports %q: %v", p.Name, err)
+		}
+	}
+	fmt.Fprintf(os.Stdout, "\n")
+
+	allPackages := map[*packages.Package]struct{}{}
+	for _, p := range pkgs {
+		allPackages[p] = struct{}{}
+
+		for _, i := range p.Imports {
+			allPackages[i] = struct{}{}
+		}
+	}
+
+	n := runtime.GOMAXPROCS(0)
+	sema := make(chan struct{}, n)
+	for i := 0; i < n; i++ {
+		sema <- struct{}{}
+	}
+
+	var wg sync.WaitGroup
+
+	fmt.Fprintf(os.Stdout, "Preloading hover text\n")
+	for p := range allPackages {
+		wg.Add(1)
+
+		go func(p *packages.Package) {
+			defer wg.Done()
+			<-sema
+			defer func() { sema <- struct{}{} }()
+
+			for _, f := range p.Syntax {
+				positions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
+				for _, obj := range p.TypesInfo.Defs {
+					if obj != nil {
+						positions = append(positions, obj.Pos())
+					}
+				}
+
+				i.hoverLoader.Load(f, positions)
+			}
+
+			fmt.Fprintf(os.Stdout, ".")
+		}(p)
+	}
+	wg.Wait()
+	fmt.Fprintf(os.Stdout, "\n")
+
+	fmt.Fprintf(os.Stdout, "Indexing definitions\n")
+	for _, p := range pkgs {
+		fmt.Fprintf(os.Stdout, ".")
 
 		if err := i.indexPkgDefs(pkgs, p, proID); err != nil {
 			return nil, fmt.Errorf("index package defs %q: %v", p.Name, err)
 		}
 	}
+	fmt.Fprintf(os.Stdout, "\n")
 
+	fmt.Fprintf(os.Stdout, "Indexing uses\n")
 	for _, p := range pkgs {
+		fmt.Fprintf(os.Stdout, ".")
+
 		if err := i.indexPkgUses(pkgs, p, proID); err != nil {
 			return nil, fmt.Errorf("index package uses %q: %v", p.Name, err)
 		}
 	}
+	fmt.Fprintf(os.Stdout, "\n")
 
+	fmt.Fprintf(os.Stdout, "Finalizing reference results\n")
 	for _, f := range i.files {
 		fmt.Fprintf(os.Stdout, ".")
 
@@ -208,6 +271,7 @@ func (i *indexer) index(pkgs []*packages.Package) (*Stats, error) {
 			}
 		}
 	}
+	fmt.Fprintf(os.Stdout, "\n")
 
 	// Close all documents. This must be done as a last step as we need
 	// to emit everything about a document before sending the end event.
@@ -272,6 +336,29 @@ func (i *indexer) indexPkgDocs(p *packages.Package, proID string) (err error) {
 	return nil
 }
 
+func (i *indexer) addPkgImports(pkgs []*packages.Package, p *packages.Package, proID string) (err error) {
+	for _, f := range p.Syntax {
+		fpos := p.Fset.Position(f.Package)
+		fi, ok := i.files[fpos.Filename]
+		if !ok {
+			// File skipped in the loop above
+			continue
+		}
+
+		if _, ok := i.packagesImported[fpos.Filename]; ok {
+			// Defs already imported
+			continue
+		}
+		i.packagesImported[fpos.Filename] = true
+
+		if err = i.addImports(p, f, fi); err != nil {
+			return fmt.Errorf("error indexing imports of %q: %v", p.PkgPath, err)
+		}
+	}
+
+	return nil
+}
+
 func (i *indexer) indexPkgDefs(pkgs []*packages.Package, p *packages.Package, proID string) (err error) {
 	for _, f := range p.Syntax {
 		fpos := p.Fset.Position(f.Package)
@@ -286,10 +373,6 @@ func (i *indexer) indexPkgDefs(pkgs []*packages.Package, p *packages.Package, pr
 			continue
 		}
 		i.defsIndexed[fpos.Filename] = true
-
-		if err = i.addImports(p, f, fi); err != nil {
-			return fmt.Errorf("error indexing imports of %q: %v", p.PkgPath, err)
-		}
 
 		if err = i.indexDefs(pkgs, p, f, fi, proID, fpos.Filename); err != nil {
 			return fmt.Errorf("error indexing definitions of %q: %v", p.PkgPath, err)
@@ -399,9 +482,6 @@ func (i *indexer) indexDefs(pkgs []*packages.Package, p *packages.Package, f *as
 			i.refs[rangeID] = refResult
 		}
 
-		if _, ok := refResult.defRangeIDs[fi.docID]; !ok {
-			refResult.defRangeIDs[fi.docID] = []string{}
-		}
 		refResult.defRangeIDs[fi.docID] = append(refResult.defRangeIDs[fi.docID], rangeID)
 
 		_, err = i.w.EmitNext(rangeID, refResult.resultSetID)
@@ -584,9 +664,6 @@ func (i *indexer) indexUses(pkgs []*packages.Package, p *packages.Package, f *as
 
 		refResult := i.refs[def.rangeID]
 		if refResult != nil {
-			if _, ok := refResult.refRangeIDs[fi.docID]; !ok {
-				refResult.refRangeIDs[fi.docID] = []string{}
-			}
 			refResult.refRangeIDs[fi.docID] = append(refResult.refRangeIDs[fi.docID], rangeID)
 		}
 	}
@@ -625,7 +702,7 @@ func (i *indexer) makeCachedHoverResult(pkgs []*packages.Package, p *packages.Pa
 // makeHoverResult create a hover result vertex and returns its ID. This method
 // should be called for each definition in the set of indexed files.
 func (i *indexer) makeHoverResult(pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) (string, error) {
-	contents, err := findContents(pkgs, p, f, obj)
+	contents, err := findContents(pkgs, p, f, obj, i.hoverLoader)
 	if err != nil {
 		return "", fmt.Errorf("find contents: %v", err)
 	}
@@ -650,7 +727,7 @@ func (i *indexer) makeCachedExternalHoverResult(pkgs []*packages.Package, p *pac
 		return hoverResultID, nil
 	}
 
-	contents, err := externalHoverContents(pkgs, p, obj, pkg)
+	contents, err := externalHoverContents(pkgs, p, obj, pkg, i.hoverLoader)
 	if err != nil || contents == nil {
 		return "", err
 	}
@@ -713,7 +790,7 @@ func (i *indexer) emitExportMoniker(sourceID, identifier string) error {
 
 // addMonikers outputs a "gomod" moniker vertex, attaches the given package vertex
 // identifier to it, and attaches the new moniker to the source moniker vertex.
-func (i *indexer) addMonikers(kind string, identifier string, sourceID, packageID string) error {
+func (i *indexer) addMonikers(kind, identifier, sourceID, packageID string) error {
 	monikerID, err := i.w.EmitMoniker(kind, "gomod", identifier)
 	if err != nil {
 		return err
