@@ -8,17 +8,33 @@ import (
 	"strconv"
 )
 
+type JSONWriter interface {
+	Write(v interface{}) error
+}
+
+type jsonWriter struct {
+	w io.Writer
+}
+
+func NewJSONWriter(w io.Writer) JSONWriter {
+	return &jsonWriter{w}
+}
+
+func (w *jsonWriter) Write(v interface{}) error {
+	return json.NewEncoder(w.w).Encode(v)
+}
+
 // Writer emits vertices and edges to the underlying writer. This struct
 // will guarantee that unique identifiers are generated for each element.
 type Writer struct {
-	w           io.Writer
+	w           JSONWriter
 	addContents bool
 	id          int
 	numElements int
 }
 
 // NewWriter creates a new Writer.
-func NewWriter(w io.Writer, addContents bool) *Writer {
+func NewWriter(w JSONWriter, addContents bool) *Writer {
 	return &Writer{
 		w:           w,
 		addContents: addContents,
@@ -36,7 +52,7 @@ func (w *Writer) NextID() string {
 
 func (w *Writer) emit(v interface{}) error {
 	w.numElements++
-	return json.NewEncoder(w.w).Encode(v)
+	return w.w.Write(v)
 }
 
 func (w *Writer) EmitMetaData(root string, info ToolInfo) (string, error) {

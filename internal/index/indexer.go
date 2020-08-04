@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -72,7 +71,7 @@ func NewIndexer(
 	dependencies map[string]string,
 	addContents bool,
 	toolInfo protocol.ToolInfo,
-	w io.Writer,
+	w protocol.JSONWriter,
 ) Indexer {
 	return &indexer{
 		projectRoot:    projectRoot,
