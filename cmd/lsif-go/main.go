@@ -121,7 +121,7 @@ func realMain() error {
 		dependencies,
 		addContents,
 		toolInfo,
-		out,
+		protocol.NewJSONWriter(out),
 	)
 
 	start := time.Now()
