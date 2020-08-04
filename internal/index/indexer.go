@@ -101,17 +101,6 @@ func NewIndexer(
 	}
 }
 
-// pentimento.PrintProgress(func(p *pentimento.Printer) error {
-// 	for event := range opts.UploadProgressEvents {
-// 		content := pentimento.NewContent()
-// 		content.AddLine(formatProgressBar(event.TotalProgress, fmt.Sprintf("%d/%d", event.Part, event.NumParts)))
-// 		p.WriteContent(content)
-// 	}
-
-// 	_ = p.Reset()
-// 	return nil
-// })
-
 // Index generates an LSIF dump from a workspace by traversing through source files
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
