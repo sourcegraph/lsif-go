@@ -7,7 +7,7 @@ type Moniker struct {
 	Identifier string `json:"identifier"`
 }
 
-func NewMoniker(id, kind, scheme, identifier string) *Moniker {
+func NewMoniker(id uint64, kind, scheme, identifier string) *Moniker {
 	return &Moniker{
 		Vertex: Vertex{
 			Element: Element{
@@ -24,11 +24,11 @@ func NewMoniker(id, kind, scheme, identifier string) *Moniker {
 
 type MonikerEdge struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV uint64 `json:"outV"`
+	InV  uint64 `json:"inV"`
 }
 
-func NewMonikerEdge(id, outV, inV string) *MonikerEdge {
+func NewMonikerEdge(id, outV, inV uint64) *MonikerEdge {
 	return &MonikerEdge{
 		Edge: Edge{
 			Element: Element{
@@ -44,11 +44,11 @@ func NewMonikerEdge(id, outV, inV string) *MonikerEdge {
 
 type NextMonikerEdge struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV uint64 `json:"outV"`
+	InV  uint64 `json:"inV"`
 }
 
-func NewNextMonikerEdge(id, outV, inV string) *NextMonikerEdge {
+func NewNextMonikerEdge(id, outV, inV uint64) *NextMonikerEdge {
 	return &NextMonikerEdge{
 		Edge: Edge{
 			Element: Element{

@@ -2,11 +2,11 @@ package protocol
 
 type Next struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV uint64 `json:"outV"`
+	InV  uint64 `json:"inV"`
 }
 
-func NewNext(id, outV, inV string) *Next {
+func NewNext(id, outV, inV uint64) *Next {
 	return &Next{
 		Edge: Edge{
 			Element: Element{

@@ -2,13 +2,13 @@ package protocol
 
 type Item struct {
 	Edge
-	OutV     string   `json:"outV"`
-	InVs     []string `json:"inVs"`
-	Document string   `json:"document"`
+	OutV     uint64   `json:"outV"`
+	InVs     []uint64 `json:"inVs"`
+	Document uint64   `json:"document"`
 	Property string   `json:"property,omitempty"`
 }
 
-func NewItem(id, outV string, inVs []string, document string) *Item {
+func NewItem(id, outV uint64, inVs []uint64, document uint64) *Item {
 	return &Item{
 		Edge: Edge{
 			Element: Element{
@@ -23,17 +23,17 @@ func NewItem(id, outV string, inVs []string, document string) *Item {
 	}
 }
 
-func NewItemWithProperty(id, outV string, inVs []string, document, property string) *Item {
+func NewItemWithProperty(id, outV uint64, inVs []uint64, document uint64, property string) *Item {
 	i := NewItem(id, outV, inVs, document)
 	i.Property = property
 	return i
 }
 
-func NewItemOfDefinitions(id, outV string, inVs []string, document string) *Item {
+func NewItemOfDefinitions(id, outV uint64, inVs []uint64, document uint64) *Item {
 	return NewItemWithProperty(id, outV, inVs, document, "definitions")
 }
 
 // informationand in "references" relationship.
-func NewItemOfReferences(id, outV string, inVs []string, document string) *Item {
+func NewItemOfReferences(id, outV uint64, inVs []uint64, document uint64) *Item {
 	return NewItemWithProperty(id, outV, inVs, document, "references")
 }
