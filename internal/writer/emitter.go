@@ -134,13 +134,3 @@ func (e *Emitter) EmitNext(outV, inV string) (string, error) {
 	id := e.NextID()
 	return id, e.emit(protocol.NewNext(id, outV, inV))
 }
-
-func (e *Emitter) EmitBeginEvent(scope string, data string) (string, error) {
-	id := e.NextID()
-	return id, e.emit(protocol.NewEvent(id, "begin", scope, data))
-}
-
-func (e *Emitter) EmitEndEvent(scope string, data string) (string, error) {
-	id := e.NextID()
-	return id, e.emit(protocol.NewEvent(id, "end", scope, data))
-}
