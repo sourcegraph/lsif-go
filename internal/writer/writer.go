@@ -13,17 +13,16 @@ var marshaller = jsoniter.ConfigFastest
 // underlying writer as newline-delimited JSON.
 type JSONWriter interface {
 	// Write emits a single vertex or edge value.
-	Write(v interface{}) error
+	Write(v interface{})
 
 	// Flush ensures that all elements have been written to the underlying writer.
 	Flush() error
 }
 
 type jsonWriter struct {
-	wg   sync.WaitGroup
-	ch   chan (interface{})
-	err  error
-	once sync.Once
+	wg  sync.WaitGroup
+	ch  chan (interface{})
+	err error
 }
 
 // channelBufferSize is the nubmer of elements that can be queued to be written.
@@ -41,8 +40,12 @@ func NewJSONWriter(w io.Writer) JSONWriter {
 
 		for v := range ch {
 			if err := encoder.Encode(v); err != nil {
-				jw.once.Do(func() { jw.err = err })
+				jw.err = err
+				break
 			}
+		}
+
+		for range ch {
 		}
 	}()
 
@@ -50,9 +53,8 @@ func NewJSONWriter(w io.Writer) JSONWriter {
 }
 
 // Write emits a single vertex or edge value.
-func (jw *jsonWriter) Write(v interface{}) error {
+func (jw *jsonWriter) Write(v interface{}) {
 	jw.ch <- v
-	return nil
 }
 
 // Flush ensures that all elements have been written to the underlying writer.
