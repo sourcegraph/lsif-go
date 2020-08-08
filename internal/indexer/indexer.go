@@ -185,7 +185,7 @@ func (i *Indexer) emitDocument(f FileInfo) error {
 		return errors.Wrap(err, "writer.EmitDocument")
 	}
 
-	// TODO - this should be done at the end
+	// TODO(efritz) - we should collapse this
 	if _, err := i.emitter.EmitContains(i.projectID, []uint64{documentID}); err != nil {
 		return errors.Wrap(err, "writer.EmitContains")
 	}

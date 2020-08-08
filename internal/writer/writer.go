@@ -26,7 +26,7 @@ type jsonWriter struct {
 	once sync.Once
 }
 
-// TODO - document
+// channelBufferSize is the nubmer of elements that can be queued to be written.
 const channelBufferSize = 512
 
 // NewJSONWriter creates a new JSONWriter wrapping the given writer.
