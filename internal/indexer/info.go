@@ -10,10 +10,10 @@ import (
 
 // Stats summarizes the amount of work done by the indexer.
 type Stats struct {
-	NumPkgs     int
-	NumFiles    int
-	NumDefs     int
-	NumElements int
+	NumPkgs     uint
+	NumFiles    uint
+	NumDefs     uint
+	NumElements uint64
 }
 
 // FileInfo provides context about a particular file.
@@ -27,9 +27,9 @@ type FileInfo struct {
 // DocumentInfo provides context for constructing the contains relationship between
 // a document and the ranges that it contains.
 type DocumentInfo struct {
-	DocumentID         string
-	DefinitionRangeIDs []string
-	ReferenceRangeIDs  []string
+	DocumentID         uint64
+	DefinitionRangeIDs []uint64
+	ReferenceRangeIDs  []uint64
 }
 
 // ObjectInfo provides context about a particular object within a file.
@@ -44,15 +44,15 @@ type ObjectInfo struct {
 // of this shape is keyed by type and identifier in the indexer so that it can be
 // re-retrieved for a range that uses the definition.
 type DefinitionInfo struct {
-	DocumentID  string
-	RangeID     string
-	ResultSetID string
+	DocumentID  uint64
+	RangeID     uint64
+	ResultSetID uint64
 }
 
 // ReferenceResultInfo provides context about a definition range. Each definition and
 // reference range will be added to an object of this shape as it is processed.
 type ReferenceResultInfo struct {
-	ResultSetID        string
-	DefinitionRangeIDs map[string][]string
-	ReferenceRangeIDs  map[string][]string
+	ResultSetID        uint64
+	DefinitionRangeIDs map[uint64][]uint64
+	ReferenceRangeIDs  map[uint64][]uint64
 }
