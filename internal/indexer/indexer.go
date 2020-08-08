@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/writer"
+	protocolwriter "github.com/sourcegraph/lsif-go/internal/writer"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
@@ -48,7 +49,7 @@ func New(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]string,
-	emitter *writer.Emitter,
+	writer protocolwriter.JSONWriter,
 	animate bool,
 ) *Indexer {
 	return &Indexer{
@@ -58,7 +59,7 @@ func New(
 		moduleName:            moduleName,
 		moduleVersion:         moduleVersion,
 		dependencies:          dependencies,
-		emitter:               emitter,
+		emitter:               protocolwriter.NewEmitter(writer),
 		animate:               animate,
 		consts:                map[token.Pos]*DefinitionInfo{},
 		funcs:                 map[string]*DefinitionInfo{},
@@ -113,6 +114,10 @@ func (i *Indexer) Index() (*Stats, error) {
 
 	if err := i.emitContains(); err != nil {
 		return nil, errors.Wrap(err, "emitContains")
+	}
+
+	if err := i.emitter.Flush(); err != nil {
+		return nil, errors.Wrap(err, "emitter.Flush")
 	}
 
 	return i.stats(), nil

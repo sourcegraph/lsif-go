@@ -10,6 +10,9 @@ import (
 type JSONWriter interface {
 	// Write emits a single vertex or edge value.
 	Write(v interface{}) error
+
+	// Flush ensures that all elements have been written to the underlying writer.
+	Flush() error
 }
 
 type jsonWriter struct {
@@ -24,4 +27,9 @@ func NewJSONWriter(w io.Writer) JSONWriter {
 // Write emits a single vertex or edge value.
 func (w *jsonWriter) Write(v interface{}) error {
 	return json.NewEncoder(w.w).Encode(v)
+}
+
+// Flush ensures that all elements have been written to the underlying writer.
+func (w *jsonWriter) Flush() error {
+	return nil
 }

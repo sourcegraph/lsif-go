@@ -185,6 +185,10 @@ func (w *capturingWriter) Write(v interface{}) error {
 	return nil
 }
 
+func (w *capturingWriter) Flush() error {
+	return nil
+}
+
 // findDocumentURIByDocumentID returns the URI of the document with the given ID.
 func findDocumentURIByDocumentID(elements []interface{}, id string) string {
 	for _, elem := range elements {

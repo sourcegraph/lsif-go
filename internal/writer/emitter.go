@@ -21,6 +21,10 @@ func NewEmitter(writer JSONWriter) *Emitter {
 	}
 }
 
+func (e *Emitter) Flush() error {
+	return e.writer.Flush()
+}
+
 func (e *Emitter) NumElements() int {
 	return e.numElements
 }
