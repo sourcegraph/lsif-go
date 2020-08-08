@@ -1,12 +1,16 @@
-package index
+package indexer
 
 import (
 	"go/ast"
 	"go/token"
 	"sort"
+	"strings"
 	"sync"
+
+	"golang.org/x/tools/go/packages"
 )
 
+// HoverLoader is a cache of hover text by file and token position.
 type HoverLoader struct {
 	m     sync.RWMutex
 	cache map[*ast.File]map[token.Pos]string
@@ -33,12 +37,26 @@ func (l *HoverLoader) Load(root *ast.File, positions []token.Pos) {
 // Text will return the hover text extracted from the given file. For non-empty hover text to be
 // returned from this method, Load must have been previously called with this file and position
 // as arguments.
-func (l *HoverLoader) Text(root *ast.File, position token.Pos) string {
+func (l *HoverLoader) Text(f *ast.File, position token.Pos) string {
 	l.m.RLock()
-	text := l.cache[root][position]
-	l.m.RUnlock()
+	defer l.m.RUnlock()
+	return l.cache[f][position]
+}
 
-	return text
+// TextFromPackage will return the hover text extracted from the given pacakge. For non-empty hover
+// text to be returned from this method, Load must have been previously called with a file contained
+// in this package and this position as arguments.
+func (l *HoverLoader) TextFromPackage(p *packages.Package, position token.Pos) string {
+	l.m.RLock()
+	defer l.m.RUnlock()
+
+	for _, f := range p.Syntax {
+		if text := l.cache[f][position]; text != "" {
+			return text
+		}
+	}
+
+	return ""
 }
 
 // visit walks the AST for a file and assigns hover text to each position. A position's hover text
@@ -96,17 +114,17 @@ func childrenOf(n ast.Node) (children []ast.Node) {
 	return children
 }
 
-const MaxCommentDistance = 3
+const maxCommentDistance = 3
 
 // commentsFromPath searches the given node path backwards and returns the first comment
 // attached to o node that it finds. This will only look at the last MaxCommentDistance
 // nodes of the given path.
 func commentsFromPath(path []ast.Node) (comment string) {
-	for i := 0; i < len(path) && i < MaxCommentDistance && comment == ""; i++ {
+	for i := 0; i < len(path) && i < maxCommentDistance && comment == ""; i++ {
 		switch v := path[len(path)-i-1].(type) {
 		case *ast.Field:
 			// Concat associated documentation with any inline comments
-			comment = joinCommentGroups(v.Doc, v.Comment)
+			comment = joinNonEmpty(v.Doc.Text(), v.Comment.Text())
 		case *ast.FuncDecl:
 			comment = v.Doc.Text()
 		case *ast.GenDecl:
@@ -119,4 +137,17 @@ func commentsFromPath(path []ast.Node) (comment string) {
 	}
 
 	return comment
+}
+
+// joinNonEmpty removes empty strings from the input list and joins the remaining values
+// with a newline.
+func joinNonEmpty(values ...string) string {
+	var parts []string
+	for _, value := range values {
+		if value != "" {
+			parts = append(parts, value)
+		}
+	}
+
+	return strings.Join(parts, "\n")
 }

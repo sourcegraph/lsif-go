@@ -1,36 +1,26 @@
-package index
+package indexer
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 
+	"github.com/sourcegraph/lsif-go/internal/writer"
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
 func TestIndexer(t *testing.T) {
 	w := &capturingWriter{}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("unexpected error getting working directory: %s", err)
-	}
-
-	projectRoot, err := filepath.Abs(filepath.Join(wd, "../../testdata"))
-	if err != nil {
-		t.Fatalf("unexpected error getting absolute directory: %s", err)
-	}
-
-	indexer := NewIndexer(
+	projectRoot := getRepositoryRoot(t)
+	indexer := New(
+		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
 		projectRoot,
-		"/dev/github.com/sourcegraph/lsif-go/testdata",
+		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 		"testdata",
 		"0.0.1",
 		nil,
+		writer.NewEmitter(w),
 		false,
-		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
-		w,
 	)
 
 	if _, err := indexer.Index(); err != nil {
@@ -53,16 +43,16 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 
-		expectedDocumentation := stripIndent(`
+		expectedDocumentation := normalizeDocstring(`
 			Parallel invokes each of the given parallelizable functions in their own goroutines and
 			returns the first error to occur. This method will block until all goroutines have returned.
 		`)
-		if value := stripIndent(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
+		if value := normalizeDocstring(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 	})
 
-	// TODO - support "package testdata" identifiers
+	// TODO(efritz) - support "package testdata" identifiers
 
 	t.Run("check external package hover text", func(t *testing.T) {
 		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
@@ -80,13 +70,13 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 
-		expectedDocumentation := stripIndent(`
+		expectedDocumentation := normalizeDocstring(`
 			Package sync provides basic synchronization primitives such as mutual exclusion locks. 
 			Other than the Once and WaitGroup types, most are intended for use by low-level library routines. 
 			Higher-level synchronization is better done via channels and communication.
 			Values containing the types defined in this package should not be copied. 
 		`)
-		if value := stripIndent(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
+		if value := normalizeDocstring(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 	})
@@ -123,6 +113,8 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, references[2], 21, 9, 21, 11) // defer wg.Done()
 		compareRange(t, references[3], 27, 1, 27, 3)  // wg.Wait()
 	})
+
+	// TODO(efritz) - add additional tests
 }
 
 func compareRange(t *testing.T, r *protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
