@@ -1,0 +1,67 @@
+package indexer
+
+import (
+	"bytes"
+	"go/types"
+	"strings"
+
+	doc "github.com/slimsag/godocmd"
+	"github.com/sourcegraph/lsif-go/protocol"
+)
+
+const languageGo = "go"
+
+// rangeForObject transforms the position of the given object (1-indexed) into an LSP range
+// (0-indexed). If the object is a quoted package name, the leading and trailing quotes are
+// stripped from the resulting range's bounds.
+func rangeForObject(o ObjectInfo) (protocol.Pos, protocol.Pos) {
+	adjustment := 0
+	if pkgName, ok := o.Object.(*types.PkgName); ok && strings.HasPrefix(pkgName.Name(), `"`) {
+		adjustment = 1
+	}
+
+	line := o.Position.Line - 1
+	column := o.Position.Column - 1
+	n := len(o.Ident.Name)
+
+	start := protocol.Pos{Line: line, Character: column + adjustment}
+	end := protocol.Pos{Line: line, Character: column + n - adjustment}
+	return start, end
+}
+
+// toMarkedString creates a protocol.MarkedString object from the given content. The signature
+// and extra parameters are formatted as code, if supplied. The docstring is formatted as markdown,
+// if supplied.
+func toMarkedString(signature, docstring, extra string) (mss []protocol.MarkedString) {
+	for _, m := range []*protocol.MarkedString{formatCode(signature), formatMarkdown(docstring), formatCode(extra)} {
+		if m != nil {
+			mss = append(mss, *m)
+		}
+	}
+
+	return mss
+}
+
+// formatMarkdown creates a protocol.MarkedString object containing a markdown-formatted version
+// of the given string. If the given string is empty, nil is returned.
+func formatMarkdown(v string) *protocol.MarkedString {
+	if v == "" {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	doc.ToMarkdown(&buf, v, nil)
+	ms := protocol.RawMarkedString(buf.String())
+	return &ms
+}
+
+// formatCode creates a protocol.MarkedString object containing a code fence-formatted version
+// of the given string. If the given string is empty, nil is returned.
+func formatCode(v string) *protocol.MarkedString {
+	if v == "" {
+		return nil
+	}
+
+	ms := protocol.NewMarkedString(v, languageGo)
+	return &ms
+}
