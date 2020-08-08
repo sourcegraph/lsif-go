@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sourcegraph/lsif-go/internal/writer"
-	"golang.org/x/tools/go/packages"
 )
 
 func TestEmitExportMoniker(t *testing.T) {
@@ -24,19 +23,13 @@ func TestEmitExportMoniker(t *testing.T) {
 
 	object := types.NewConst(
 		token.Pos(42),
-		types.NewPackage("pkg", "github.com/test/pkg"),
+		types.NewPackage("github.com/test/pkg", "pkg"),
 		"foobar",
 		&types.Basic{},
 		constant.MakeBool(true),
 	)
 
 	if err := indexer.emitExportMoniker("123", ObjectInfo{
-		FileInfo: FileInfo{
-			Package: &packages.Package{
-				Name:    "pkg",
-				PkgPath: "github.com/test/pkg",
-			},
-		},
 		Ident:  &ast.Ident{Name: "foobar"},
 		Object: object,
 	}); err != nil {
@@ -82,19 +75,13 @@ func TestEmitImportMoniker(t *testing.T) {
 
 	object := types.NewConst(
 		token.Pos(42),
-		types.NewPackage("sub3", "github.com/test/pkg/sub1/sub2/sub3"),
+		types.NewPackage("github.com/test/pkg/sub1/sub2/sub3", "sub3"),
 		"foobar",
 		&types.Basic{},
 		constant.MakeBool(true),
 	)
 
 	if err := indexer.emitImportMoniker("123", ObjectInfo{
-		FileInfo: FileInfo{
-			Package: &packages.Package{
-				Name:    "sub3",
-				PkgPath: "github.com/test/pkg/sub1/sub2/sub3",
-			},
-		},
 		Ident:  &ast.Ident{Name: "foobar"},
 		Object: object,
 	}); err != nil {

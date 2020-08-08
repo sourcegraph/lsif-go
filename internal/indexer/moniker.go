@@ -24,7 +24,7 @@ func (i *Indexer) emitExportMoniker(sourceID string, o ObjectInfo) error {
 		return errors.Wrap(err, "ensurePackageInformation")
 	}
 
-	return i.addMonikers("export", fmt.Sprintf("%s:%s", monikerPackage(o), monikerIdentifier(o)), sourceID, packageInformationID)
+	return i.addMonikers("export", strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(o), monikerIdentifier(o)), ":"), sourceID, packageInformationID)
 }
 
 // emitImportMoniker emits an import moniker for the given object linked to the given source
@@ -45,7 +45,7 @@ func (i *Indexer) emitImportMoniker(sourceID string, o ObjectInfo) error {
 			return errors.Wrap(err, "ensurePackageInformation")
 		}
 
-		return i.addMonikers("import", fmt.Sprintf("%s:%s", pkg, monikerIdentifier(o)), sourceID, packageInformationID)
+		return i.addMonikers("import", strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(o)), ":"), sourceID, packageInformationID)
 	}
 
 	return nil
@@ -107,7 +107,7 @@ func monikerPackage(o ObjectInfo) string {
 		return strings.Trim(v.Name(), `"`)
 	}
 
-	return o.Package.PkgPath
+	return o.Object.Pkg().Path()
 }
 
 // monikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
@@ -147,12 +147,13 @@ func monikerIdentifierQualifiers(o ObjectInfo) (qualifiers []string) {
 				qualifiers = append(qualifiers, q.Name.String())
 			}
 		}
+
 	}
 
 	if signature, ok := o.Object.Type().(*types.Signature); ok {
 		if recv := signature.Recv(); recv != nil {
 			// Qualify function with receiver stripped of a pointer indicator `*` and its package path
-			qualifiers = append(qualifiers, strings.TrimPrefix(strings.TrimPrefix(recv.Type().String(), "*"), o.Package.PkgPath+"."))
+			qualifiers = append(qualifiers, strings.TrimPrefix(strings.TrimPrefix(recv.Type().String(), "*"), o.Object.Pkg().Path()+"."))
 		}
 	}
 
