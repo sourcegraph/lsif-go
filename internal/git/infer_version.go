@@ -57,6 +57,8 @@ func getMostRecentTag(dir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to get most recent tag: %v\n%s", err, output)
 		}
+
+		return output, nil
 	}
 
 	// If we have no tags, just return a canned version.
