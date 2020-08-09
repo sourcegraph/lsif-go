@@ -37,7 +37,7 @@ type Indexer struct {
 	hoverResultCache      map[string]uint64               // cache key -> hoverResultID
 	referenceResults      map[uint64]*ReferenceResultInfo // rangeID -> info
 	packageInformationIDs map[string]uint64               // name -> packageInformationID
-	hoverLoader           *HoverLoader                    // hover text cache
+	preloader             *Preloader                      // hover text cache
 	packages              []*packages.Package             // index target packages
 	projectID             uint64                          // project vertex identifier
 }
@@ -72,7 +72,7 @@ func New(
 		hoverResultCache:      map[string]uint64{},
 		referenceResults:      map[uint64]*ReferenceResultInfo{},
 		packageInformationIDs: map[string]uint64{},
-		hoverLoader:           newHoverLoader(),
+		preloader:             newPreloader(),
 	}
 }
 
@@ -87,7 +87,7 @@ func (i *Indexer) Index() (*Stats, error) {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
-	i.preloadHoverText()
+	i.preload()
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
@@ -185,10 +185,11 @@ func importSpecName(spec *ast.ImportSpec) string {
 	return spec.Path.Value
 }
 
-// preloadHoverText populates the hover loader with hover text for every definition within
-// the index target packages, as well as the definitions in all directly imported packages
-// (but no transitively imported packages).
-func (i *Indexer) preloadHoverText() error {
+// preload populates the preloader with hover text for every definition within the index target
+// packages, as well as the definitions in all directly imported packages (but no transitively
+// imported packages). This will also load the moniker paths for all identifiers in the same
+// files.
+func (i *Indexer) preload() error {
 	var fns []func() error
 	for _, p := range getAllReferencedPackages(i.packages) {
 		for _, f := range p.Syntax {
@@ -204,7 +205,7 @@ func (i *Indexer) preloadHoverText() error {
 						}
 					}
 
-					i.hoverLoader.Load(f, positions)
+					i.preloader.Load(f, positions)
 					return nil
 				}
 			}(p, f))
@@ -213,7 +214,7 @@ func (i *Indexer) preloadHoverText() error {
 
 	// Load hovers for each package concurrently
 	wg, errs, count := runParallel(fns...)
-	withProgress(wg, "Preloading hover text", i.animate, count, len(fns))
+	withProgress(wg, "Preloading hover text and moniker paths", i.animate, count, len(fns))
 	return <-errs
 }
 
@@ -274,7 +275,7 @@ func (i *Indexer) indexDefinition(o ObjectInfo) uint64 {
 	// Caching this gives us a big win for package documentation, which is likely to be large and is
 	// repeated at each import and selector within referenced files.
 	hoverResultID := i.makeCachedHoverResult(nil, o.Object, func() []protocol.MarkedString {
-		return findHoverContents(i.hoverLoader, i.packages, o)
+		return findHoverContents(i.preloader, i.packages, o)
 	})
 
 	rangeID := i.emitter.EmitRange(rangeForObject(o))
@@ -417,7 +418,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(o ObjectInfo) (uint64, bool
 	// methods imported from other packages are likely to be used many times in a dependent
 	// project (e.g., context.Context, http.Request, etc).
 	hoverResultID := i.makeCachedHoverResult(definitionPkg, o.Object, func() []protocol.MarkedString {
-		return findExternalHoverContents(i.hoverLoader, i.packages, o)
+		return findExternalHoverContents(i.preloader, i.packages, o)
 	})
 
 	rangeID := i.ensureRangeFor(o)

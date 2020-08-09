@@ -127,25 +127,33 @@ func TestPackagePrefixes(t *testing.T) {
 }
 
 func TestMonikerIdentifierBasic(t *testing.T) {
-	if identifier := monikerIdentifier(findObjectInfoByDefinitionName(t, "Score")); identifier != "Score" {
+	packages, o := findObjectInfoByUseName(t, "Score")
+
+	if identifier := monikerIdentifier(preload(packages), o); identifier != "Score" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "Score", identifier)
 	}
 }
 
 func TestMonikerIdentifierPackageName(t *testing.T) {
-	if identifier := monikerIdentifier(findObjectInfoByUseName(t, "sync")); identifier != "" {
+	packages, o := findObjectInfoByUseName(t, "sync")
+
+	if identifier := monikerIdentifier(preload(packages), o); identifier != "" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "", identifier)
 	}
 }
 
 func TestMonikerIdentifierSignature(t *testing.T) {
-	if identifier := monikerIdentifier(findObjectInfoByDefinitionName(t, "Doer")); identifier != "TestStruct.Doer" {
+	packages, o := findObjectInfoByDefinitionName(t, "Doer")
+
+	if identifier := monikerIdentifier(preload(packages), o); identifier != "TestStruct.Doer" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.Doer", identifier)
 	}
 }
 
 func TestMonikerIdentifierField(t *testing.T) {
-	if identifier := monikerIdentifier(findObjectInfoByDefinitionName(t, "NestedB")); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
+	packages, o := findObjectInfoByDefinitionName(t, "NestedB")
+
+	if identifier := monikerIdentifier(preload(packages), o); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
 	}
 }

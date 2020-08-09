@@ -10,17 +10,17 @@ import (
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(hoverLoader *HoverLoader, pkgs []*packages.Package, o ObjectInfo) []protocol.MarkedString {
+func findHoverContents(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) []protocol.MarkedString {
 	signature, extra := typeString(o.Object)
-	docstring := findDocstring(hoverLoader, pkgs, o)
+	docstring := findDocstring(preloader, pkgs, o)
 	return toMarkedString(signature, docstring, extra)
 }
 
 // findExternalHoverContents returns the hover contents of the given object defined in the given
 // package. This method is not cached and should only be called wrapped in a call to makeCachedHoverResult.
-func findExternalHoverContents(hoverLoader *HoverLoader, pkgs []*packages.Package, o ObjectInfo) []protocol.MarkedString {
+func findExternalHoverContents(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) []protocol.MarkedString {
 	signature, extra := typeString(o.Object)
-	docstring := findExternalDocstring(hoverLoader, pkgs, o)
+	docstring := findExternalDocstring(preloader, pkgs, o)
 	return toMarkedString(signature, docstring, extra)
 }
 
@@ -62,7 +62,7 @@ func makeCacheKey(pkg *types.Package, obj types.Object) string {
 
 // findDocstring extracts the comments form the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
-func findDocstring(hoverLoader *HoverLoader, pkgs []*packages.Package, o ObjectInfo) string {
+func findDocstring(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) string {
 	if o.Object == nil {
 		return ""
 	}
@@ -73,12 +73,12 @@ func findDocstring(hoverLoader *HoverLoader, pkgs []*packages.Package, o ObjectI
 	}
 
 	// Resolve the object o into its respective ast.Node
-	return hoverLoader.Text(o.File, o.Object.Pos())
+	return preloader.Text(o.File, o.Object.Pos())
 }
 
 // findExternalDocstring extracts the comments form the given object. It is assumed that this object is
 // declared in a dependency.
-func findExternalDocstring(hoverLoader *HoverLoader, pkgs []*packages.Package, o ObjectInfo) string {
+func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) string {
 	if o.Object == nil {
 		return ""
 	}
@@ -90,7 +90,7 @@ func findExternalDocstring(hoverLoader *HoverLoader, pkgs []*packages.Package, o
 
 	if target := o.Package.Imports[o.Object.Pkg().Path()]; target != nil {
 		// Resolve the object o into its respective ast.Node
-		return hoverLoader.TextFromPackage(target, o.Object.Pos())
+		return preloader.TextFromPackage(target, o.Object.Pos())
 	}
 
 	return ""

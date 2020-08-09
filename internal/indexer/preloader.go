@@ -10,16 +10,16 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// HoverLoader is a cache of hover text by file and token position.
-type HoverLoader struct {
+// Preloader is a cache of hover text by file and token position.
+type Preloader struct {
 	m            sync.RWMutex
 	hoverText    map[*ast.File]map[token.Pos]string
 	monikerPaths map[*ast.File]map[token.Pos][]string
 }
 
-// newHoverLoader creates a new empty HoverLoader.
-func newHoverLoader() *HoverLoader {
-	return &HoverLoader{
+// Preloader creates a new empty Preloader.
+func newPreloader() *Preloader {
+	return &Preloader{
 		hoverText:    map[*ast.File]map[token.Pos]string{},
 		monikerPaths: map[*ast.File]map[token.Pos][]string{},
 	}
@@ -27,7 +27,7 @@ func newHoverLoader() *HoverLoader {
 
 // Load will walk the AST of the file and cache the hover text and moniker paths for each of the
 // given positions.
-func (l *HoverLoader) Load(root *ast.File, positions []token.Pos) {
+func (l *Preloader) Load(root *ast.File, positions []token.Pos) {
 	hoverTextMap := map[token.Pos]string{}
 	monikerPathMap := map[token.Pos][]string{}
 	sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
@@ -42,7 +42,7 @@ func (l *HoverLoader) Load(root *ast.File, positions []token.Pos) {
 // Text will return the hover text extracted from the given file. For non-empty hover text to be
 // returned from this method, Load must have been previously called with this file and position
 // as arguments.
-func (l *HoverLoader) Text(f *ast.File, position token.Pos) string {
+func (l *Preloader) Text(f *ast.File, position token.Pos) string {
 	l.m.RLock()
 	defer l.m.RUnlock()
 	return l.hoverText[f][position]
@@ -51,7 +51,7 @@ func (l *HoverLoader) Text(f *ast.File, position token.Pos) string {
 // TextFromPackage will return the hover text extracted from the given package. For non-empty hover
 // text to be returned from this method, Load must have been previously called with a file contained
 // in this package and this position as arguments.
-func (l *HoverLoader) TextFromPackage(p *packages.Package, position token.Pos) string {
+func (l *Preloader) TextFromPackage(p *packages.Package, position token.Pos) string {
 	l.m.RLock()
 	defer l.m.RUnlock()
 
@@ -64,17 +64,24 @@ func (l *HoverLoader) TextFromPackage(p *packages.Package, position token.Pos) s
 	return ""
 }
 
-func (l *HoverLoader) MonikerPath(f *ast.File, position token.Pos) []string {
+func (l *Preloader) MonikerPath(f *ast.File, position token.Pos) []string {
 	l.m.RLock()
 	defer l.m.RUnlock()
 	return l.monikerPaths[f][position]
 }
 
-// visit walks the AST for a file and assigns hover text to each position. A position's hover text
-// is the comment associated with the deepest node that encloses the position. Each call to visit
-// is given the unique path of ancestors from the root to the parent of the node. This slice should
-// not be directly altered.
-func visit(node ast.Node, positions []token.Pos, hoverTextMap map[token.Pos]string, monikerPathMap map[token.Pos][]string, path []ast.Node, monikerPath []string) {
+// visit walks the AST for a file and assigns hover text and a moniker path to each position. A
+// position's hover text is the comment associated with the deepest node that encloses the position.
+// A position's moniker path is the name of the object prefixed with the names of the containers that
+// enclose that position. Each call to visit is given the unique path of ancestors from the root to
+// the parent of the node. This slice should not be directly altered.
+func visit(
+	node ast.Node,
+	positions []token.Pos,
+	hoverTextMap map[token.Pos]string,
+	monikerPathMap map[token.Pos][]string,
+	path []ast.Node, monikerPath []string,
+) {
 	newPath := updateNodePath(path, node)
 	newMonikerPath := updateMonikerPath(monikerPath, node)
 

@@ -17,7 +17,7 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, o ObjectInfo) {
 
 	i.addMonikers(
 		"export",
-		strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(o), monikerIdentifier(i.hoverLoader, o)), ":"),
+		strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(o), monikerIdentifier(i.preloader, o)), ":"),
 		sourceID,
 		i.ensurePackageInformation(i.moduleName, i.moduleVersion),
 	)
@@ -34,7 +34,7 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, o ObjectInfo) {
 		if moduleVersion, ok := i.dependencies[moduleName]; ok {
 			i.addMonikers(
 				"import",
-				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.hoverLoader, o)), ":"),
+				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.preloader, o)), ":"),
 				sourceID,
 				i.ensurePackageInformation(moduleName, moduleVersion),
 			)
@@ -92,7 +92,7 @@ func monikerPackage(o ObjectInfo) string {
 // monikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`. The identifier is meant to act as a
 // qualified type path to the given object (e.g. `StructName.FieldName` or `StructName.MethodName`).
-func monikerIdentifier(hoverLoader *HoverLoader, o ObjectInfo) string {
+func monikerIdentifier(preloader *Preloader, o ObjectInfo) string {
 	if _, ok := o.Object.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
 		return ""
@@ -102,7 +102,7 @@ func monikerIdentifier(hoverLoader *HoverLoader, o ObjectInfo) string {
 		// Qualifiers for fields were populated as pre-load step so we do not need to traverse
 		// the AST path back up to the root to find the enclosing type specs and fields with an
 		// anonymous struct type.
-		return strings.Join(hoverLoader.MonikerPath(o.File, o.Object.Pos()), ".")
+		return strings.Join(preloader.MonikerPath(o.File, o.Object.Pos()), ".")
 	}
 
 	if signature, ok := o.Object.Type().(*types.Signature); ok {
