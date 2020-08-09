@@ -180,8 +180,11 @@ type capturingWriter struct {
 	elements []interface{}
 }
 
-func (w *capturingWriter) Write(v interface{}) error {
+func (w *capturingWriter) Write(v interface{}) {
 	w.elements = append(w.elements, v)
+}
+
+func (w *capturingWriter) Flush() error {
 	return nil
 }
 

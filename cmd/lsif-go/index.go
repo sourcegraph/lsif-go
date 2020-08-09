@@ -55,7 +55,7 @@ func makeIndexer(repositoryRoot, projectRoot, moduleName, moduleVersion string, 
 		moduleName,
 		moduleVersion,
 		dependencies,
-		writer.NewEmitter(writer.NewJSONWriter(out)),
+		writer.NewJSONWriter(out),
 		!noProgress,
 	)
 }
