@@ -6,49 +6,45 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ast/astutil"
 )
 
 // emitExportMoniker emits an export moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the current module.
-func (i *Indexer) emitExportMoniker(sourceID uint64, o ObjectInfo) error {
+func (i *Indexer) emitExportMoniker(sourceID uint64, o ObjectInfo) {
 	if i.moduleName == "" {
 		// Unknown dependencies, skip export monikers
-		return nil
+		return
 	}
 
-	packageInformationID, err := i.ensurePackageInformation(i.moduleName, i.moduleVersion)
-	if err != nil {
-		return errors.Wrap(err, "ensurePackageInformation")
-	}
-
-	return i.addMonikers("export", strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(o), monikerIdentifier(o)), ":"), sourceID, packageInformationID)
+	i.addMonikers(
+		"export",
+		strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(o), monikerIdentifier(o)), ":"),
+		sourceID,
+		i.ensurePackageInformation(i.moduleName, i.moduleVersion),
+	)
 }
 
 // emitImportMoniker emits an import moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-func (i *Indexer) emitImportMoniker(sourceID uint64, o ObjectInfo) error {
+func (i *Indexer) emitImportMoniker(sourceID uint64, o ObjectInfo) {
 	pkg := monikerPackage(o)
 
 	for _, moduleName := range packagePrefixes(pkg) {
-		moduleVersion, ok := i.dependencies[moduleName]
-		if !ok {
-			continue
-		}
+		if moduleVersion, ok := i.dependencies[moduleName]; ok {
+			i.addMonikers(
+				"import",
+				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(o)), ":"),
+				sourceID,
+				i.ensurePackageInformation(moduleName, moduleVersion),
+			)
 
-		packageInformationID, err := i.ensurePackageInformation(moduleName, moduleVersion)
-		if err != nil {
-			return errors.Wrap(err, "ensurePackageInformation")
+			break
 		}
-
-		return i.addMonikers("import", strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(o)), ":"), sourceID, packageInformationID)
 	}
-
-	return nil
 }
 
 // packagePrefixes return sall prefix of the go package path. For example, the package
@@ -67,24 +63,23 @@ func packagePrefixes(packageName string) []string {
 // ensurePackageInformation returns the identifier of a package information vertex with the
 // give name and version. A vertex will be emitted only if one with the same name not yet
 // been emitted.
-func (i *Indexer) ensurePackageInformation(name, version string) (_ uint64, err error) {
+func (i *Indexer) ensurePackageInformation(name, version string) uint64 {
 	if packageInformationID, ok := i.packageInformationIDs[name]; ok {
-		return packageInformationID, nil
+		return packageInformationID
 	}
 
 	packageInformationID := i.emitter.EmitPackageInformation(name, "gomod", version)
 	i.packageInformationIDs[name] = packageInformationID
-	return packageInformationID, nil
+	return packageInformationID
 }
 
 // addMonikers emits a moniker vertex with the given identifier, an edge from the moniker
 // to the given package information vertex identifier, and an edge from the given source
 // identifier to the moniker vertex identifier.
-func (i *Indexer) addMonikers(kind, identifier string, sourceID, packageID uint64) error {
+func (i *Indexer) addMonikers(kind, identifier string, sourceID, packageID uint64) {
 	monikerID := i.emitter.EmitMoniker(kind, "gomod", identifier)
 	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageID)
 	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-	return nil
 }
 
 // monikerPackage returns the package prefix used to construct a unique moniker for the given object.

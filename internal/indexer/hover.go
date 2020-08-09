@@ -27,11 +27,11 @@ func findExternalHoverContents(hoverLoader *HoverLoader, pkgs []*packages.Packag
 // makeCachedHoverResult returns a hover result vertex identifier. If hover text for the given
 // identifier has not already been emitted, a new vertex is created. Identifiers will share the
 // same hover result if they refer to the same identifier in the same target package.
-func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) (_ uint64, err error) {
+func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) uint64 {
 	key := makeCacheKey(pkg, obj)
 
 	if hoverResultID, ok := i.hoverResultCache[key]; ok {
-		return hoverResultID, nil
+		return hoverResultID
 	}
 
 	hoverResultID := i.emitter.EmitHoverResult(fn())
@@ -40,7 +40,7 @@ func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn
 		i.hoverResultCache[key] = hoverResultID
 	}
 
-	return hoverResultID, nil
+	return hoverResultID
 }
 
 // makeCacheKey returns a string uniquely representing the given package and object pair. If
