@@ -12,30 +12,29 @@ import (
 
 // HoverLoader is a cache of hover text by file and token position.
 type HoverLoader struct {
-	m     sync.RWMutex
-	cache map[*ast.File]map[token.Pos]string
-
+	m            sync.RWMutex
+	hoverText    map[*ast.File]map[token.Pos]string
 	monikerPaths map[*ast.File]map[token.Pos][]string
 }
 
 // newHoverLoader creates a new empty HoverLoader.
 func newHoverLoader() *HoverLoader {
 	return &HoverLoader{
-		cache: map[*ast.File]map[token.Pos]string{},
-
+		hoverText:    map[*ast.File]map[token.Pos]string{},
 		monikerPaths: map[*ast.File]map[token.Pos][]string{},
 	}
 }
 
-// Load will walk the AST of the file and cache the hover text for each of the given positions.
+// Load will walk the AST of the file and cache the hover text and moniker paths for each of the
+// given positions.
 func (l *HoverLoader) Load(root *ast.File, positions []token.Pos) {
-	textMap := map[token.Pos]string{}
+	hoverTextMap := map[token.Pos]string{}
 	monikerPathMap := map[token.Pos][]string{}
 	sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
-	visit(root, positions, textMap, monikerPathMap, nil, nil)
+	visit(root, positions, hoverTextMap, monikerPathMap, nil, nil)
 
 	l.m.Lock()
-	l.cache[root] = textMap
+	l.hoverText[root] = hoverTextMap
 	l.monikerPaths[root] = monikerPathMap
 	l.m.Unlock()
 }
@@ -46,10 +45,10 @@ func (l *HoverLoader) Load(root *ast.File, positions []token.Pos) {
 func (l *HoverLoader) Text(f *ast.File, position token.Pos) string {
 	l.m.RLock()
 	defer l.m.RUnlock()
-	return l.cache[f][position]
+	return l.hoverText[f][position]
 }
 
-// TextFromPackage will return the hover text extracted from the given pacakge. For non-empty hover
+// TextFromPackage will return the hover text extracted from the given package. For non-empty hover
 // text to be returned from this method, Load must have been previously called with a file contained
 // in this package and this position as arguments.
 func (l *HoverLoader) TextFromPackage(p *packages.Package, position token.Pos) string {
@@ -57,7 +56,7 @@ func (l *HoverLoader) TextFromPackage(p *packages.Package, position token.Pos) s
 	defer l.m.RUnlock()
 
 	for _, f := range p.Syntax {
-		if text := l.cache[f][position]; text != "" {
+		if text := l.hoverText[f][position]; text != "" {
 			return text
 		}
 	}
@@ -75,28 +74,34 @@ func (l *HoverLoader) MonikerPath(f *ast.File, position token.Pos) []string {
 // is the comment associated with the deepest node that encloses the position. Each call to visit
 // is given the unique path of ancestors from the root to the parent of the node. This slice should
 // not be directly altered.
-func visit(node ast.Node, positions []token.Pos, textMap map[token.Pos]string, monikerPathMap map[token.Pos][]string, path []ast.Node, monikerPath []string) {
-	newPath := append(append([]ast.Node(nil), path...), node)
+func visit(node ast.Node, positions []token.Pos, hoverTextMap map[token.Pos]string, monikerPathMap map[token.Pos][]string, path []ast.Node, monikerPath []string) {
+	newPath := updateNodePath(path, node)
 	newMonikerPath := updateMonikerPath(monikerPath, node)
 
 	for _, child := range childrenOf(node) {
-		visit(child, positions, textMap, monikerPathMap, newPath, newMonikerPath)
+		visit(child, positions, hoverTextMap, monikerPathMap, newPath, newMonikerPath)
 	}
 
 	for i := findFirstIntersectingIndex(node, positions); i < len(positions) && positions[i] <= node.End(); i++ {
-		if _, ok := textMap[positions[i]]; ok {
+		if _, ok := hoverTextMap[positions[i]]; ok {
 			continue
 		}
 
-		textMap[positions[i]] = commentsFromPath(newPath)
+		hoverTextMap[positions[i]] = commentsFromPath(newPath)
 	}
 
 	monikerPathMap[node.Pos()] = newMonikerPath
 }
 
-// updateMonikerPath appends to the given slice the name of the node if it has a name that can
-// uniquely identify it along a path of nodes to the root of the file. Otherwise, the given
-// slice is returned unchanged.
+// updateNodePath appends the given node to the given path. This function does not modify
+// the input slice.
+func updateNodePath(path []ast.Node, node ast.Node) []ast.Node {
+	return append(append([]ast.Node(nil), path...), node)
+}
+
+// updateMonikerPath appends to the given slice the name of the node if it has a name that
+// can uniquely identify it along a path of nodes to the root of the file. Otherwise, the
+// given slice is returned unchanged. This function does not modify the input slice.
 func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 	switch q := node.(type) {
 	case *ast.Field:
@@ -152,7 +157,7 @@ func childrenOf(n ast.Node) (children []ast.Node) {
 const maxCommentDistance = 3
 
 // commentsFromPath searches the given node path backwards and returns the first comment
-// attached to o node that it finds. This will only look at the last MaxCommentDistance
+// attached to the node that it finds. This will only look at the last MaxCommentDistance
 // nodes of the given path.
 func commentsFromPath(path []ast.Node) (comment string) {
 	for i := 0; i < len(path) && i < maxCommentDistance && comment == ""; i++ {
