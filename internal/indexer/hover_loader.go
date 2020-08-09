@@ -14,23 +14,29 @@ import (
 type HoverLoader struct {
 	m     sync.RWMutex
 	cache map[*ast.File]map[token.Pos]string
+
+	monikerPaths map[*ast.File]map[token.Pos][]string
 }
 
 // newHoverLoader creates a new empty HoverLoader.
 func newHoverLoader() *HoverLoader {
 	return &HoverLoader{
 		cache: map[*ast.File]map[token.Pos]string{},
+
+		monikerPaths: map[*ast.File]map[token.Pos][]string{},
 	}
 }
 
 // Load will walk the AST of the file and cache the hover text for each of the given positions.
 func (l *HoverLoader) Load(root *ast.File, positions []token.Pos) {
 	textMap := map[token.Pos]string{}
+	monikerPathMap := map[token.Pos][]string{}
 	sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
-	visit(root, positions, textMap, nil)
+	visit(root, positions, textMap, monikerPathMap, nil, nil)
 
 	l.m.Lock()
 	l.cache[root] = textMap
+	l.monikerPaths[root] = monikerPathMap
 	l.m.Unlock()
 }
 
@@ -59,15 +65,22 @@ func (l *HoverLoader) TextFromPackage(p *packages.Package, position token.Pos) s
 	return ""
 }
 
+func (l *HoverLoader) MonikerPath(f *ast.File, position token.Pos) []string {
+	l.m.RLock()
+	defer l.m.RUnlock()
+	return l.monikerPaths[f][position]
+}
+
 // visit walks the AST for a file and assigns hover text to each position. A position's hover text
 // is the comment associated with the deepest node that encloses the position. Each call to visit
 // is given the unique path of ancestors from the root to the parent of the node. This slice should
 // not be directly altered.
-func visit(node ast.Node, positions []token.Pos, textMap map[token.Pos]string, path []ast.Node) {
+func visit(node ast.Node, positions []token.Pos, textMap map[token.Pos]string, monikerPathMap map[token.Pos][]string, path []ast.Node, monikerPath []string) {
 	newPath := append(append([]ast.Node(nil), path...), node)
+	newMonikerPath := updateMonikerPath(monikerPath, node)
 
 	for _, child := range childrenOf(node) {
-		visit(child, positions, textMap, newPath)
+		visit(child, positions, textMap, monikerPathMap, newPath, newMonikerPath)
 	}
 
 	for i := findFirstIntersectingIndex(node, positions); i < len(positions) && positions[i] <= node.End(); i++ {
@@ -77,6 +90,28 @@ func visit(node ast.Node, positions []token.Pos, textMap map[token.Pos]string, p
 
 		textMap[positions[i]] = commentsFromPath(newPath)
 	}
+
+	monikerPathMap[node.Pos()] = newMonikerPath
+}
+
+// updateMonikerPath appends to the given slice the name of the node if it has a name that can
+// uniquely identify it along a path of nodes to the root of the file. Otherwise, the given
+// slice is returned unchanged.
+func updateMonikerPath(monikerPath []string, node ast.Node) []string {
+	switch q := node.(type) {
+	case *ast.Field:
+		if len(q.Names) > 0 {
+			// Add names of distinct fields whose type is an anonymous struct type
+			// containing the target field (e.g. `X struct { target string }`).
+			return append(append([]string(nil), monikerPath...), q.Names[0].String())
+		}
+
+	case *ast.TypeSpec:
+		// Add the top-level type spec (e.g. `type X struct` and `type Y interface`)
+		return append(append([]string(nil), monikerPath...), q.Name.String())
+	}
+
+	return monikerPath
 }
 
 // findFirstIntersectingIndex finds the first index in positions that is not less than the
