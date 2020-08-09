@@ -68,15 +68,12 @@ func packagePrefixes(packageName string) []string {
 // give name and version. A vertex will be emitted only if one with the same name not yet
 // been emitted.
 func (i *Indexer) ensurePackageInformation(name, version string) (_ uint64, err error) {
-	packageInformationID, ok := i.packageInformationIDs[name]
-	if !ok {
-		if packageInformationID, err = i.emitter.EmitPackageInformation(name, "gomod", version); err != nil {
-			return 0, errors.Wrap(err, "writer.EmitPackageInformation")
-		}
-
-		i.packageInformationIDs[name] = packageInformationID
+	if packageInformationID, ok := i.packageInformationIDs[name]; ok {
+		return packageInformationID, nil
 	}
 
+	packageInformationID := i.emitter.EmitPackageInformation(name, "gomod", version)
+	i.packageInformationIDs[name] = packageInformationID
 	return packageInformationID, nil
 }
 
@@ -84,19 +81,9 @@ func (i *Indexer) ensurePackageInformation(name, version string) (_ uint64, err 
 // to the given package information vertex identifier, and an edge from the given source
 // identifier to the moniker vertex identifier.
 func (i *Indexer) addMonikers(kind, identifier string, sourceID, packageID uint64) error {
-	monikerID, err := i.emitter.EmitMoniker(kind, "gomod", identifier)
-	if err != nil {
-		return errors.Wrap(err, "writer.EmitMoniker")
-	}
-
-	if _, err := i.emitter.EmitPackageInformationEdge(monikerID, packageID); err != nil {
-		return errors.Wrap(err, "writer.EmitPackageInformationEdge")
-	}
-
-	if _, err := i.emitter.EmitMonikerEdge(sourceID, monikerID); err != nil {
-		return errors.Wrap(err, "writer.EmitMonikerEdge")
-	}
-
+	monikerID := i.emitter.EmitMoniker(kind, "gomod", identifier)
+	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageID)
+	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
 	return nil
 }
 

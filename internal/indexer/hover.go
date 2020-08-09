@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/types"
 
-	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
@@ -31,16 +30,14 @@ func findExternalHoverContents(hoverLoader *HoverLoader, pkgs []*packages.Packag
 func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) (_ uint64, err error) {
 	key := makeCacheKey(pkg, obj)
 
-	hoverResultID, ok := i.hoverResultCache[key]
-	if !ok {
-		if hoverResultID, err = i.emitter.EmitHoverResult(fn()); err != nil {
-			return 0, errors.Wrap(err, "writer.EmitHoverResult")
-		}
+	if hoverResultID, ok := i.hoverResultCache[key]; ok {
+		return hoverResultID, nil
+	}
 
-		if key != "" {
-			// Do not store empty cache keys
-			i.hoverResultCache[key] = hoverResultID
-		}
+	hoverResultID := i.emitter.EmitHoverResult(fn())
+	if key != "" {
+		// Do not store empty cache keys
+		i.hoverResultCache[key] = hoverResultID
 	}
 
 	return hoverResultID, nil
