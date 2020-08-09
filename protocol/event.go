@@ -7,7 +7,7 @@ type Event struct {
 	Data  string `json:"data"`
 }
 
-func NewEvent(id, kind, scope, data string) *Event {
+func NewEvent(id uint64, kind, scope, data string) *Event {
 	return &Event{
 		Vertex: Vertex{
 			Element: Element{

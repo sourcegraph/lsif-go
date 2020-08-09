@@ -13,7 +13,7 @@ import (
 // emitExportMoniker emits an export moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the current module.
-func (i *Indexer) emitExportMoniker(sourceID string, o ObjectInfo) error {
+func (i *Indexer) emitExportMoniker(sourceID uint64, o ObjectInfo) error {
 	if i.moduleName == "" {
 		// Unknown dependencies, skip export monikers
 		return nil
@@ -31,7 +31,7 @@ func (i *Indexer) emitExportMoniker(sourceID string, o ObjectInfo) error {
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-func (i *Indexer) emitImportMoniker(sourceID string, o ObjectInfo) error {
+func (i *Indexer) emitImportMoniker(sourceID uint64, o ObjectInfo) error {
 	pkg := monikerPackage(o)
 
 	for _, moduleName := range packagePrefixes(pkg) {
@@ -67,11 +67,11 @@ func packagePrefixes(packageName string) []string {
 // ensurePackageInformation returns the identifier of a package information vertex with the
 // give name and version. A vertex will be emitted only if one with the same name not yet
 // been emitted.
-func (i *Indexer) ensurePackageInformation(name, version string) (_ string, err error) {
+func (i *Indexer) ensurePackageInformation(name, version string) (_ uint64, err error) {
 	packageInformationID, ok := i.packageInformationIDs[name]
 	if !ok {
 		if packageInformationID, err = i.emitter.EmitPackageInformation(name, "gomod", version); err != nil {
-			return "", errors.Wrap(err, "writer.EmitPackageInformation")
+			return 0, errors.Wrap(err, "writer.EmitPackageInformation")
 		}
 
 		i.packageInformationIDs[name] = packageInformationID
@@ -83,7 +83,7 @@ func (i *Indexer) ensurePackageInformation(name, version string) (_ string, err 
 // addMonikers emits a moniker vertex with the given identifier, an edge from the moniker
 // to the given package information vertex identifier, and an edge from the given source
 // identifier to the moniker vertex identifier.
-func (i *Indexer) addMonikers(kind, identifier, sourceID, packageID string) error {
+func (i *Indexer) addMonikers(kind, identifier string, sourceID, packageID uint64) error {
 	monikerID, err := i.emitter.EmitMoniker(kind, "gomod", identifier)
 	if err != nil {
 		return errors.Wrap(err, "writer.EmitMoniker")

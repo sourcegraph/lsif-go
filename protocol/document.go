@@ -9,7 +9,7 @@ type Document struct {
 	Contents   string `json:"contents,omitempty"`
 }
 
-func NewDocument(id, languageID, uri string, contents []byte) *Document {
+func NewDocument(id uint64, languageID, uri string, contents []byte) *Document {
 	d := &Document{
 		Vertex: Vertex{
 			Element: Element{

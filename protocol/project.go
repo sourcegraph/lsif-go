@@ -5,7 +5,7 @@ type Project struct {
 	Kind string `json:"kind"`
 }
 
-func NewProject(id string, languageID string) *Project {
+func NewProject(id uint64, languageID string) *Project {
 	return &Project{
 		Vertex: Vertex{
 			Element: Element{

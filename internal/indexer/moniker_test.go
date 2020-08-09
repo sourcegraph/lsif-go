@@ -18,7 +18,7 @@ func TestEmitExportMoniker(t *testing.T) {
 		moduleName:            "github.com/sourcegraph/lsif-go",
 		moduleVersion:         "3.14.159",
 		emitter:               writer.NewEmitter(w),
-		packageInformationIDs: map[string]string{},
+		packageInformationIDs: map[string]uint64{},
 	}
 
 	object := types.NewConst(
@@ -29,14 +29,14 @@ func TestEmitExportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	if err := indexer.emitExportMoniker("123", ObjectInfo{
+	if err := indexer.emitExportMoniker(123, ObjectInfo{
 		Ident:  &ast.Ident{Name: "foobar"},
 		Object: object,
 	}); err != nil {
 		t.Fatalf("unexpected error emitting moniker: %s", err)
 	}
 
-	monikers := findMonikersByRangeOrReferenceResultID(w.elements, "123")
+	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find moniker")
 	}
@@ -70,7 +70,7 @@ func TestEmitImportMoniker(t *testing.T) {
 			"github.com/test/pkg/sub1": "1.2.3-deadbeef",
 		},
 		emitter:               writer.NewEmitter(w),
-		packageInformationIDs: map[string]string{},
+		packageInformationIDs: map[string]uint64{},
 	}
 
 	object := types.NewConst(
@@ -81,14 +81,14 @@ func TestEmitImportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	if err := indexer.emitImportMoniker("123", ObjectInfo{
+	if err := indexer.emitImportMoniker(123, ObjectInfo{
 		Ident:  &ast.Ident{Name: "foobar"},
 		Object: object,
 	}); err != nil {
 		t.Fatalf("unexpected error emitting moniker: %s", err)
 	}
 
-	monikers := findMonikersByRangeOrReferenceResultID(w.elements, "123")
+	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find moniker")
 	}
