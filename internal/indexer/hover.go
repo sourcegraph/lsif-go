@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/types"
 
-	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
@@ -28,22 +27,20 @@ func findExternalHoverContents(hoverLoader *HoverLoader, pkgs []*packages.Packag
 // makeCachedHoverResult returns a hover result vertex identifier. If hover text for the given
 // identifier has not already been emitted, a new vertex is created. Identifiers will share the
 // same hover result if they refer to the same identifier in the same target package.
-func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) (_ uint64, err error) {
+func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) uint64 {
 	key := makeCacheKey(pkg, obj)
 
-	hoverResultID, ok := i.hoverResultCache[key]
-	if !ok {
-		if hoverResultID, err = i.emitter.EmitHoverResult(fn()); err != nil {
-			return 0, errors.Wrap(err, "writer.EmitHoverResult")
-		}
-
-		if key != "" {
-			// Do not store empty cache keys
-			i.hoverResultCache[key] = hoverResultID
-		}
+	if hoverResultID, ok := i.hoverResultCache[key]; ok {
+		return hoverResultID
 	}
 
-	return hoverResultID, nil
+	hoverResultID := i.emitter.EmitHoverResult(fn())
+	if key != "" {
+		// Do not store empty cache keys
+		i.hoverResultCache[key] = hoverResultID
+	}
+
+	return hoverResultID
 }
 
 // makeCacheKey returns a string uniquely representing the given package and object pair. If

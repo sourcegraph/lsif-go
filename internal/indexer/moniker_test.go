@@ -29,12 +29,10 @@ func TestEmitExportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	if err := indexer.emitExportMoniker(123, ObjectInfo{
+	indexer.emitExportMoniker(123, ObjectInfo{
 		Ident:  &ast.Ident{Name: "foobar"},
 		Object: object,
-	}); err != nil {
-		t.Fatalf("unexpected error emitting moniker: %s", err)
-	}
+	})
 
 	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
 	if monikers == nil || len(monikers) < 1 {
@@ -81,12 +79,10 @@ func TestEmitImportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	if err := indexer.emitImportMoniker(123, ObjectInfo{
+	indexer.emitImportMoniker(123, ObjectInfo{
 		Ident:  &ast.Ident{Name: "foobar"},
 		Object: object,
-	}); err != nil {
-		t.Fatalf("unexpected error emitting moniker: %s", err)
-	}
+	})
 
 	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
 	if monikers == nil || len(monikers) < 1 {
