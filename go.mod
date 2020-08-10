@@ -9,6 +9,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/efritz/pentimento v0.0.0-20190429011147-ade47d831101
 	github.com/google/go-cmp v0.5.1
+	github.com/json-iterator/go v1.1.10
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3

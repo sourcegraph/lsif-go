@@ -5,7 +5,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/sourcegraph/lsif-go/internal/writer"
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
@@ -19,7 +18,7 @@ func TestIndexer(t *testing.T) {
 		"testdata",
 		"0.0.1",
 		nil,
-		writer.NewEmitter(w),
+		w,
 		false,
 	)
 
