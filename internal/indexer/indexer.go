@@ -449,29 +449,21 @@ func (i *Indexer) ensureRangeFor(o ObjectInfo) uint64 {
 // linkReferenceResultsToRanges emits textDocument/definition and textDocument/hover relations
 // for each indexed reference result.
 func (i *Indexer) linkReferenceResultsToRanges() {
-	// TODO(efritz) - emit in a more efficient order
-	i.visitEachFile("Linking reference results to ranges", i.animate, i.linkReferenceResultsToRangesInFile)
+	i.visitEachReferenceResult("Linking reference results to ranges", i.animate, i.linkReferenceResult)
 }
 
-// linkReferenceResultsToRangesInFile links textDocument/definition and textDocument/hover, relations
-// for each indexed reference result in the given document.
-func (i *Indexer) linkReferenceResultsToRangesInFile(f FileInfo) {
-	for _, rangeID := range f.Document.DefinitionRangeIDs {
-		referenceResult, ok := i.referenceResults[rangeID]
-		if !ok {
-			continue
-		}
+// linkReferenceResult adds textDocument/definition and textDocument/hover relations between the
+// given reference result and the ranges attached to it.
+func (i *Indexer) linkReferenceResult(referenceResult *ReferenceResultInfo) {
+	refResultID := i.emitter.EmitReferenceResult()
+	_ = i.emitter.EmitTextDocumentReferences(referenceResult.ResultSetID, refResultID)
 
-		refResultID := i.emitter.EmitReferenceResult()
-		_ = i.emitter.EmitTextDocumentReferences(referenceResult.ResultSetID, refResultID)
+	for documentID, rangeIDs := range referenceResult.DefinitionRangeIDs {
+		_ = i.emitter.EmitItemOfDefinitions(refResultID, rangeIDs, documentID)
+	}
 
-		for documentID, rangeIDs := range referenceResult.DefinitionRangeIDs {
-			_ = i.emitter.EmitItemOfDefinitions(refResultID, rangeIDs, documentID)
-		}
-
-		for documentID, rangeIDs := range referenceResult.ReferenceRangeIDs {
-			_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
-		}
+	for documentID, rangeIDs := range referenceResult.ReferenceRangeIDs {
+		_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
 	}
 }
 
