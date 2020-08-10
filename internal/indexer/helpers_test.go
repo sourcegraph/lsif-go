@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -115,12 +114,7 @@ func makeObjectInfo(t *testing.T, name string, p *packages.Package, target types
 func preload(packages []*packages.Package) *Preloader {
 	preloader := newPreloader()
 	for _, p := range getAllReferencedPackages(packages) {
-		var positions []token.Pos
-		for _, def := range p.TypesInfo.Defs {
-			if def != nil {
-				positions = append(positions, def.Pos())
-			}
-		}
+		positions := getDefinitionPositions(p)
 
 		for _, f := range p.Syntax {
 			preloader.Load(f, positions)
