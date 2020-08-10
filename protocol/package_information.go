@@ -7,7 +7,7 @@ type PackageInformation struct {
 	Version string `json:"version"`
 }
 
-func NewPackageInformation(id, name, manager, version string) *PackageInformation {
+func NewPackageInformation(id uint64, name, manager, version string) *PackageInformation {
 	return &PackageInformation{
 		Vertex: Vertex{
 			Element: Element{
@@ -24,11 +24,11 @@ func NewPackageInformation(id, name, manager, version string) *PackageInformatio
 
 type PackageInformationEdge struct {
 	Edge
-	OutV string `json:"outV"`
-	InV  string `json:"inV"`
+	OutV uint64 `json:"outV"`
+	InV  uint64 `json:"inV"`
 }
 
-func NewPackageInformationEdge(id, outV, inV string) *PackageInformationEdge {
+func NewPackageInformationEdge(id, outV, inV uint64) *PackageInformationEdge {
 	return &PackageInformationEdge{
 		Edge: Edge{
 			Element: Element{

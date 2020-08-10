@@ -186,7 +186,7 @@ func (w *capturingWriter) Write(v interface{}) error {
 }
 
 // findDocumentURIByDocumentID returns the URI of the document with the given ID.
-func findDocumentURIByDocumentID(elements []interface{}, id string) string {
+func findDocumentURIByDocumentID(elements []interface{}, id uint64) string {
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case *protocol.Document:
@@ -200,7 +200,7 @@ func findDocumentURIByDocumentID(elements []interface{}, id string) string {
 }
 
 // findRangeByID returns the range with the given identifier.
-func findRangeByID(elements []interface{}, id string) *protocol.Range {
+func findRangeByID(elements []interface{}, id uint64) *protocol.Range {
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case *protocol.Range:
@@ -214,7 +214,7 @@ func findRangeByID(elements []interface{}, id string) *protocol.Range {
 }
 
 // findHoverResultByID returns the hover result object with the given identifier.
-func findHoverResultByID(elements []interface{}, id string) *protocol.HoverResult {
+func findHoverResultByID(elements []interface{}, id uint64) *protocol.HoverResult {
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case *protocol.HoverResult:
@@ -228,7 +228,7 @@ func findHoverResultByID(elements []interface{}, id string) *protocol.HoverResul
 }
 
 // findMonikerByID returns the moniker with the given identifier.
-func findMonikerByID(elements []interface{}, id string) *protocol.Moniker {
+func findMonikerByID(elements []interface{}, id uint64) *protocol.Moniker {
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case *protocol.Moniker:
@@ -242,7 +242,7 @@ func findMonikerByID(elements []interface{}, id string) *protocol.Moniker {
 }
 
 // findPackageInformationByID returns the moniker with the given identifier.
-func findPackageInformationByID(elements []interface{}, id string) *protocol.PackageInformation {
+func findPackageInformationByID(elements []interface{}, id uint64) *protocol.PackageInformation {
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case *protocol.PackageInformation:
@@ -257,7 +257,7 @@ func findPackageInformationByID(elements []interface{}, id string) *protocol.Pac
 
 // findDefintionRangesByDefinitionResultID returns the ranges attached to the definition result with the given
 // identifier.
-func findDefintionRangesByDefinitionResultID(elements []interface{}, id string) (ranges []*protocol.Range) {
+func findDefintionRangesByDefinitionResultID(elements []interface{}, id uint64) (ranges []*protocol.Range) {
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case *protocol.Item:
@@ -276,7 +276,7 @@ func findDefintionRangesByDefinitionResultID(elements []interface{}, id string) 
 
 // findReferenceRangesByReferenceResultID returns the ranges attached to the reference result with the given
 // identifier.
-func findReferenceRangesByReferenceResultID(elements []interface{}, id string) (ranges []*protocol.Range) {
+func findReferenceRangesByReferenceResultID(elements []interface{}, id uint64) (ranges []*protocol.Range) {
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case *protocol.Item:
@@ -294,7 +294,7 @@ func findReferenceRangesByReferenceResultID(elements []interface{}, id string) (
 }
 
 // findDocumentURIContaining finds the URI of the document containing the given ID.
-func findDocumentURIContaining(elements []interface{}, id string) string {
+func findDocumentURIContaining(elements []interface{}, id uint64) string {
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case *protocol.Contains:
@@ -327,7 +327,7 @@ func findRange(elements []interface{}, filename string, startLine, startCharacte
 
 // findHoverResultByRangeOrResultSetID returns the hover result attached to the range or result
 // set with the given identifier.
-func findHoverResultByRangeOrResultSetID(elements []interface{}, id string) *protocol.HoverResult {
+func findHoverResultByRangeOrResultSetID(elements []interface{}, id uint64) *protocol.HoverResult {
 	// First see if we're attached to a hover result directly
 	for _, elem := range elements {
 		switch e := elem.(type) {
@@ -355,7 +355,7 @@ func findHoverResultByRangeOrResultSetID(elements []interface{}, id string) *pro
 
 // findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set
 // with the given identifier.
-func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id string) (ranges []*protocol.Range) {
+func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id uint64) (ranges []*protocol.Range) {
 	// First see if we're attached to definition result directly
 	for _, elem := range elements {
 		switch e := elem.(type) {
@@ -381,7 +381,7 @@ func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id string)
 
 // findReferenceRangesByRangeOrResultSetID returns the reference ranges attached to the range or result set with
 // the given identifier.
-func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id string) (ranges []*protocol.Range) {
+func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id uint64) (ranges []*protocol.Range) {
 	// First see if we're attached to reference result directly
 	for _, elem := range elements {
 		switch e := elem.(type) {
@@ -407,7 +407,7 @@ func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id string) 
 
 // findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or  reference result
 // with the given identifier.
-func findMonikersByRangeOrReferenceResultID(elements []interface{}, id string) (monikers []*protocol.Moniker) {
+func findMonikersByRangeOrReferenceResultID(elements []interface{}, id uint64) (monikers []*protocol.Moniker) {
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case *protocol.MonikerEdge:
@@ -433,7 +433,7 @@ func findMonikersByRangeOrReferenceResultID(elements []interface{}, id string) (
 }
 
 // findPackageInformationByMonikerID returns the package information vertexes attached to the moniker with the given identifier.
-func findPackageInformationByMonikerID(elements []interface{}, id string) (packageInformation []*protocol.PackageInformation) {
+func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packageInformation []*protocol.PackageInformation) {
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case *protocol.PackageInformationEdge:

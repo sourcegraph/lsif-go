@@ -32,13 +32,13 @@ type Indexer struct {
 
 	// LSIF data cache
 	documents             map[string]*DocumentInfo        // filename -> info
-	ranges                map[string]map[int]string       // filename -> offset -> rangeID
-	hoverResultCache      map[string]string               // cache key -> hoverResultID
-	referenceResults      map[string]*ReferenceResultInfo // rangeID -> info
-	packageInformationIDs map[string]string               // name -> packageInformationID
+	ranges                map[string]map[int]uint64       // filename -> offset -> rangeID
+	hoverResultCache      map[string]uint64               // cache key -> hoverResultID
+	referenceResults      map[uint64]*ReferenceResultInfo // rangeID -> info
+	packageInformationIDs map[string]uint64               // name -> packageInformationID
 	hoverLoader           *HoverLoader                    // hover text cache
 	packages              []*packages.Package             // index target packages
-	projectID             string                          // project vertex identifier
+	projectID             uint64                          // project vertex identifier
 }
 
 func New(
@@ -67,10 +67,10 @@ func New(
 		types:                 map[string]*DefinitionInfo{},
 		vars:                  map[token.Pos]*DefinitionInfo{},
 		documents:             map[string]*DocumentInfo{},
-		ranges:                map[string]map[int]string{},
-		hoverResultCache:      map[string]string{},
-		referenceResults:      map[string]*ReferenceResultInfo{},
-		packageInformationIDs: map[string]string{},
+		ranges:                map[string]map[int]uint64{},
+		hoverResultCache:      map[string]uint64{},
+		referenceResults:      map[uint64]*ReferenceResultInfo{},
+		packageInformationIDs: map[string]uint64{},
 		hoverLoader:           newHoverLoader(),
 	}
 }
@@ -180,12 +180,12 @@ func (i *Indexer) emitDocument(f FileInfo) error {
 		return errors.Wrap(err, "writer.EmitDocument")
 	}
 
-	if _, err := i.emitter.EmitContains(i.projectID, []string{documentID}); err != nil {
+	if _, err := i.emitter.EmitContains(i.projectID, []uint64{documentID}); err != nil {
 		return errors.Wrap(err, "writer.EmitContains")
 	}
 
 	i.documents[f.Filename] = &DocumentInfo{DocumentID: documentID}
-	i.ranges[f.Filename] = map[int]string{}
+	i.ranges[f.Filename] = map[int]uint64{}
 	return nil
 }
 
@@ -282,7 +282,7 @@ func (i *Indexer) indexDefinitions() error {
 
 // indexDefinitions emits data for each definition within the given document.
 func (i *Indexer) indexDefinitionsForFile(f FileInfo) error {
-	var rangeIDs []string
+	var rangeIDs []uint64
 	for ident, obj := range f.Package.TypesInfo.Defs {
 		ipos := f.Package.Fset.Position(ident.Pos())
 
@@ -314,20 +314,20 @@ func (i *Indexer) indexDefinitionsForFile(f FileInfo) error {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(o ObjectInfo) (string, error) {
+func (i *Indexer) indexDefinition(o ObjectInfo) (uint64, error) {
 	rangeID, err := i.emitter.EmitRange(rangeForObject(o))
 	if err != nil {
-		return "", errors.Wrap(err, "writer.EmitRange")
+		return 0, errors.Wrap(err, "writer.EmitRange")
 	}
 
 	resultSetID, err := i.emitter.EmitResultSet()
 	if err != nil {
-		return "", errors.Wrap(err, "writer.EmitResultSet")
+		return 0, errors.Wrap(err, "writer.EmitResultSet")
 	}
 
 	defResultID, err := i.emitter.EmitDefinitionResult()
 	if err != nil {
-		return "", errors.Wrap(err, "writer.EmitDefinitionResult")
+		return 0, errors.Wrap(err, "writer.EmitDefinitionResult")
 	}
 
 	// Create a hover result vertex and cache the result identifier keyed by the definition location.
@@ -337,40 +337,40 @@ func (i *Indexer) indexDefinition(o ObjectInfo) (string, error) {
 		return findHoverContents(i.hoverLoader, i.packages, o)
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "findContents")
+		return 0, errors.Wrap(err, "findContents")
 	}
 
 	// Link range -> result set
 	if _, err := i.emitter.EmitNext(rangeID, resultSetID); err != nil {
-		return "", errors.Wrap(err, "writer.EmitNext")
+		return 0, errors.Wrap(err, "writer.EmitNext")
 	}
 
 	// Link result set -> definition result
 	if _, err := i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID); err != nil {
-		return "", errors.Wrap(err, "writer.EmitTextDocumentDefinition")
+		return 0, errors.Wrap(err, "writer.EmitTextDocumentDefinition")
 	}
 
 	// Link definition result -> range
-	if _, err := i.emitter.EmitItem(defResultID, []string{rangeID}, o.FileInfo.Document.DocumentID); err != nil {
-		return "", errors.Wrap(err, "writer.EmitItem")
+	if _, err := i.emitter.EmitItem(defResultID, []uint64{rangeID}, o.FileInfo.Document.DocumentID); err != nil {
+		return 0, errors.Wrap(err, "writer.EmitItem")
 	}
 
 	// Link result set -> hover result
 	if _, err := i.emitter.EmitTextDocumentHover(resultSetID, hoverResultID); err != nil {
-		return "", errors.Wrap(err, "writer.EmitTextDocumentHover")
+		return 0, errors.Wrap(err, "writer.EmitTextDocumentHover")
 	}
 
 	if _, ok := o.Object.(*types.PkgName); ok {
 		// Emit import moniker attached to result set
 		if err := i.emitImportMoniker(resultSetID, o); err != nil {
-			return "", errors.Wrap(err, "emitImportMoniker")
+			return 0, errors.Wrap(err, "emitImportMoniker")
 		}
 	}
 
 	if o.Ident.IsExported() {
 		// Emit export moniker attached to result set
 		if err := i.emitExportMoniker(resultSetID, o); err != nil {
-			return "", errors.Wrap(err, "emitExportMoniker")
+			return 0, errors.Wrap(err, "emitExportMoniker")
 		}
 	}
 
@@ -382,8 +382,8 @@ func (i *Indexer) indexDefinition(o ObjectInfo) (string, error) {
 
 	i.referenceResults[rangeID] = &ReferenceResultInfo{
 		ResultSetID:        resultSetID,
-		DefinitionRangeIDs: map[string][]string{o.FileInfo.Document.DocumentID: {rangeID}},
-		ReferenceRangeIDs:  map[string][]string{},
+		DefinitionRangeIDs: map[uint64][]uint64{o.FileInfo.Document.DocumentID: {rangeID}},
+		ReferenceRangeIDs:  map[uint64][]uint64{},
 	}
 
 	i.ranges[o.Filename][o.Position.Offset] = rangeID
@@ -420,7 +420,7 @@ func (i *Indexer) indexReferences() error {
 
 // indexReferencesForFile emits data for each reference within the given document.
 func (i *Indexer) indexReferencesForFile(f FileInfo) error {
-	var rangeIDs []string
+	var rangeIDs []uint64
 	for ident, obj := range f.Package.TypesInfo.Uses {
 		ipos := f.Package.Fset.Position(ident.Pos())
 
@@ -450,7 +450,7 @@ func (i *Indexer) indexReferencesForFile(f FileInfo) error {
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(o ObjectInfo) (string, bool, error) {
+func (i *Indexer) indexReference(o ObjectInfo) (uint64, bool, error) {
 	if def := i.getDefinitionInfo(o.Object); def != nil {
 		return i.indexReferenceToDefinition(o, def)
 	}
@@ -482,15 +482,15 @@ func (i *Indexer) getDefinitionInfo(obj types.Object) *DefinitionInfo {
 
 // indexReferenceToDefinition emits data for the given reference object that is defined within
 // an index target package.
-func (i *Indexer) indexReferenceToDefinition(o ObjectInfo, d *DefinitionInfo) (string, bool, error) {
+func (i *Indexer) indexReferenceToDefinition(o ObjectInfo, d *DefinitionInfo) (uint64, bool, error) {
 	rangeID, err := i.ensureRangeFor(o)
 	if err != nil {
-		return "", false, errors.Wrap(err, "ensureRangeFor")
+		return 0, false, errors.Wrap(err, "ensureRangeFor")
 	}
 
 	// Link range -> result set
 	if _, err := i.emitter.EmitNext(rangeID, d.ResultSetID); err != nil {
-		return "", false, errors.Wrap(err, "writer.EmitNext")
+		return 0, false, errors.Wrap(err, "writer.EmitNext")
 	}
 
 	if refResult := i.referenceResults[d.RangeID]; refResult != nil {
@@ -503,20 +503,20 @@ func (i *Indexer) indexReferenceToDefinition(o ObjectInfo, d *DefinitionInfo) (s
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(o ObjectInfo) (string, bool, error) {
+func (i *Indexer) indexReferenceToExternalDefinition(o ObjectInfo) (uint64, bool, error) {
 	definitionPkg := o.Object.Pkg()
 	if definitionPkg == nil {
-		return "", false, nil
+		return 0, false, nil
 	}
 
 	rangeID, err := i.ensureRangeFor(o)
 	if err != nil {
-		return "", false, errors.Wrap(err, "ensureRangeFor")
+		return 0, false, errors.Wrap(err, "ensureRangeFor")
 	}
 
 	refResultID, err := i.emitter.EmitReferenceResult()
 	if err != nil {
-		return "", false, errors.Wrap(err, "writer.EmitReferenceResult")
+		return 0, false, errors.Wrap(err, "writer.EmitReferenceResult")
 	}
 
 	// Create a or retreive a hover result identifier keyed by the target object's identifier
@@ -527,29 +527,29 @@ func (i *Indexer) indexReferenceToExternalDefinition(o ObjectInfo) (string, bool
 		return findExternalHoverContents(i.hoverLoader, i.packages, o)
 	})
 	if err != nil {
-		return "", false, errors.Wrap(err, "externalHoverContents")
+		return 0, false, errors.Wrap(err, "externalHoverContents")
 	}
 
 	// Link range -> reference result
 	if _, err := i.emitter.EmitTextDocumentReferences(rangeID, refResultID); err != nil {
-		return "", false, errors.Wrap(err, "writer.EmitTextDocumentReferences")
+		return 0, false, errors.Wrap(err, "writer.EmitTextDocumentReferences")
 	}
 
 	// Link reference result -> range
-	if _, err := i.emitter.EmitItemOfReferences(refResultID, []string{rangeID}, o.FileInfo.Document.DocumentID); err != nil {
-		return "", false, errors.Wrap(err, "writer.EmitItemOfReferences")
+	if _, err := i.emitter.EmitItemOfReferences(refResultID, []uint64{rangeID}, o.FileInfo.Document.DocumentID); err != nil {
+		return 0, false, errors.Wrap(err, "writer.EmitItemOfReferences")
 	}
 
-	if hoverResultID != "" {
+	if hoverResultID != 0 {
 		// Link range -> hover result
 		if _, err := i.emitter.EmitTextDocumentHover(rangeID, hoverResultID); err != nil {
-			return "", false, errors.Wrap(err, "writer.EmitTextDocumentHover")
+			return 0, false, errors.Wrap(err, "writer.EmitTextDocumentHover")
 		}
 	}
 
 	// Emit import moniker attached to result set
 	if err := i.emitImportMoniker(rangeID, o); err != nil {
-		return "", false, errors.Wrap(err, "emitImportMoniker")
+		return 0, false, errors.Wrap(err, "emitImportMoniker")
 	}
 
 	return rangeID, true, nil
@@ -557,11 +557,11 @@ func (i *Indexer) indexReferenceToExternalDefinition(o ObjectInfo) (string, bool
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
-func (i *Indexer) ensureRangeFor(o ObjectInfo) (_ string, err error) {
+func (i *Indexer) ensureRangeFor(o ObjectInfo) (_ uint64, err error) {
 	rangeID, ok := i.ranges[o.Filename][o.Position.Offset]
 	if !ok {
 		if rangeID, err = i.emitter.EmitRange(rangeForObject(o)); err != nil {
-			return "", errors.Wrap(err, "writer.EmitRange")
+			return 0, errors.Wrap(err, "writer.EmitRange")
 		}
 		i.ranges[o.Filename][o.Position.Offset] = rangeID
 	}
@@ -635,9 +635,9 @@ func (i *Indexer) emitContainsForFile(f FileInfo) error {
 // stats returns a Stats object with the number of packages, files, and elements analyzed/emitted.
 func (i *Indexer) stats() *Stats {
 	return &Stats{
-		NumPkgs:     len(i.packages),
-		NumFiles:    len(i.documents),
-		NumDefs:     len(i.consts) + len(i.funcs) + len(i.imports) + len(i.labels) + len(i.types) + len(i.vars),
+		NumPkgs:     uint(len(i.packages)),
+		NumFiles:    uint(len(i.documents)),
+		NumDefs:     uint(len(i.consts) + len(i.funcs) + len(i.imports) + len(i.labels) + len(i.types) + len(i.vars)),
 		NumElements: i.emitter.NumElements(),
 	}
 }

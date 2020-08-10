@@ -9,14 +9,18 @@ import (
 
 func TestUnion(t *testing.T) {
 	u := union(
-		[]string{"a1", "a2", "a3"},
-		[]string{"b1", "b2", "b3"},
-		[]string{"a1", "b2", "c3"},
+		[]uint64{10, 20, 30},
+		[]uint64{100, 200, 300},
+		[]uint64{10, 200, 3000},
 	)
-	sort.Strings(u)
+	sort.Slice(u, func(i, j int) bool {
+		return u[i] < u[j]
+	})
 
-	expected := []string{
-		"a1", "a2", "a3", "b1", "b2", "b3", "c3",
+	expected := []uint64{
+		10, 20, 30,
+		100, 200, 300,
+		3000,
 	}
 
 	if diff := cmp.Diff(expected, u); diff != "" {

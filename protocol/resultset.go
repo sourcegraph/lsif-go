@@ -4,7 +4,7 @@ type ResultSet struct {
 	Vertex
 }
 
-func NewResultSet(id string) *ResultSet {
+func NewResultSet(id uint64) *ResultSet {
 	return &ResultSet{
 		Vertex: Vertex{
 			Element: Element{
