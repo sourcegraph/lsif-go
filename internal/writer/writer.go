@@ -1,6 +1,7 @@
 package writer
 
 import (
+	"bufio"
 	"io"
 	"sync"
 
@@ -25,14 +26,17 @@ type jsonWriter struct {
 	err error
 }
 
-// channelBufferSize is the nubmer of elements that can be queued to be written.
+// channelBufferSize is the number of elements that can be queued to be written.
 const channelBufferSize = 512
+
+// writerBufferSize is the size of the buffered writer wrapping output to the target file.
+const writerBufferSize = 4096
 
 // NewJSONWriter creates a new JSONWriter wrapping the given writer.
 func NewJSONWriter(w io.Writer) JSONWriter {
 	ch := make(chan interface{}, channelBufferSize)
 	jw := &jsonWriter{ch: ch}
-	encoder := marshaller.NewEncoder(w)
+	encoder := marshaller.NewEncoder(bufio.NewWriterSize(w, writerBufferSize))
 
 	jw.wg.Add(1)
 	go func() {
