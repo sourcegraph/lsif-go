@@ -3,6 +3,7 @@ package indexer
 import (
 	"go/ast"
 	"go/token"
+	"sort"
 	"strings"
 	"sync"
 
@@ -83,17 +84,23 @@ func visit(
 ) {
 	newPath := updateNodePath(path, node)
 	newMonikerPath := updateMonikerPath(monikerPath, node)
+	start := sort.Search(len(positions), func(i int) bool {
+		return positions[i] >= node.Pos()
+	})
 
-	for _, child := range childrenOf(node) {
-		visit(child, positions, hoverTextMap, monikerPathMap, newPath, newMonikerPath)
+	end := start
+	for end < len(positions) && positions[end] <= node.End() {
+		end++
 	}
 
-	for i := findFirstIntersectingIndex(node, positions); i < len(positions) && positions[i] <= node.End(); i++ {
-		if _, ok := hoverTextMap[positions[i]]; ok {
-			continue
-		}
+	for _, child := range childrenOf(node) {
+		visit(child, positions[start:end], hoverTextMap, monikerPathMap, newPath, newMonikerPath)
+	}
 
-		hoverTextMap[positions[i]] = commentsFromPath(newPath)
+	for i := start; i < end; i++ {
+		if _, ok := hoverTextMap[positions[i]]; !ok {
+			hoverTextMap[positions[i]] = commentsFromPath(newPath)
+		}
 	}
 
 	monikerPathMap[node.Pos()] = newMonikerPath
@@ -123,26 +130,6 @@ func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 	}
 
 	return monikerPath
-}
-
-// findFirstIntersectingIndex finds the first index in positions that is not less than the
-// node's starting position. If there is no such index, then the length of the array is
-// returned.
-func findFirstIntersectingIndex(node ast.Node, positions []token.Pos) int {
-	i := 0
-	for i < len(positions) && positions[i] < node.Pos() {
-		i = (i + 1) * 2
-	}
-
-	if i >= len(positions) {
-		i = len(positions)
-	}
-
-	for i > 0 && positions[i-1] >= node.Pos() {
-		i--
-	}
-
-	return i
 }
 
 // childrenOf returns the direct non-nil children of ast.Node n.
