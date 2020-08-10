@@ -97,10 +97,6 @@ func (i *Indexer) Index() (*Stats, error) {
 		return nil, errors.Wrap(err, "emitter.Flush")
 	}
 
-	if err := i.emitter.Flush(); err != nil {
-		return nil, errors.Wrap(err, "emitter.Flush")
-	}
-
 	return i.stats(), nil
 }
 
@@ -155,7 +151,6 @@ func (i *Indexer) emitDocument(f FileInfo) {
 	}
 
 	documentID := i.emitter.EmitDocument(languageGo, f.Filename)
-	_ = i.emitter.EmitContains(i.projectID, []uint64{documentID})
 	i.documents[f.Filename] = &DocumentInfo{DocumentID: documentID}
 	i.ranges[f.Filename] = map[int]uint64{}
 }
@@ -482,6 +477,9 @@ func (i *Indexer) linkReferenceResultsToRangesInFile(f FileInfo) {
 // emitContains emits the contains relationship for all documents and the ranges that it contains.
 func (i *Indexer) emitContains() {
 	i.visitEachFile("Emitting contains relations", i.animate, i.emitContainsForFile)
+
+	// TODO(efritz) - think about printing a title here
+	i.emitContainsForProject()
 }
 
 // emitContainsForFile emits a contains edge between the given document and the ranges that in contains.
@@ -489,6 +487,18 @@ func (i *Indexer) emitContains() {
 func (i *Indexer) emitContainsForFile(f FileInfo) {
 	if len(f.Document.DefinitionRangeIDs) > 0 || len(f.Document.ReferenceRangeIDs) > 0 {
 		_ = i.emitter.EmitContains(f.Document.DocumentID, union(f.Document.DefinitionRangeIDs, f.Document.ReferenceRangeIDs))
+	}
+}
+
+// emitContainsForProject emits a contains edge between the target project and all indexed documents.
+func (i *Indexer) emitContainsForProject() {
+	var documentIDs []uint64
+	for _, info := range i.documents {
+		documentIDs = append(documentIDs, info.DocumentID)
+	}
+
+	if len(documentIDs) > 0 {
+		_ = i.emitter.EmitContains(i.projectID, documentIDs)
 	}
 }
 
