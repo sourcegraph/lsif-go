@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/writer"
@@ -105,7 +106,7 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 func (i *Indexer) loadPackages() error {
-	wg, errs, count := runParallel(func() (err error) {
+	load := func() (err error) {
 		i.packages, err = packages.Load(&packages.Config{
 			Mode:  loadMode,
 			Dir:   i.projectRoot,
@@ -113,9 +114,15 @@ func (i *Indexer) loadPackages() error {
 		}, "./...")
 
 		return errors.Wrap(err, "packages.Load")
-	})
+	}
 
-	withProgress(wg, "Loading packages", i.animate, count, 1)
+	ch := make(chan func() error, 1)
+	ch <- load
+	close(ch)
+
+	n := uint64(1)
+	wg, errs, count := runParallel(ch)
+	withProgress(wg, "Loading packages", i.animate, count, &n)
 	return <-errs
 }
 
@@ -190,31 +197,39 @@ func importSpecName(spec *ast.ImportSpec) string {
 // imported packages). This will also load the moniker paths for all identifiers in the same
 // files.
 func (i *Indexer) preload() error {
-	var fns []func() error
-	for _, p := range getAllReferencedPackages(i.packages) {
-		for _, f := range p.Syntax {
-			// This is wrapped in an immediately invoked function to ensure
-			// we get the correct non-loop values for the package and file.
-			fns = append(fns, func(p *packages.Package, f *ast.File) func() error {
-				return func() error {
-					// TODO(efritz) - this does not depend on the file
-					positions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
-					for _, obj := range p.TypesInfo.Defs {
-						if obj != nil {
-							positions = append(positions, obj.Pos())
-						}
-					}
+	var n uint64
+	ch := make(chan func() error)
 
-					i.preloader.Load(f, positions)
-					return nil
-				}
-			}(p, f))
+	go func() {
+		defer close(ch)
+
+		for _, p := range getAllReferencedPackages(i.packages) {
+			for _, f := range p.Syntax {
+				atomic.AddUint64(&n, 1)
+
+				// This is wrapped in an immediately invoked function to ensure
+				// we get the correct non-loop values for the package and file.
+				ch <- func(p *packages.Package, f *ast.File) func() error {
+					return func() error {
+						// TODO(efritz) - this does not depend on the file
+						positions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
+						for _, obj := range p.TypesInfo.Defs {
+							if obj != nil {
+								positions = append(positions, obj.Pos())
+							}
+						}
+
+						i.preloader.Load(f, positions)
+						return nil
+					}
+				}(p, f)
+			}
 		}
-	}
+	}()
 
 	// Load hovers for each package concurrently
-	wg, errs, count := runParallel(fns...)
-	withProgress(wg, "Preloading hover text and moniker paths", i.animate, count, len(fns))
+	wg, errs, count := runParallel(ch)
+	withProgress(wg, "Preloading hover text and moniker paths", i.animate, count, &n)
 	return <-errs
 }
 
