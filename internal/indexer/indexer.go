@@ -97,6 +97,10 @@ func (i *Indexer) Index() (*Stats, error) {
 		return nil, errors.Wrap(err, "emitter.Flush")
 	}
 
+	if err := i.emitter.Flush(); err != nil {
+		return nil, errors.Wrap(err, "emitter.Flush")
+	}
+
 	return i.stats(), nil
 }
 
