@@ -21,9 +21,10 @@ type JSONWriter interface {
 }
 
 type jsonWriter struct {
-	wg  sync.WaitGroup
-	ch  chan (interface{})
-	err error
+	wg             sync.WaitGroup
+	ch             chan (interface{})
+	bufferedWriter *bufio.Writer
+	err            error
 }
 
 // channelBufferSize is the number of elements that can be queued to be written.
@@ -35,8 +36,9 @@ const writerBufferSize = 4096
 // NewJSONWriter creates a new JSONWriter wrapping the given writer.
 func NewJSONWriter(w io.Writer) JSONWriter {
 	ch := make(chan interface{}, channelBufferSize)
-	jw := &jsonWriter{ch: ch}
-	encoder := marshaller.NewEncoder(bufio.NewWriterSize(w, writerBufferSize))
+	bufferedWriter := bufio.NewWriterSize(w, writerBufferSize)
+	jw := &jsonWriter{ch: ch, bufferedWriter: bufferedWriter}
+	encoder := marshaller.NewEncoder(bufferedWriter)
 
 	jw.wg.Add(1)
 	go func() {
@@ -65,5 +67,14 @@ func (jw *jsonWriter) Write(v interface{}) {
 func (jw *jsonWriter) Flush() error {
 	close(jw.ch)
 	jw.wg.Wait()
-	return jw.err
+
+	if jw.err != nil {
+		return jw.err
+	}
+
+	if err := jw.bufferedWriter.Flush(); err != nil {
+		return err
+	}
+
+	return nil
 }
