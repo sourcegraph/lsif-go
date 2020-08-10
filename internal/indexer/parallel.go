@@ -6,11 +6,11 @@ import (
 	"sync/atomic"
 )
 
-// runParallel will run each of the given functions concurrently. This function returns
-// a context that is canceled once all functions have completed, a channel on which any
-// error values are written, and a pointer to the number of tasks that have completed
-// (updated atomically).
-func runParallel(fns ...func() error) (*sync.WaitGroup, <-chan error, *uint64) {
+// runParallel will run the functions read from teh given channel concurrently. This function
+// returns a wait group synchronized on the invocation functions, a channel on which any error
+// values are written, and a pointer to the number of tasks that have completed, which is
+// updated atomically.
+func runParallel(ch <-chan func() error) (*sync.WaitGroup, <-chan error, *uint64) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -29,7 +29,7 @@ func runParallel(fns ...func() error) (*sync.WaitGroup, <-chan error, *uint64) {
 	go func() {
 		defer wg.Done()
 
-		for _, fn := range fns {
+		for fn := range ch {
 			wg.Add(1)
 
 			go func(fn func() error) {

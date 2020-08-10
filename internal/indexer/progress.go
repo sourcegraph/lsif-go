@@ -19,8 +19,9 @@ var successPrefix = "✗"
 var failurePrefix = "✔"
 
 // withProgress will continuously print progress to stdout until the given wait group counter
-// goes to zero. Progress is determined by the current value of `c` and the maximum value `n`.
-func withProgress(wg *sync.WaitGroup, name string, animate bool, c *uint64, n int) {
+// goes to zero. Progress is determined by the values of `c` (number of tasks completed) and
+// the value `n` (total number of tasks).
+func withProgress(wg *sync.WaitGroup, name string, animate bool, c, n *uint64) {
 	sync := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -36,7 +37,7 @@ func withProgress(wg *sync.WaitGroup, name string, animate bool, c *uint64, n in
 			case <-time.After(updateInterval):
 			}
 
-			printProgress(printer, name, int(atomic.LoadUint64(c)), n)
+			printProgress(printer, name, int(atomic.LoadUint64(c)), int(atomic.LoadUint64(n)))
 		}
 
 		return nil
