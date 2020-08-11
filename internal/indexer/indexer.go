@@ -24,6 +24,7 @@ type Indexer struct {
 	dependencies   map[string]string // parsed module data
 	emitter        *writer.Emitter   // LSIF data emitter
 	animate        bool              // Whether to animate output
+	silent         bool              // Whether to suppress all output
 
 	// Definition type cache
 	consts  map[token.Pos]*DefinitionInfo // position -> info
@@ -53,6 +54,7 @@ func New(
 	dependencies map[string]string,
 	writer protocolwriter.JSONWriter,
 	animate bool,
+	silent bool,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:        repositoryRoot,
@@ -63,6 +65,7 @@ func New(
 		dependencies:          dependencies,
 		emitter:               protocolwriter.NewEmitter(writer),
 		animate:               animate,
+		silent:                silent,
 		consts:                map[token.Pos]*DefinitionInfo{},
 		funcs:                 map[string]*DefinitionInfo{},
 		imports:               map[token.Pos]*DefinitionInfo{},
@@ -123,7 +126,7 @@ func (i *Indexer) loadPackages() error {
 
 	n := uint64(1)
 	wg, errs, count := runParallel(ch)
-	withProgress(wg, "Loading packages", i.animate, count, &n)
+	withProgress(wg, "Loading packages", i.animate, i.silent, count, &n)
 	return <-errs
 }
 
@@ -139,7 +142,7 @@ func (i *Indexer) emitMetadataAndProjectVertex() {
 // and ranges map for each document. Methods should skip any document that does not have a file entry as
 // it may fall outside of the project root (and is thus not properly indexable).
 func (i *Indexer) emitDocuments() {
-	i.visitEachRawFile("Emitting documents", i.animate, i.emitDocument)
+	i.visitEachRawFile("Emitting documents", i.animate, i.silent, i.emitDocument)
 }
 
 // emitDocument emits a document vertex and a contains relation to the enclosing project. This method
@@ -166,7 +169,7 @@ func (i *Indexer) emitDocument(f FileInfo) {
 // addImports modifies the definitions map of each file to include entries for import statements so
 // they can be indexed uniformly in subsequent steps.
 func (i *Indexer) addImports() {
-	i.visitEachFile("Adding import definitions", i.animate, i.addImportsToFile)
+	i.visitEachFile("Adding import definitions", i.animate, i.silent, i.addImportsToFile)
 }
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
@@ -222,7 +225,7 @@ func (i *Indexer) preload() error {
 
 	// Load hovers for each package concurrently
 	wg, errs, count := runParallel(ch)
-	withProgress(wg, "Preloading hover text and moniker paths", i.animate, count, &n)
+	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, count, &n)
 	return <-errs
 }
 
@@ -264,7 +267,7 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 // a result set, a definition result, a hover result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
 func (i *Indexer) indexDefinitions() {
-	i.visitEachFile("Indexing definitions", i.animate, i.indexDefinitionsForFile)
+	i.visitEachFile("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForFile)
 }
 
 // indexDefinitions emits data for each definition within the given document.
@@ -358,7 +361,7 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 // a hover result, and import monikers (for external definitions). This method will also populate
 // each document's reference range identifier slice.
 func (i *Indexer) indexReferences() {
-	i.visitEachFile("Indexing references", i.animate, i.indexReferencesForFile)
+	i.visitEachFile("Indexing references", i.animate, i.silent, i.indexReferencesForFile)
 }
 
 // indexReferencesForFile emits data for each reference within the given document.
@@ -471,7 +474,7 @@ func (i *Indexer) ensureRangeFor(o ObjectInfo) uint64 {
 // linkReferenceResultsToRanges emits textDocument/definition and textDocument/hover relations
 // for each indexed reference result.
 func (i *Indexer) linkReferenceResultsToRanges() {
-	i.visitEachReferenceResult("Linking reference results to ranges", i.animate, i.linkReferenceResult)
+	i.visitEachReferenceResult("Linking reference results to ranges", i.animate, i.silent, i.linkReferenceResult)
 }
 
 // linkReferenceResult adds textDocument/definition and textDocument/hover relations between the
@@ -491,7 +494,7 @@ func (i *Indexer) linkReferenceResult(referenceResult *ReferenceResultInfo) {
 
 // emitContains emits the contains relationship for all documents and the ranges that it contains.
 func (i *Indexer) emitContains() {
-	i.visitEachFile("Emitting contains relations", i.animate, i.emitContainsForFile)
+	i.visitEachFile("Emitting contains relations", i.animate, i.silent, i.emitContainsForFile)
 
 	// TODO(efritz) - think about printing a title here
 	i.emitContainsForProject()

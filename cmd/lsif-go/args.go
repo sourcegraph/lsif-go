@@ -23,6 +23,7 @@ var (
 	moduleRoot     string
 	projectRoot    string
 	noProgress     bool
+	noOutput       bool
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	app.Flag("repositoryRoot", "Specifies the path of the current repository (inferred automatically via git).").PlaceHolder("root").StringVar(&repositoryRoot)
 	app.Flag("moduleRoot", "Specifies the module root directory relative to the repository").Default(".").StringVar(&moduleRoot)
 	app.Flag("noProgress", "Do not output verbose progress.").Default("false").BoolVar(&noProgress)
+	app.Flag("noOutput", "Do not output progress.").Default("false").BoolVar(&noOutput)
 }
 
 func parseArgs(args []string) (err error) {

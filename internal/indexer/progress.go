@@ -21,14 +21,14 @@ var failurePrefix = "✔"
 // withProgress will continuously print progress to stdout until the given wait group counter
 // goes to zero. Progress is determined by the values of `c` (number of tasks completed) and
 // the value `n` (total number of tasks).
-func withProgress(wg *sync.WaitGroup, name string, animate bool, c, n *uint64) {
+func withProgress(wg *sync.WaitGroup, name string, animate, silent bool, c, n *uint64) {
 	sync := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(sync)
 	}()
 
-	_ = withTitle(name, animate, func(printer *pentimento.Printer) error {
+	_ = withTitle(name, animate, silent, func(printer *pentimento.Printer) error {
 	loop:
 		for {
 			select {
@@ -45,7 +45,11 @@ func withProgress(wg *sync.WaitGroup, name string, animate bool, c, n *uint64) {
 }
 
 // withTitle invokes withTitleAnimated withTitleStatic depending on the value of animated.
-func withTitle(name string, animate bool, fn func(printer *pentimento.Printer) error) error {
+func withTitle(name string, animate, silent bool, fn func(printer *pentimento.Printer) error) error {
+	if silent {
+		return fn(nil)
+	}
+
 	if animate {
 		return withTitleAnimated(name, fn)
 	}

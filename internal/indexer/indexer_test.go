@@ -20,6 +20,7 @@ func TestIndexer(t *testing.T) {
 		nil,
 		w,
 		false,
+		true,
 	)
 
 	if _, err := indexer.Index(); err != nil {

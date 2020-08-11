@@ -32,9 +32,12 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		return fmt.Errorf("index: %v", err)
 	}
 
-	fmt.Println()
-	fmt.Printf("%d package(s), %d file(s), %d def(s), %d element(s)\n", stats.NumPkgs, stats.NumFiles, stats.NumDefs, stats.NumElements)
-	fmt.Println("Processed in", time.Since(start))
+	if !noOutput {
+		fmt.Println()
+		fmt.Printf("%d package(s), %d file(s), %d def(s), %d element(s)\n", stats.NumPkgs, stats.NumFiles, stats.NumDefs, stats.NumElements)
+		fmt.Println("Processed in", time.Since(start))
+	}
+
 	return nil
 }
 
@@ -57,5 +60,6 @@ func makeIndexer(repositoryRoot, projectRoot, moduleName, moduleVersion string, 
 		dependencies,
 		writer.NewJSONWriter(out),
 		!noProgress,
+		noOutput,
 	)
 }
