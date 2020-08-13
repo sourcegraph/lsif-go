@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 )
 
-// runParallel will run the functions read from teh given channel concurrently. This function
+// runParallel will run the functions read from the given channel concurrently. This function
 // returns a wait group synchronized on the invocation functions, a channel on which any error
 // values are written, and a pointer to the number of tasks that have completed, which is
 // updated atomically.
