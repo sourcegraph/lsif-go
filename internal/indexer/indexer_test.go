@@ -113,7 +113,26 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, references[3], 27, 1, 27, 3)  // wg.Wait()
 	})
 
-	// TODO(efritz) - add additional tests
+	t.Run("check NestedB monikers", func(t *testing.T) {
+		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 26, 2)
+		if r == nil {
+			t.Fatalf("could not find target range")
+		}
+
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Errorf("incorrect moniker count. want=%d have=%d", 1, len(monikers))
+		}
+
+		if value := monikers[0].Scheme; value != "gomod" {
+			t.Errorf("incorrect scheme. want=%q have=%q", "gomod", value)
+		}
+
+		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:TestStruct.FieldWithAnonymousType.NestedB"
+		if value := monikers[0].Identifier; value != expectedIdentifier {
+			t.Errorf("incorrect identifier. want=%q have=%q", expectedIdentifier, value)
+		}
+	})
 }
 
 func compareRange(t *testing.T, r *protocol.Range, startLine, startCharacter, endLine, endCharacter int) {

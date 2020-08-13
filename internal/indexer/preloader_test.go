@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-func TestHoverLoader(t *testing.T) {
+func TestPreloader(t *testing.T) {
 	packages := getTestPackages(t)
-	hoverLoader := loadHovers(packages)
+	preloader := preload(packages)
 	p, target := findDefinitionByName(t, packages, "ParallelizableFunc")
 
 	expectedText := normalizeDocstring(`
@@ -17,7 +17,7 @@ func TestHoverLoader(t *testing.T) {
 
 	t.Run("Text", func(t *testing.T) {
 		for _, f := range p.Syntax {
-			if text := normalizeDocstring(hoverLoader.Text(f, target.Pos())); text != "" {
+			if text := normalizeDocstring(preloader.Text(f, target.Pos())); text != "" {
 				if text != expectedText {
 					t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 				}
@@ -30,7 +30,7 @@ func TestHoverLoader(t *testing.T) {
 	})
 
 	t.Run("TextFromPackage", func(t *testing.T) {
-		if text := normalizeDocstring(hoverLoader.TextFromPackage(p, target.Pos())); text != expectedText {
+		if text := normalizeDocstring(preloader.TextFromPackage(p, target.Pos())); text != expectedText {
 			t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 		}
 	})

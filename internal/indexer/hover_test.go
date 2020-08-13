@@ -14,7 +14,7 @@ func TestFindDocstring(t *testing.T) {
 		ParallelizableFunc is a function that can be called concurrently with other instances
 		of this function type.
 	`)
-	if text := normalizeDocstring(findDocstring(loadHovers(packages), packages, o)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, o)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -25,7 +25,7 @@ func TestFindDocstringInternalPackageName(t *testing.T) {
 	o := makeObjectInfo(t, "secret", p, target)
 
 	expectedText := normalizeDocstring(`secret is a package that holds secrets.`)
-	if text := normalizeDocstring(findDocstring(loadHovers(packages), packages, o)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, o)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -41,7 +41,7 @@ func TestFindDocstringExternalPackageName(t *testing.T) {
 		Higher-level synchronization is better done via channels and communication.
 		Values containing the types defined in this package should not be copied.
 	`)
-	if text := normalizeDocstring(findDocstring(loadHovers(packages), packages, o)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, o)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -62,7 +62,7 @@ func TestFindExternalDocstring(t *testing.T) {
 		At the same time, Wait can be used to block until all goroutines have finished.
 		A WaitGroup must not be copied after first use.
 	`)
-	if text := normalizeDocstring(findExternalDocstring(loadHovers(packages), packages, o)); text != expectedText {
+	if text := normalizeDocstring(findExternalDocstring(preload(packages), packages, o)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }

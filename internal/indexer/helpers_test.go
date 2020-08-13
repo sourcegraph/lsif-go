@@ -71,17 +71,19 @@ func findUseByName(t *testing.T, packages []*packages.Package, name string) (*pa
 	return nil, nil
 }
 
-// findObjectInfoByDefinitionName constructs an ObjectInfo value for the definition matching the
-// given name.
-func findObjectInfoByDefinitionName(t *testing.T, name string) ObjectInfo {
-	p, target := findDefinitionByName(t, getTestPackages(t), name)
-	return makeObjectInfo(t, name, p, target)
+// findObjectInfoByDefinitionName constructs an ObjectInfo value for the definition matching
+// the given name.
+func findObjectInfoByDefinitionName(t *testing.T, name string) ([]*packages.Package, ObjectInfo) {
+	packages := getTestPackages(t)
+	p, target := findDefinitionByName(t, packages, name)
+	return packages, makeObjectInfo(t, name, p, target)
 }
 
 // findObjectInfoByUseName constructs an ObjectInfo value for the use matching the given name.
-func findObjectInfoByUseName(t *testing.T, name string) ObjectInfo {
-	p, target := findUseByName(t, getTestPackages(t), name)
-	return makeObjectInfo(t, name, p, target)
+func findObjectInfoByUseName(t *testing.T, name string) ([]*packages.Package, ObjectInfo) {
+	packages := getTestPackages(t)
+	p, target := findUseByName(t, packages, name)
+	return packages, makeObjectInfo(t, name, p, target)
 }
 
 // getFileContaining returns the file containing the given object.
@@ -108,10 +110,10 @@ func makeObjectInfo(t *testing.T, name string, p *packages.Package, target types
 	}
 }
 
-// loadHovers populates and returns a hover loader instance with the text for all definitions
-// in in the given packages.
-func loadHovers(packages []*packages.Package) *HoverLoader {
-	hoverLoader := newHoverLoader()
+// preload populates and returns a Preloader instance with the hover text and moniker
+// paths for all definitions in in the given packages.
+func preload(packages []*packages.Package) *Preloader {
+	preloader := newPreloader()
 	for _, p := range getAllReferencedPackages(packages) {
 		var positions []token.Pos
 		for _, def := range p.TypesInfo.Defs {
@@ -121,11 +123,11 @@ func loadHovers(packages []*packages.Package) *HoverLoader {
 		}
 
 		for _, f := range p.Syntax {
-			hoverLoader.Load(f, positions)
+			preloader.Load(f, positions)
 		}
 	}
 
-	return hoverLoader
+	return preloader
 }
 
 // normalizeDocstring removes leading indentation from each line, removes empty lines,
