@@ -1,6 +1,8 @@
 package indexer
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestPreloader(t *testing.T) {
 	packages := getTestPackages(t)
