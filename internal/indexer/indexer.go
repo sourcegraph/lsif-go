@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -204,25 +205,17 @@ func (i *Indexer) preload() error {
 		defer close(ch)
 
 		for _, p := range getAllReferencedPackages(i.packages) {
+			positions := getDefinitionPositions(p)
+
 			for _, f := range p.Syntax {
 				atomic.AddUint64(&n, 1)
 
-				// This is wrapped in an immediately invoked function to ensure
-				// we get the correct non-loop values for the package and file.
-				ch <- func(p *packages.Package, f *ast.File) func() error {
+				ch <- func(f *ast.File) func() error {
 					return func() error {
-						// TODO(efritz) - this does not depend on the file
-						positions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
-						for _, obj := range p.TypesInfo.Defs {
-							if obj != nil {
-								positions = append(positions, obj.Pos())
-							}
-						}
-
 						i.preloader.Load(f, positions)
 						return nil
 					}
-				}(p, f)
+				}(f)
 			}
 		}
 	}()
@@ -231,6 +224,20 @@ func (i *Indexer) preload() error {
 	wg, errs, count := runParallel(ch)
 	withProgress(wg, "Preloading hover text and moniker paths", i.animate, count, &n)
 	return <-errs
+}
+
+// getDefinitionPositions extracts the positions of all definitions from the given package. This
+// returns a sorted slice.
+func getDefinitionPositions(p *packages.Package) []token.Pos {
+	positions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
+	for _, obj := range p.TypesInfo.Defs {
+		if obj != nil {
+			positions = append(positions, obj.Pos())
+		}
+	}
+
+	sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
+	return positions
 }
 
 // getAllReferencedPackages returns a slice of packages containing the index target packages

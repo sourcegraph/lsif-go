@@ -3,7 +3,6 @@ package indexer
 import (
 	"go/ast"
 	"go/token"
-	"sort"
 	"strings"
 	"sync"
 
@@ -26,11 +25,11 @@ func newPreloader() *Preloader {
 }
 
 // Load will walk the AST of the file and cache the hover text and moniker paths for each of the
-// given positions.
+// given positions. This function assumes that the given positions are already ordered so that
+// a binary-search can be used to efficiently bound lookups.
 func (l *Preloader) Load(root *ast.File, positions []token.Pos) {
 	hoverTextMap := map[token.Pos]string{}
 	monikerPathMap := map[token.Pos][]string{}
-	sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
 	visit(root, positions, hoverTextMap, monikerPathMap, nil, nil)
 
 	l.m.Lock()
