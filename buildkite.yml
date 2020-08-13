@@ -1,0 +1,3 @@
+steps:
+  - label: ':go:'
+    command: go test ./...
