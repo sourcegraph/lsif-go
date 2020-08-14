@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/sourcegraph/lsif-go/protocol"
@@ -129,11 +130,14 @@ func findIndent(s string) (emptyLines int, indent int) {
 // captures each of the emitted objects without serializing them so they can be inspected via
 // type by the unit tests of this package.
 type capturingWriter struct {
+	m        sync.Mutex
 	elements []interface{}
 }
 
 func (w *capturingWriter) Write(v interface{}) {
+	w.m.Lock()
 	w.elements = append(w.elements, v)
+	w.m.Unlock()
 }
 
 func (w *capturingWriter) Flush() error {
