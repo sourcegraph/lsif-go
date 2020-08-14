@@ -51,7 +51,6 @@ func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p 
 					return nil
 				}
 			}(p)
-
 		}
 	}()
 
@@ -77,7 +76,6 @@ func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn
 					return nil
 				}
 			}(r)
-
 		}
 	}()
 
