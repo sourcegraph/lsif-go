@@ -64,15 +64,15 @@ func packagePrefixes(packageName string) []string {
 // give name and version. A vertex will be emitted only if one with the same name not yet
 // been emitted.
 func (i *Indexer) ensurePackageInformation(name, version string) uint64 {
-	i.packageInformationIDsMutex.RLock()
+	i.stripedMutex.RLockKey(name)
 	packageInformationID, ok := i.packageInformationIDs[name]
-	i.packageInformationIDsMutex.RUnlock()
+	i.stripedMutex.RUnlockKey(name)
 	if ok {
 		return packageInformationID
 	}
 
-	i.packageInformationIDsMutex.Lock()
-	defer i.packageInformationIDsMutex.Unlock()
+	i.stripedMutex.LockKey(name)
+	defer i.stripedMutex.UnlockKey(name)
 
 	if packageInformationID, ok := i.packageInformationIDs[name]; ok {
 		return packageInformationID

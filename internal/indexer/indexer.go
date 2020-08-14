@@ -46,16 +46,13 @@ type Indexer struct {
 	projectID             uint64                          // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
 
-	constsMutex                sync.Mutex
-	funcsMutex                 sync.Mutex
-	importsMutex               sync.Mutex
-	labelsMutex                sync.Mutex
-	typesMutex                 sync.Mutex
-	varsMutex                  sync.Mutex
-	rangesMutex                *MutexMap
-	hoverResultCacheMutex      sync.RWMutex
-	referenceResultsMutex      sync.Mutex
-	packageInformationIDsMutex sync.RWMutex
+	constsMutex  sync.Mutex
+	funcsMutex   sync.Mutex
+	importsMutex sync.Mutex
+	labelsMutex  sync.Mutex
+	typesMutex   sync.Mutex
+	varsMutex    sync.Mutex
+	stripedMutex *StripedMutex
 }
 
 func New(
@@ -91,7 +88,7 @@ func New(
 		referenceResults:      map[uint64]*ReferenceResultInfo{},
 		packageInformationIDs: map[string]uint64{},
 		preloader:             newPreloader(),
-		rangesMutex:           newMutexMap(),
+		stripedMutex:          newStripedMutex(),
 	}
 }
 
@@ -305,9 +302,9 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 
 		rangeID := i.indexDefinition(p, pos.Filename, d, ident, pos, obj)
 
-		i.rangesMutex.Lock(pos.Filename)
+		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
-		i.rangesMutex.Unlock(pos.Filename)
+		i.stripedMutex.UnlockKey(pos.Filename)
 
 		d.m.Lock()
 		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
@@ -340,15 +337,15 @@ func (i *Indexer) positionAndDocument(p *packages.Package, ident *ast.Ident, obj
 // markRange sets an empty range identifier in the ranges map for the given position.
 // If a  range for this identifier has already been marked, this method returns false.
 func (i *Indexer) markRange(pos token.Position) bool {
-	i.rangesMutex.RLock(pos.Filename)
+	i.stripedMutex.RLockKey(pos.Filename)
 	_, ok := i.ranges[pos.Filename][pos.Offset]
-	i.rangesMutex.RUnlock(pos.Filename)
+	i.stripedMutex.RUnlockKey(pos.Filename)
 	if ok {
 		return false
 	}
 
-	i.rangesMutex.Lock(pos.Filename)
-	defer i.rangesMutex.Unlock(pos.Filename)
+	i.stripedMutex.LockKey(pos.Filename)
+	defer i.stripedMutex.UnlockKey(pos.Filename)
 
 	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
 		return false
@@ -397,9 +394,9 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 	}
 
-	i.referenceResultsMutex.Lock()
+	i.stripedMutex.LockIndex(rangeID)
 	i.referenceResults[rangeID] = referenceResultInfo
-	i.referenceResultsMutex.Unlock()
+	i.stripedMutex.UnlockIndex(rangeID)
 
 	return rangeID
 }
@@ -549,9 +546,9 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
 func (i *Indexer) ensureRangeFor(ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
-	i.rangesMutex.RLock(pos.Filename)
+	i.stripedMutex.RLockKey(pos.Filename)
 	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
-	i.rangesMutex.RUnlock(pos.Filename)
+	i.stripedMutex.RUnlockKey(pos.Filename)
 	if ok {
 		return rangeID
 	}
@@ -559,8 +556,8 @@ func (i *Indexer) ensureRangeFor(ident *ast.Ident, pos token.Position, obj types
 	// Note: we calculate this outside of the critical section
 	start, end := rangeForObject(obj, ident, pos)
 
-	i.rangesMutex.Lock(pos.Filename)
-	defer i.rangesMutex.Unlock(pos.Filename)
+	i.stripedMutex.LockKey(pos.Filename)
+	defer i.stripedMutex.UnlockKey(pos.Filename)
 
 	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
 		return rangeID
