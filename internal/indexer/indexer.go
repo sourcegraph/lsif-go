@@ -44,6 +44,7 @@ type Indexer struct {
 	preloader             *Preloader                      // hover text cache
 	packages              []*packages.Package             // index target packages
 	projectID             uint64                          // project vertex identifier
+	packagesByFile        map[string][]*packages.Package
 
 	constsMutex                sync.Mutex
 	funcsMutex                 sync.Mutex
@@ -123,14 +124,27 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 func (i *Indexer) loadPackages() error {
-	load := func() (err error) {
-		i.packages, err = packages.Load(&packages.Config{
-			Mode:  loadMode,
-			Dir:   i.projectRoot,
-			Tests: true,
-		}, "./...")
+	config := &packages.Config{
+		Mode:  loadMode,
+		Dir:   i.projectRoot,
+		Tests: true,
+	}
 
-		return errors.Wrap(err, "packages.Load")
+	load := func() (err error) {
+		if i.packages, err = packages.Load(config, "./..."); err != nil {
+			return errors.Wrap(err, "packages.Load")
+		}
+
+		i.packagesByFile = map[string][]*packages.Package{}
+
+		for _, p := range i.packages {
+			for _, f := range p.Syntax {
+				filename := p.Fset.Position(f.Package).Filename
+				i.packagesByFile[filename] = append(i.packagesByFile[filename], p)
+			}
+		}
+
+		return nil
 	}
 
 	ch := make(chan func() error, 1)
@@ -182,21 +196,23 @@ func (i *Indexer) emitDocument(filename string) {
 // addImports modifies the definitions map of each file to include entries for import statements so
 // they can be indexed uniformly in subsequent steps.
 func (i *Indexer) addImports() {
-	i.visitEachFile("Adding import definitions", i.animate, i.silent, i.addImportsToFile)
+	i.visitEachPackage("Adding import definitions", i.animate, i.silent, i.addImportsToPackage)
 }
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
 // statements so they can be indexed uniformly in subsequent steps.
-func (i *Indexer) addImportsToFile(p *packages.Package, _ string, f *ast.File, _ *DocumentInfo) {
-	for _, spec := range f.Imports {
-		pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
-		if pkg == nil {
-			continue
-		}
+func (i *Indexer) addImportsToPackage(p *packages.Package) {
+	for _, f := range p.Syntax {
+		for _, spec := range f.Imports {
+			pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
+			if pkg == nil {
+				continue
+			}
 
-		name := importSpecName(spec)
-		ident := &ast.Ident{NamePos: spec.Pos(), Name: name, Obj: ast.NewObj(ast.Pkg, name)}
-		p.TypesInfo.Defs[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
+			name := importSpecName(spec)
+			ident := &ast.Ident{NamePos: spec.Pos(), Name: name, Obj: ast.NewObj(ast.Pkg, name)}
+			p.TypesInfo.Defs[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
+		}
 	}
 }
 
@@ -276,7 +292,23 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 // a result set, a definition result, a hover result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
 func (i *Indexer) indexDefinitions() {
-	i.visitEachFile("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForFile)
+	i.visitEachPackage("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForPosition)
+}
+
+func (i *Indexer) indexDefinitionsForPosition(p *packages.Package) {
+	for _, f := range p.Syntax {
+		filename := p.Fset.Position(f.Package).Filename
+		if i.packagesByFile[filename][0] != p {
+			continue
+		}
+
+		d, hasDocument := i.documents[filename]
+		if !hasDocument {
+			continue
+		}
+
+		i.indexDefinitionsForFile(p, filename, f, d)
+	}
 }
 
 // indexDefinitions emits data for each definition within the given document.
@@ -404,7 +436,23 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 // a hover result, and import monikers (for external definitions). This method will also populate
 // each document's reference range identifier slice.
 func (i *Indexer) indexReferences() {
-	i.visitEachFile("Indexing references", i.animate, i.silent, i.indexReferencesForFile)
+	i.visitEachPackage("Indexing references", i.animate, i.silent, i.indexReferencesForPackage)
+}
+
+func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
+	for _, f := range p.Syntax {
+		filename := p.Fset.Position(f.Package).Filename
+		if i.packagesByFile[filename][0] != p {
+			continue
+		}
+
+		d, hasDocument := i.documents[filename]
+		if !hasDocument {
+			continue
+		}
+
+		i.indexReferencesForFile(p, filename, f, d)
+	}
 }
 
 // indexReferencesForFile emits data for each reference within the given document.
@@ -554,18 +602,14 @@ func (i *Indexer) linkReferenceResult(referenceResult *ReferenceResultInfo) {
 
 // emitContains emits the contains relationship for all documents and the ranges that it contains.
 func (i *Indexer) emitContains() {
-	i.visitEachFile("Emitting contains relations", i.animate, i.silent, i.emitContainsForFile)
+	for _, d := range i.documents {
+		if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
+			_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
+		}
+	}
 
 	// TODO(efritz) - think about printing a title here
 	i.emitContainsForProject()
-}
-
-// emitContainsForFile emits a contains edge between the given document and the ranges that in contains.
-// No edge is emitted if the document contains no ranges.
-func (i *Indexer) emitContainsForFile(p *packages.Package, _ string, _ *ast.File, d *DocumentInfo) {
-	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
-		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
-	}
 }
 
 // emitContainsForProject emits a contains edge between the target project and all indexed documents.

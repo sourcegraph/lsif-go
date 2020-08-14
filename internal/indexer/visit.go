@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"go/ast"
 	"sync"
 	"sync/atomic"
 
@@ -27,30 +26,13 @@ func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(fi
 	})
 }
 
-// visitEachFile invokes the given visitor function on each file reachable from the given set of packages that
-// also has an entry in the indexer's files map. This method prints the progress of the traversal to stdout
-// asynchronously.
-func (i *Indexer) visitEachFile(name string, animate, silent bool, fn func(p *packages.Package, filename string, f *ast.File, d *DocumentInfo)) {
-	processed := map[string]struct{}{}
-
+// visitEachPackage invokes the given visitor function on each indexed package. This method prints the progress
+// of the traversal to stdout asynchronously.
+func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p *packages.Package)) {
 	visitWithProgress(name, animate, silent, uint64(len(i.documents)), func(count *uint64) {
 		for _, p := range i.packages {
-			for _, f := range p.Syntax {
-				filename := p.Fset.Position(f.Package).Filename
-
-				d, hasDocument := i.documents[filename]
-				if !hasDocument {
-					continue
-				}
-
-				if _, isProcessed := processed[filename]; isProcessed {
-					continue
-				}
-				processed[filename] = struct{}{}
-
-				fn(p, filename, f, d)
-				atomic.AddUint64(count, 1)
-			}
+			fn(p)
+			atomic.AddUint64(count, 1)
 		}
 	})
 }
