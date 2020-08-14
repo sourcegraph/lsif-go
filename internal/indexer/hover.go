@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 
 	"github.com/sourcegraph/lsif-go/protocol"
@@ -11,9 +10,9 @@ import (
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) []protocol.MarkedString {
+func findHoverContents(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) []protocol.MarkedString {
 	signature, extra := typeString(obj)
-	docstring := findDocstring(preloader, pkgs, p, f, obj)
+	docstring := findDocstring(preloader, pkgs, p, obj)
 	return toMarkedString(signature, docstring, extra)
 }
 
@@ -63,7 +62,7 @@ func makeCacheKey(pkg *types.Package, obj types.Object) string {
 
 // findDocstring extracts the comments form the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
-func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) string {
+func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) string {
 	if obj == nil {
 		return ""
 	}

@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"go/ast"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -68,18 +67,6 @@ func findUseByName(t *testing.T, packages []*packages.Package, name string) (*pa
 
 	t.Fatalf("failed to find target object")
 	return nil, nil
-}
-
-// getFileContaining returns the file containing the given object.
-func getFileContaining(t *testing.T, p *packages.Package, obj types.Object) *ast.File {
-	for _, f := range p.Syntax {
-		if p.Fset.Position(f.Pos()).Filename == p.Fset.Position(obj.Pos()).Filename {
-			return f
-		}
-	}
-
-	t.Fatalf("failed to find file")
-	return nil
 }
 
 // preload populates and returns a Preloader instance with the hover text and moniker
