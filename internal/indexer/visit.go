@@ -87,7 +87,7 @@ func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn
 }
 
 // visitEachDocument invokes the given visitor function on each document. This method prints the
-// progress of the  traversal to stdout asynchronously.
+// progress of the traversal to stdout asynchronously.
 func (i *Indexer) visitEachDocument(name string, animate, silent bool, fn func(d *DocumentInfo)) {
 	var n uint64
 	ch := make(chan func() error)
