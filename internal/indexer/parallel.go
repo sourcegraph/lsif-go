@@ -11,58 +11,37 @@ import (
 // values are written, and a pointer to the number of tasks that have completed, which is
 // updated atomically.
 func runParallel(ch <-chan func() error) (*sync.WaitGroup, <-chan error, *uint64) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	errs := make(chan error, 1)
-	semaphore := makeSemaphore()
-
-	go func() {
-		defer close(errs)
-		defer close(semaphore)
-
-		wg.Wait()
-	}()
-
 	var count uint64
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
 
-	go func() {
-		defer wg.Done()
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		wg.Add(1)
 
-		for fn := range ch {
-			wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-			go func(fn func() error) {
-				defer wg.Done()
-				<-semaphore
-				defer func() { semaphore <- struct{}{} }()
-
+			for fn := range ch {
 				if err := fn(); err != nil {
 					select {
 					case errs <- err:
 					default:
+						for range ch {
+						}
+
 						return
 					}
 				}
 
 				atomic.AddUint64(&count, 1)
-			}(fn)
-		}
+			}
+		}()
+	}
+
+	go func() {
+		defer close(errs)
+		wg.Wait()
 	}()
 
 	return &wg, errs, &count
-}
-
-// makeSemaphore constructs a buffered channel that can be used to limit the number
-// of active goroutines running. The channel will contain as many values as there are
-// available cores.
-func makeSemaphore() chan struct{} {
-	concurrency := runtime.GOMAXPROCS(0)
-
-	semaphore := make(chan struct{}, concurrency)
-	for i := 0; i < concurrency; i++ {
-		semaphore <- struct{}{}
-	}
-
-	return semaphore
 }
