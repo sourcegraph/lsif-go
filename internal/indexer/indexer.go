@@ -46,13 +46,16 @@ type Indexer struct {
 	projectID             uint64                          // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
 
-	constsMutex  sync.Mutex
-	funcsMutex   sync.Mutex
-	importsMutex sync.Mutex
-	labelsMutex  sync.Mutex
-	typesMutex   sync.Mutex
-	varsMutex    sync.Mutex
-	stripedMutex *StripedMutex
+	constsMutex                sync.Mutex
+	funcsMutex                 sync.Mutex
+	importsMutex               sync.Mutex
+	labelsMutex                sync.Mutex
+	typesMutex                 sync.Mutex
+	varsMutex                  sync.Mutex
+	stripedMutex               *StripedMutex
+	hoverResultCacheMutex      sync.RWMutex
+	referenceResultsMutex      sync.Mutex
+	packageInformationIDsMutex sync.RWMutex
 }
 
 func New(
@@ -394,9 +397,9 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 	}
 
-	i.stripedMutex.LockIndex(rangeID)
+	i.referenceResultsMutex.Lock()
 	i.referenceResults[rangeID] = referenceResultInfo
-	i.stripedMutex.UnlockIndex(rangeID)
+	i.referenceResultsMutex.Unlock()
 
 	return rangeID
 }

@@ -34,9 +34,9 @@ func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn
 		return i.emitter.EmitHoverResult(fn())
 	}
 
-	i.stripedMutex.RLockKey(key)
+	i.hoverResultCacheMutex.RLock()
 	hoverResultID, ok := i.hoverResultCache[key]
-	i.stripedMutex.RUnlockKey(key)
+	i.hoverResultCacheMutex.RUnlock()
 	if ok {
 		return hoverResultID
 	}
@@ -44,8 +44,8 @@ func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn
 	// Note: we calculate this outside of the critical section
 	contents := fn()
 
-	i.stripedMutex.LockKey(key)
-	defer i.stripedMutex.UnlockKey(key)
+	i.hoverResultCacheMutex.Lock()
+	defer i.hoverResultCacheMutex.Unlock()
 
 	if hoverResultID, ok := i.hoverResultCache[key]; ok {
 		return hoverResultID
