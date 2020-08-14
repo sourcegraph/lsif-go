@@ -591,7 +591,7 @@ func (i *Indexer) linkReferenceResult(referenceResult *ReferenceResultInfo) {
 
 // emitContains emits the contains relationship for all documents and the ranges that it contains.
 func (i *Indexer) emitContains() {
-	i.visitEachDocument("Emitting contains relationships", i.animate, i.silent, i.emitContainsForDocument)
+	i.visitEachDocument("Emitting contains relations", i.animate, i.silent, i.emitContainsForDocument)
 
 	// TODO(efritz) - think about printing a title here
 	i.emitContainsForProject()
