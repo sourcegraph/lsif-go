@@ -292,52 +292,18 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 // a result set, a definition result, a hover result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
 func (i *Indexer) indexDefinitions() {
-	i.visitEachPackage("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForPosition)
+	i.visitEachPackage("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForPackage)
 }
 
-func (i *Indexer) indexDefinitionsForPosition(p *packages.Package) {
-	for _, f := range p.Syntax {
-		filename := p.Fset.Position(f.Package).Filename
-		if i.packagesByFile[filename][0] != p {
-			continue
-		}
-
-		d, hasDocument := i.documents[filename]
-		if !hasDocument {
-			continue
-		}
-
-		i.indexDefinitionsForFile(p, filename, f, d)
-	}
-}
-
-// indexDefinitions emits data for each definition within the given document.
-func (i *Indexer) indexDefinitionsForFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
+// indexDefinitionsForPackage emits data for each definition within the given package.
+func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	for ident, obj := range p.TypesInfo.Defs {
-		pos := p.Fset.Position(ident.Pos())
-
-		// Only emit definitions in the current file
-		if obj == nil || pos.Filename != filename {
+		pos, d, ok := i.positionAndDocument(p, ident, obj)
+		if !ok || !i.markRange(pos) {
 			continue
 		}
 
-		// Already indexed (can happen due to build flags)
-		i.rangesMutex.RLock(pos.Filename)
-		_, ok := i.ranges[filename][pos.Offset]
-		i.rangesMutex.RUnlock(pos.Filename)
-		if ok {
-			continue
-		}
-
-		i.rangesMutex.Lock(pos.Filename)
-		if _, ok := i.ranges[filename][pos.Offset]; ok {
-			i.rangesMutex.Unlock(pos.Filename)
-			continue
-		}
-		i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
-		i.rangesMutex.Unlock(pos.Filename)
-
-		rangeID := i.indexDefinition(p, filename, f, d, ident, pos, obj)
+		rangeID := i.indexDefinition(p, pos.Filename, d, ident, pos, obj)
 
 		i.rangesMutex.Lock(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -349,8 +315,52 @@ func (i *Indexer) indexDefinitionsForFile(p *packages.Package, filename string, 
 	}
 }
 
+// positionAndDocument returns the position of the given object and the document info object
+// that contains it. If the given package is not the canonical package for the containing file
+// in the packagesByFile map, this method returns false.
+func (i *Indexer) positionAndDocument(p *packages.Package, ident *ast.Ident, obj types.Object) (token.Position, *DocumentInfo, bool) {
+	if obj == nil {
+		return token.Position{}, nil, false
+	}
+
+	pos := p.Fset.Position(ident.Pos())
+
+	if i.packagesByFile[pos.Filename][0] != p {
+		return token.Position{}, nil, false
+	}
+
+	d, hasDocument := i.documents[pos.Filename]
+	if !hasDocument {
+		return token.Position{}, nil, false
+	}
+
+	return pos, d, true
+}
+
+// markRange sets an empty range identifier in the ranges map for the given position.
+// If a  range for this identifier has already been marked, this method returns false.
+func (i *Indexer) markRange(pos token.Position) bool {
+	i.rangesMutex.RLock(pos.Filename)
+	_, ok := i.ranges[pos.Filename][pos.Offset]
+	i.rangesMutex.RUnlock(pos.Filename)
+	if ok {
+		return false
+	}
+
+	i.rangesMutex.Lock(pos.Filename)
+	defer i.rangesMutex.Unlock(pos.Filename)
+
+	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+		return false
+	}
+
+	i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
+	return true
+
+}
+
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
 	// Create a hover result vertex and cache the result identifier keyed by the definition location.
 	// Caching this gives us a big win for package documentation, which is likely to be large and is
 	// repeated at each import and selector within referenced files.
@@ -439,33 +449,15 @@ func (i *Indexer) indexReferences() {
 	i.visitEachPackage("Indexing references", i.animate, i.silent, i.indexReferencesForPackage)
 }
 
+// indexReferencesForPackage emits data for each reference within the given package.
 func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
-	for _, f := range p.Syntax {
-		filename := p.Fset.Position(f.Package).Filename
-		if i.packagesByFile[filename][0] != p {
-			continue
-		}
-
-		d, hasDocument := i.documents[filename]
-		if !hasDocument {
-			continue
-		}
-
-		i.indexReferencesForFile(p, filename, f, d)
-	}
-}
-
-// indexReferencesForFile emits data for each reference within the given document.
-func (i *Indexer) indexReferencesForFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
 	for ident, obj := range p.TypesInfo.Uses {
-		pos := p.Fset.Position(ident.Pos())
-
-		// Only emit definitions in the current file
-		if pos.Filename != filename {
+		pos, d, ok := i.positionAndDocument(p, ident, obj)
+		if !ok {
 			continue
 		}
 
-		rangeID, ok := i.indexReference(p, f, d, ident, pos, obj)
+		rangeID, ok := i.indexReference(p, d, ident, pos, obj)
 		if !ok {
 			continue
 		}
@@ -477,12 +469,12 @@ func (i *Indexer) indexReferencesForFile(p *packages.Package, filename string, f
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(p *packages.Package, f *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
+func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
 	if def := i.getDefinitionInfo(obj); def != nil {
 		return i.indexReferenceToDefinition(document, ident, pos, obj, def)
 	}
 
-	return i.indexReferenceToExternalDefinition(p, f, document, ident, pos, obj)
+	return i.indexReferenceToExternalDefinition(p, document, ident, pos, obj)
 }
 
 // getDefinitionInfo returns the definition info object for the given object. This requires that
@@ -527,7 +519,7 @@ func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, ident *ast.
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
+func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
 	definitionPkg := obj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
