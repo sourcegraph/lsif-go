@@ -24,11 +24,6 @@ func newStripedMutex() *StripedMutex {
 	}
 }
 
-func (m *StripedMutex) LockIndex(v uint64)    { m.mutexForIndex(v).Lock() }
-func (m *StripedMutex) UnlockIndex(v uint64)  { m.mutexForIndex(v).Unlock() }
-func (m *StripedMutex) RLockIndex(v uint64)   { m.mutexForIndex(v).RLock() }
-func (m *StripedMutex) RUnlockIndex(v uint64) { m.mutexForIndex(v).RUnlock() }
-
 func (m *StripedMutex) LockKey(v string)    { m.mutexForKey(v).Lock() }
 func (m *StripedMutex) UnlockKey(v string)  { m.mutexForKey(v).Unlock() }
 func (m *StripedMutex) RLockKey(v string)   { m.mutexForKey(v).RLock() }
