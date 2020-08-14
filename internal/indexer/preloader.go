@@ -13,61 +13,48 @@ import (
 // Preloader is a cache of hover text by file and token position.
 type Preloader struct {
 	m            sync.RWMutex
-	hoverText    map[*ast.File]map[token.Pos]string
-	monikerPaths map[*ast.File]map[token.Pos][]string
+	hoverText    map[*packages.Package]map[token.Pos]string
+	monikerPaths map[*packages.Package]map[token.Pos][]string
 }
 
 // Preloader creates a new empty Preloader.
 func newPreloader() *Preloader {
 	return &Preloader{
-		hoverText:    map[*ast.File]map[token.Pos]string{},
-		monikerPaths: map[*ast.File]map[token.Pos][]string{},
+		hoverText:    map[*packages.Package]map[token.Pos]string{},
+		monikerPaths: map[*packages.Package]map[token.Pos][]string{},
 	}
 }
 
 // Load will walk the AST of the file and cache the hover text and moniker paths for each of the
 // given positions. This function assumes that the given positions are already ordered so that
 // a binary-search can be used to efficiently bound lookups.
-func (l *Preloader) Load(root *ast.File, positions []token.Pos) {
+func (l *Preloader) Load(p *packages.Package, positions []token.Pos) {
 	hoverTextMap := map[token.Pos]string{}
 	monikerPathMap := map[token.Pos][]string{}
-	visit(root, positions, hoverTextMap, monikerPathMap, nil, nil)
+
+	for _, f := range p.Syntax {
+		visit(f, positions, hoverTextMap, monikerPathMap, nil, nil)
+	}
 
 	l.m.Lock()
-	l.hoverText[root] = hoverTextMap
-	l.monikerPaths[root] = monikerPathMap
+	l.hoverText[p] = hoverTextMap
+	l.monikerPaths[p] = monikerPathMap
 	l.m.Unlock()
 }
 
 // Text will return the hover text extracted from the given file. For non-empty hover text to be
 // returned from this method, Load must have been previously called with this file and position
 // as arguments.
-func (l *Preloader) Text(f *ast.File, position token.Pos) string {
+func (l *Preloader) Text(p *packages.Package, position token.Pos) string {
 	l.m.RLock()
 	defer l.m.RUnlock()
-	return l.hoverText[f][position]
+	return l.hoverText[p][position]
 }
 
-// TextFromPackage will return the hover text extracted from the given package. For non-empty hover
-// text to be returned from this method, Load must have been previously called with a file contained
-// in this package and this position as arguments.
-func (l *Preloader) TextFromPackage(p *packages.Package, position token.Pos) string {
+func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []string {
 	l.m.RLock()
 	defer l.m.RUnlock()
-
-	for _, f := range p.Syntax {
-		if text := l.hoverText[f][position]; text != "" {
-			return text
-		}
-	}
-
-	return ""
-}
-
-func (l *Preloader) MonikerPath(f *ast.File, position token.Pos) []string {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.monikerPaths[f][position]
+	return l.monikerPaths[p][position]
 }
 
 // visit walks the AST for a file and assigns hover text and a moniker path to each position. A

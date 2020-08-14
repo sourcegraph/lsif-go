@@ -12,43 +12,66 @@ import (
 // updated atomically.
 func runParallel(ch <-chan func() error) (*sync.WaitGroup, <-chan error, *uint64) {
 	var wg sync.WaitGroup
-	wg.Add(1)
+	// wg.Add(1)
 
 	errs := make(chan error, 1)
-	semaphore := makeSemaphore()
+	// semaphore := makeSemaphore()
 
 	go func() {
 		defer close(errs)
-		defer close(semaphore)
+		// defer close(semaphore)
 
 		wg.Wait()
 	}()
 
 	var count uint64
 
-	go func() {
-		defer wg.Done()
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		wg.Add(1)
 
-		for fn := range ch {
-			wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-			go func(fn func() error) {
-				defer wg.Done()
-				<-semaphore
-				defer func() { semaphore <- struct{}{} }()
-
+			for fn := range ch {
 				if err := fn(); err != nil {
 					select {
 					case errs <- err:
 					default:
+						for range ch {
+						}
+
 						return
 					}
 				}
 
 				atomic.AddUint64(&count, 1)
-			}(fn)
-		}
-	}()
+			}
+		}()
+	}
+
+	// go func() {
+	// 	defer wg.Done()
+
+	// 	for fn := range ch {
+	// 		wg.Add(1)
+
+	// 		go func(fn func() error) {
+	// 			defer wg.Done()
+	// 			<-semaphore
+	// 			defer func() { semaphore <- struct{}{} }()
+
+	// 			if err := fn(); err != nil {
+	// 				select {
+	// 				case errs <- err:
+	// 				default:
+	// 					return
+	// 				}
+	// 			}
+
+	// 			atomic.AddUint64(&count, 1)
+	// 		}(fn)
+	// 	}
+	// }()
 
 	return &wg, errs, &count
 }

@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"go/ast"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -70,28 +69,12 @@ func findUseByName(t *testing.T, packages []*packages.Package, name string) (*pa
 	return nil, nil
 }
 
-// getFileContaining returns the file containing the given object.
-func getFileContaining(t *testing.T, p *packages.Package, obj types.Object) *ast.File {
-	for _, f := range p.Syntax {
-		if p.Fset.Position(f.Pos()).Filename == p.Fset.Position(obj.Pos()).Filename {
-			return f
-		}
-	}
-
-	t.Fatalf("failed to find file")
-	return nil
-}
-
 // preload populates and returns a Preloader instance with the hover text and moniker
 // paths for all definitions in in the given packages.
 func preload(packages []*packages.Package) *Preloader {
 	preloader := newPreloader()
 	for _, p := range getAllReferencedPackages(packages) {
-		positions := getDefinitionPositions(p)
-
-		for _, f := range p.Syntax {
-			preloader.Load(f, positions)
-		}
+		preloader.Load(p, getDefinitionPositions(p))
 	}
 
 	return preloader

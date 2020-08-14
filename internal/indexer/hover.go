@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 
 	"github.com/sourcegraph/lsif-go/protocol"
@@ -11,9 +10,9 @@ import (
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) []protocol.MarkedString {
+func findHoverContents(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) []protocol.MarkedString {
 	signature, extra := typeString(obj)
-	docstring := findDocstring(preloader, pkgs, p, f, obj)
+	docstring := findDocstring(preloader, pkgs, p, obj)
 	return toMarkedString(signature, docstring, extra)
 }
 
@@ -30,17 +29,30 @@ func findExternalHoverContents(preloader *Preloader, pkgs []*packages.Package, p
 // same hover result if they refer to the same identifier in the same target package.
 func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) uint64 {
 	key := makeCacheKey(pkg, obj)
+	if key == "" {
+		// Do not store empty cache keys
+		return i.emitter.EmitHoverResult(fn())
+	}
+
+	i.hoverResultCacheMutex.RLock()
+	hoverResultID, ok := i.hoverResultCache[key]
+	i.hoverResultCacheMutex.RUnlock()
+	if ok {
+		return hoverResultID
+	}
+
+	// TODO - note we do this outside of critical section
+	contents := fn()
+
+	i.hoverResultCacheMutex.Lock()
+	defer i.hoverResultCacheMutex.Unlock()
 
 	if hoverResultID, ok := i.hoverResultCache[key]; ok {
 		return hoverResultID
 	}
 
-	hoverResultID := i.emitter.EmitHoverResult(fn())
-	if key != "" {
-		// Do not store empty cache keys
-		i.hoverResultCache[key] = hoverResultID
-	}
-
+	hoverResultID = i.emitter.EmitHoverResult(contents)
+	i.hoverResultCache[key] = hoverResultID
 	return hoverResultID
 }
 
@@ -63,7 +75,7 @@ func makeCacheKey(pkg *types.Package, obj types.Object) string {
 
 // findDocstring extracts the comments form the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
-func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) string {
+func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) string {
 	if obj == nil {
 		return ""
 	}
@@ -74,7 +86,7 @@ func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.P
 	}
 
 	// Resolve the object into its respective ast.Node
-	return preloader.Text(f, obj.Pos())
+	return preloader.Text(p, obj.Pos())
 }
 
 // findExternalDocstring extracts the comments form the given object. It is assumed that this object is
@@ -91,7 +103,7 @@ func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, p *pa
 
 	if target := p.Imports[obj.Pkg().Path()]; target != nil {
 		// Resolve the object o into its respective ast.Node
-		return preloader.TextFromPackage(target, obj.Pos())
+		return preloader.Text(target, obj.Pos())
 	}
 
 	return ""

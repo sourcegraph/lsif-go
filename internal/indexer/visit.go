@@ -27,6 +27,33 @@ func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(fi
 	})
 }
 
+// visitEachPackage invokes the given visitor function on each package reachable from the given set of packages
+// that also has an entry in the indexer's files map. This method prints the progress of the traversal to stdout
+// asynchronously.
+func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p *packages.Package)) {
+	var n uint64
+	ch := make(chan func() error)
+
+	go func() {
+		defer close(ch)
+
+		for _, p := range i.packages {
+			atomic.AddUint64(&n, 1)
+			ch <- func(p *packages.Package) func() error {
+				return func() error {
+					fn(p)
+					return nil
+				}
+			}(p)
+
+		}
+	}()
+
+	wg, errs, count := runParallel(ch)
+	withProgress(wg, name, i.animate, i.silent, count, &n)
+	<-errs
+}
+
 // visitEachFile invokes the given visitor function on each file reachable from the given set of packages that
 // also has an entry in the indexer's files map. This method prints the progress of the traversal to stdout
 // asynchronously.

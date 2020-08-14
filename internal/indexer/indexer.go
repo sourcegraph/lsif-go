@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/pkg/errors"
@@ -43,6 +44,17 @@ type Indexer struct {
 	preloader             *Preloader                      // hover text cache
 	packages              []*packages.Package             // index target packages
 	projectID             uint64                          // project vertex identifier
+
+	constsMutex                sync.Mutex
+	funcsMutex                 sync.Mutex
+	importsMutex               sync.Mutex
+	labelsMutex                sync.Mutex
+	typesMutex                 sync.Mutex
+	varsMutex                  sync.Mutex
+	rangesMutex                *MutexMap
+	hoverResultCacheMutex      sync.RWMutex
+	referenceResultsMutex      sync.Mutex
+	packageInformationIDsMutex sync.RWMutex
 }
 
 func New(
@@ -78,6 +90,7 @@ func New(
 		referenceResults:      map[uint64]*ReferenceResultInfo{},
 		packageInformationIDs: map[string]uint64{},
 		preloader:             newPreloader(),
+		rangesMutex:           newMutexMap(),
 	}
 }
 
@@ -169,12 +182,29 @@ func (i *Indexer) emitDocument(filename string) {
 // addImports modifies the definitions map of each file to include entries for import statements so
 // they can be indexed uniformly in subsequent steps.
 func (i *Indexer) addImports() {
-	i.visitEachFile("Adding import definitions", i.animate, i.silent, i.addImportsToFile)
+	i.visitEachPackage("Adding import definitions", i.animate, i.silent, i.addImportsToPackage)
+}
+
+// addImportsToPackage modifies the definitions map of the files in the given package to include
+// entries for import statements so they can be indexed uniformly in subsequent steps.
+func (i *Indexer) addImportsToPackage(p *packages.Package) {
+	for _, f := range p.Syntax {
+		for _, spec := range f.Imports {
+			pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
+			if pkg == nil {
+				continue
+			}
+
+			name := importSpecName(spec)
+			ident := &ast.Ident{NamePos: spec.Pos(), Name: name, Obj: ast.NewObj(ast.Pkg, name)}
+			p.TypesInfo.Defs[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
+		}
+	}
 }
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
 // statements so they can be indexed uniformly in subsequent steps.
-func (i *Indexer) addImportsToFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
+func (i *Indexer) addImportsToFile(p *packages.Package, _ string, f *ast.File, d *DocumentInfo) {
 	for _, spec := range f.Imports {
 		pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
 		if pkg == nil {
@@ -208,18 +238,15 @@ func (i *Indexer) preload() error {
 		defer close(ch)
 
 		for _, p := range getAllReferencedPackages(i.packages) {
-			positions := getDefinitionPositions(p)
+			atomic.AddUint64(&n, 1)
+			positions := getDefinitionPositions(p) // TODO - can do in goroutine
 
-			for _, f := range p.Syntax {
-				atomic.AddUint64(&n, 1)
-
-				ch <- func(f *ast.File) func() error {
-					return func() error {
-						i.preloader.Load(f, positions)
-						return nil
-					}
-				}(f)
-			}
+			ch <- func(p *packages.Package) func() error {
+				return func() error {
+					i.preloader.Load(p, positions)
+					return nil
+				}
+			}(p)
 		}
 	}()
 
@@ -267,35 +294,55 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 // a result set, a definition result, a hover result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
 func (i *Indexer) indexDefinitions() {
-	i.visitEachFile("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForFile)
+	i.visitEachPackage("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForPackage)
 }
 
-// indexDefinitions emits data for each definition within the given document.
-func (i *Indexer) indexDefinitionsForFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
+// indexDefinitionsForPackage emits data for each definition within the given package.
+func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	for ident, obj := range p.TypesInfo.Defs {
-		pos := p.Fset.Position(ident.Pos())
+		if obj == nil {
+			continue
+		}
 
-		// Only emit definitions in the current file
-		if obj == nil || pos.Filename != filename {
+		pos := p.Fset.Position(ident.Pos()) // TODO - cache
+
+		d, hasDocument := i.documents[pos.Filename]
+		if !hasDocument {
 			continue
 		}
 
 		// Already indexed (can happen due to build flags)
-		if _, ok := i.ranges[filename][pos.Offset]; ok {
+		i.rangesMutex.RLock(pos.Filename)
+		_, ok := i.ranges[pos.Filename][pos.Offset]
+		i.rangesMutex.RUnlock(pos.Filename)
+		if ok {
 			continue
 		}
 
-		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, i.indexDefinition(p, filename, f, d, ident, pos, obj))
+		i.rangesMutex.Lock(pos.Filename)
+		if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+			i.rangesMutex.Unlock(pos.Filename)
+			continue
+		}
+		i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
+		i.rangesMutex.Unlock(pos.Filename)
+
+		// TODO - separate this
+		rangeID := i.indexDefinition(p, pos.Filename, nil, d, ident, pos, obj)
+
+		d.m.Lock()
+		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
+		d.m.Unlock()
 	}
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, _ string, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
 	// Create a hover result vertex and cache the result identifier keyed by the definition location.
 	// Caching this gives us a big win for package documentation, which is likely to be large and is
 	// repeated at each import and selector within referenced files.
 	hoverResultID := i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
-		return findHoverContents(i.preloader, i.packages, p, f, obj)
+		return findHoverContents(i.preloader, i.packages, p, obj)
 	})
 
 	rangeID := i.emitter.EmitRange(rangeForObject(obj, ident, pos))
@@ -308,11 +355,17 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.F
 	_ = i.emitter.EmitTextDocumentHover(resultSetID, hoverResultID)
 
 	if _, ok := obj.(*types.PkgName); ok {
-		i.emitImportMoniker(resultSetID, f, ident, obj)
+		i.emitImportMoniker(resultSetID, p, ident, obj)
 	}
 
 	if ident.IsExported() {
-		i.emitExportMoniker(resultSetID, f, ident, obj)
+		i.emitExportMoniker(resultSetID, p, ident, obj)
+	}
+
+	referenceResultInfo := &ReferenceResultInfo{
+		ResultSetID:        resultSetID,
+		DefinitionRangeIDs: map[uint64][]uint64{document.DocumentID: {rangeID}},
+		ReferenceRangeIDs:  map[uint64][]uint64{},
 	}
 
 	i.setDefinitionInfo(ident, obj, &DefinitionInfo{
@@ -321,13 +374,15 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.F
 		ResultSetID: resultSetID,
 	})
 
-	i.referenceResults[rangeID] = &ReferenceResultInfo{
-		ResultSetID:        resultSetID,
-		DefinitionRangeIDs: map[uint64][]uint64{document.DocumentID: {rangeID}},
-		ReferenceRangeIDs:  map[uint64][]uint64{},
-	}
+	i.referenceResultsMutex.Lock()
+	i.referenceResults[rangeID] = referenceResultInfo
+	i.referenceResultsMutex.Unlock()
 
+	// TODO - move this up to caller
+	i.rangesMutex.Lock(pos.Filename)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
+	i.rangesMutex.Unlock(pos.Filename)
+
 	return rangeID
 }
 
@@ -337,17 +392,34 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.F
 func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *DefinitionInfo) {
 	switch v := obj.(type) {
 	case *types.Const:
+		i.constsMutex.Lock()
 		i.consts[ident.Pos()] = d
+		i.constsMutex.Unlock()
+
 	case *types.Func:
+		i.funcsMutex.Lock()
 		i.funcs[v.FullName()] = d
+		i.funcsMutex.Unlock()
+
 	case *types.Label:
+		i.labelsMutex.Lock()
 		i.labels[ident.Pos()] = d
+		i.labelsMutex.Unlock()
+
 	case *types.PkgName:
+		i.importsMutex.Lock()
 		i.imports[ident.Pos()] = d
+		i.importsMutex.Unlock()
+
 	case *types.TypeName:
+		i.typesMutex.Lock()
 		i.types[obj.Type().String()] = d
+		i.typesMutex.Unlock()
+
 	case *types.Var:
+		i.varsMutex.Lock()
 		i.vars[ident.Pos()] = d
+		i.varsMutex.Unlock()
 	}
 }
 
@@ -356,32 +428,38 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 // a hover result, and import monikers (for external definitions). This method will also populate
 // each document's reference range identifier slice.
 func (i *Indexer) indexReferences() {
-	i.visitEachFile("Indexing references", i.animate, i.silent, i.indexReferencesForFile)
+	i.visitEachPackage("Indexing references", i.animate, i.silent, i.indexReferencesForPackage)
 }
 
-// indexReferencesForFile emits data for each reference within the given document.
-func (i *Indexer) indexReferencesForFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
+// indexReferencesForPackage emits data for each reference within the given package.
+func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 	for ident, obj := range p.TypesInfo.Uses {
-		pos := p.Fset.Position(ident.Pos())
+		pos := p.Fset.Position(ident.Pos()) // TODO - cache
 
-		// Only emit definitions in the current file
-		if pos.Filename != filename {
+		d, hasDocument := i.documents[pos.Filename]
+		if !hasDocument {
 			continue
 		}
 
-		if rangeID, ok := i.indexReference(p, f, d, ident, pos, obj); ok {
-			d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+		rangeID, ok := i.indexReference(p, nil, d, ident, pos, obj)
+		if !ok {
+			continue
 		}
+
+		// TODO - separate this
+		d.m.Lock()
+		d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+		d.m.Unlock()
 	}
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(p *packages.Package, f *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
+func (i *Indexer) indexReference(p *packages.Package, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
 	if def := i.getDefinitionInfo(obj); def != nil {
 		return i.indexReferenceToDefinition(document, ident, pos, obj, def)
 	}
 
-	return i.indexReferenceToExternalDefinition(p, f, document, ident, pos, obj)
+	return i.indexReferenceToExternalDefinition(p, nil, document, ident, pos, obj)
 }
 
 // getDefinitionInfo returns the definition info object for the given object. This requires that
@@ -414,7 +492,10 @@ func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, ident *ast.
 
 	if refResult := i.referenceResults[d.RangeID]; refResult != nil {
 		documentID := document.DocumentID
+
+		refResult.m.Lock()
 		refResult.ReferenceRangeIDs[documentID] = append(refResult.ReferenceRangeIDs[documentID], rangeID)
+		refResult.m.Unlock()
 	}
 
 	return rangeID, true
@@ -423,7 +504,7 @@ func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, ident *ast.
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, f *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
+func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
 	definitionPkg := obj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
@@ -446,18 +527,28 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, f *ast
 		_ = i.emitter.EmitTextDocumentHover(rangeID, hoverResultID)
 	}
 
-	i.emitImportMoniker(rangeID, f, ident, obj)
+	i.emitImportMoniker(rangeID, p, ident, obj)
 	return rangeID, true
 }
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
 func (i *Indexer) ensureRangeFor(ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
+	i.rangesMutex.RLock(pos.Filename)
+	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
+	i.rangesMutex.RUnlock(pos.Filename)
+	if ok {
+		return rangeID
+	}
+
+	i.rangesMutex.Lock(pos.Filename)
+	defer i.rangesMutex.Unlock(pos.Filename)
+
 	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
 		return rangeID
 	}
 
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, ident, pos))
+	rangeID = i.emitter.EmitRange(rangeForObject(obj, ident, pos))
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 	return rangeID
 }
@@ -499,7 +590,6 @@ func (i *Indexer) emitContainsForFile(p *packages.Package, filename string, f *a
 	}
 }
 
-// emitContainsForProject emits a contains edge between the target project and all indexed documents.
 func (i *Indexer) emitContainsForProject() {
 	var documentIDs []uint64
 	for _, info := range i.documents {
