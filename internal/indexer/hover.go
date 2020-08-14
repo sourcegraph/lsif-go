@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"fmt"
+	"go/ast"
 	"go/types"
 
 	"github.com/sourcegraph/lsif-go/protocol"
@@ -10,17 +11,17 @@ import (
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) []protocol.MarkedString {
-	signature, extra := typeString(o.Object)
-	docstring := findDocstring(preloader, pkgs, o)
+func findHoverContents(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) []protocol.MarkedString {
+	signature, extra := typeString(obj)
+	docstring := findDocstring(preloader, pkgs, p, f, obj)
 	return toMarkedString(signature, docstring, extra)
 }
 
 // findExternalHoverContents returns the hover contents of the given object defined in the given
 // package. This method is not cached and should only be called wrapped in a call to makeCachedHoverResult.
-func findExternalHoverContents(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) []protocol.MarkedString {
-	signature, extra := typeString(o.Object)
-	docstring := findExternalDocstring(preloader, pkgs, o)
+func findExternalHoverContents(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) []protocol.MarkedString {
+	signature, extra := typeString(obj)
+	docstring := findExternalDocstring(preloader, pkgs, p, obj)
 	return toMarkedString(signature, docstring, extra)
 }
 
@@ -62,35 +63,35 @@ func makeCacheKey(pkg *types.Package, obj types.Object) string {
 
 // findDocstring extracts the comments form the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
-func findDocstring(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) string {
-	if o.Object == nil {
+func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, f *ast.File, obj types.Object) string {
+	if obj == nil {
 		return ""
 	}
 
-	switch v := o.Object.(type) {
+	switch v := obj.(type) {
 	case *types.PkgName:
-		return findPackageDocstring(pkgs, o.Package, v)
+		return findPackageDocstring(pkgs, p, v)
 	}
 
-	// Resolve the object o into its respective ast.Node
-	return preloader.Text(o.File, o.Object.Pos())
+	// Resolve the object into its respective ast.Node
+	return preloader.Text(f, obj.Pos())
 }
 
 // findExternalDocstring extracts the comments form the given object. It is assumed that this object is
 // declared in a dependency.
-func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, o ObjectInfo) string {
-	if o.Object == nil {
+func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) string {
+	if obj == nil {
 		return ""
 	}
 
-	switch v := o.Object.(type) {
+	switch v := obj.(type) {
 	case *types.PkgName:
-		return findPackageDocstring(pkgs, o.Package, v)
+		return findPackageDocstring(pkgs, p, v)
 	}
 
-	if target := o.Package.Imports[o.Object.Pkg().Path()]; target != nil {
+	if target := p.Imports[obj.Pkg().Path()]; target != nil {
 		// Resolve the object o into its respective ast.Node
-		return preloader.TextFromPackage(target, o.Object.Pos())
+		return preloader.TextFromPackage(target, obj.Pos())
 	}
 
 	return ""

@@ -70,43 +70,16 @@ func findUseByName(t *testing.T, packages []*packages.Package, name string) (*pa
 	return nil, nil
 }
 
-// findObjectInfoByDefinitionName constructs an ObjectInfo value for the definition matching
-// the given name.
-func findObjectInfoByDefinitionName(t *testing.T, name string) ([]*packages.Package, ObjectInfo) {
-	packages := getTestPackages(t)
-	p, target := findDefinitionByName(t, packages, name)
-	return packages, makeObjectInfo(t, name, p, target)
-}
-
-// findObjectInfoByUseName constructs an ObjectInfo value for the use matching the given name.
-func findObjectInfoByUseName(t *testing.T, name string) ([]*packages.Package, ObjectInfo) {
-	packages := getTestPackages(t)
-	p, target := findUseByName(t, packages, name)
-	return packages, makeObjectInfo(t, name, p, target)
-}
-
 // getFileContaining returns the file containing the given object.
-func getFileContaining(t *testing.T, p *packages.Package, o types.Object) *ast.File {
+func getFileContaining(t *testing.T, p *packages.Package, obj types.Object) *ast.File {
 	for _, f := range p.Syntax {
-		if p.Fset.Position(f.Pos()).Filename == p.Fset.Position(o.Pos()).Filename {
+		if p.Fset.Position(f.Pos()).Filename == p.Fset.Position(obj.Pos()).Filename {
 			return f
 		}
 	}
 
 	t.Fatalf("failed to find file")
 	return nil
-}
-
-// makeObjectInfo constructs an ObjectInfo value for the given object.
-func makeObjectInfo(t *testing.T, name string, p *packages.Package, target types.Object) ObjectInfo {
-	return ObjectInfo{
-		FileInfo: FileInfo{
-			Package: p,
-			File:    getFileContaining(t, p, target),
-		},
-		Object: target,
-		Ident:  &ast.Ident{Name: name, NamePos: target.Pos()},
-	}
 }
 
 // preload populates and returns a Preloader instance with the hover text and moniker

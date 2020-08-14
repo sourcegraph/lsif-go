@@ -2,6 +2,8 @@ package indexer
 
 import (
 	"bytes"
+	"go/ast"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -14,15 +16,15 @@ const languageGo = "go"
 // rangeForObject transforms the position of the given object (1-indexed) into an LSP range
 // (0-indexed). If the object is a quoted package name, the leading and trailing quotes are
 // stripped from the resulting range's bounds.
-func rangeForObject(o ObjectInfo) (protocol.Pos, protocol.Pos) {
+func rangeForObject(obj types.Object, ident *ast.Ident, pos token.Position) (protocol.Pos, protocol.Pos) {
 	adjustment := 0
-	if pkgName, ok := o.Object.(*types.PkgName); ok && strings.HasPrefix(pkgName.Name(), `"`) {
+	if pkgName, ok := obj.(*types.PkgName); ok && strings.HasPrefix(pkgName.Name(), `"`) {
 		adjustment = 1
 	}
 
-	line := o.Position.Line - 1
-	column := o.Position.Column - 1
-	n := len(o.Ident.Name)
+	line := pos.Line - 1
+	column := pos.Column - 1
+	n := len(ident.Name)
 
 	start := protocol.Pos{Line: line, Character: column + adjustment}
 	end := protocol.Pos{Line: line, Character: column + n - adjustment}

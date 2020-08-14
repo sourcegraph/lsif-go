@@ -1,14 +1,17 @@
 package indexer
 
 import (
+	"go/ast"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // visitEachRawFile invokes the given visitor function on each file reachable from the given set of
 // packages. The file info object passed to the given callback function does not have an associated
 // document value. This method prints the progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(f FileInfo)) {
+func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(filename string)) {
 	n := 0
 	for _, p := range i.packages {
 		n += len(p.Syntax)
@@ -17,13 +20,7 @@ func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(f 
 	visitWithProgress(name, animate, silent, uint64(n), func(count *uint64) {
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
-				fileInfo := FileInfo{
-					Package:  p,
-					File:     f,
-					Filename: p.Fset.Position(f.Package).Filename,
-				}
-
-				fn(fileInfo)
+				fn(p.Fset.Position(f.Package).Filename)
 				atomic.AddUint64(count, 1)
 			}
 		}
@@ -33,7 +30,7 @@ func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(f 
 // visitEachFile invokes the given visitor function on each file reachable from the given set of packages that
 // also has an entry in the indexer's files map. This method prints the progress of the traversal to stdout
 // asynchronously.
-func (i *Indexer) visitEachFile(name string, animate, silent bool, fn func(f FileInfo)) {
+func (i *Indexer) visitEachFile(name string, animate, silent bool, fn func(p *packages.Package, filename string, f *ast.File, d *DocumentInfo)) {
 	processed := map[string]struct{}{}
 
 	visitWithProgress(name, animate, silent, uint64(len(i.documents)), func(count *uint64) {
@@ -51,14 +48,7 @@ func (i *Indexer) visitEachFile(name string, animate, silent bool, fn func(f Fil
 				}
 				processed[filename] = struct{}{}
 
-				fileInfo := FileInfo{
-					Package:  p,
-					File:     f,
-					Filename: filename,
-					Document: d,
-				}
-
-				fn(fileInfo)
+				fn(p, filename, f, d)
 				atomic.AddUint64(count, 1)
 			}
 		}

@@ -12,13 +12,11 @@ import (
 )
 
 func TestRangeForObject(t *testing.T) {
-	o := ObjectInfo{
-		Position: token.Position{Line: 10, Column: 25},
-		Ident:    &ast.Ident{Name: "foobar"},
-		Object:   types.NewPkgName(token.Pos(42), nil, "foobar", nil),
-	}
-
-	start, end := rangeForObject(o)
+	start, end := rangeForObject(
+		types.NewPkgName(token.Pos(42), nil, "foobar", nil),
+		&ast.Ident{Name: "foobar"},
+		token.Position{Line: 10, Column: 25},
+	)
 
 	if diff := cmp.Diff(protocol.Pos{Line: 9, Character: 24}, start); diff != "" {
 		t.Errorf("unexpected start (-want +got): %s", diff)
@@ -29,13 +27,11 @@ func TestRangeForObject(t *testing.T) {
 }
 
 func TestRangeForObjectWithQuotedNamed(t *testing.T) {
-	o := ObjectInfo{
-		Position: token.Position{Line: 10, Column: 25},
-		Ident:    &ast.Ident{Name: `"foobar"`},
-		Object:   types.NewPkgName(token.Pos(42), nil, `"foobar"`, nil),
-	}
-
-	start, end := rangeForObject(o)
+	start, end := rangeForObject(
+		types.NewPkgName(token.Pos(42), nil, `"foobar"`, nil),
+		&ast.Ident{Name: `"foobar"`},
+		token.Position{Line: 10, Column: 25},
+	)
 
 	if diff := cmp.Diff(protocol.Pos{Line: 9, Character: 25}, start); diff != "" {
 		t.Errorf("unexpected start (-want +got): %s", diff)
