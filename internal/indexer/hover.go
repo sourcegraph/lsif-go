@@ -29,17 +29,30 @@ func findExternalHoverContents(preloader *Preloader, pkgs []*packages.Package, p
 // same hover result if they refer to the same identifier in the same target package.
 func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) uint64 {
 	key := makeCacheKey(pkg, obj)
+	if key == "" {
+		// Do not store empty cache keys
+		return i.emitter.EmitHoverResult(fn())
+	}
+
+	i.hoverResultCacheMutex.RLock()
+	hoverResultID, ok := i.hoverResultCache[key]
+	i.hoverResultCacheMutex.RUnlock()
+	if ok {
+		return hoverResultID
+	}
+
+	// Note: we calculate this outside of the critical section
+	contents := fn()
+
+	i.hoverResultCacheMutex.Lock()
+	defer i.hoverResultCacheMutex.Unlock()
 
 	if hoverResultID, ok := i.hoverResultCache[key]; ok {
 		return hoverResultID
 	}
 
-	hoverResultID := i.emitter.EmitHoverResult(fn())
-	if key != "" {
-		// Do not store empty cache keys
-		i.hoverResultCache[key] = hoverResultID
-	}
-
+	hoverResultID = i.emitter.EmitHoverResult(contents)
+	i.hoverResultCache[key] = hoverResultID
 	return hoverResultID
 }
 

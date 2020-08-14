@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/pkg/errors"
@@ -43,6 +44,17 @@ type Indexer struct {
 	preloader             *Preloader                      // hover text cache
 	packages              []*packages.Package             // index target packages
 	projectID             uint64                          // project vertex identifier
+
+	constsMutex                sync.Mutex
+	funcsMutex                 sync.Mutex
+	importsMutex               sync.Mutex
+	labelsMutex                sync.Mutex
+	typesMutex                 sync.Mutex
+	varsMutex                  sync.Mutex
+	rangesMutex                *MutexMap
+	hoverResultCacheMutex      sync.RWMutex
+	referenceResultsMutex      sync.Mutex
+	packageInformationIDsMutex sync.RWMutex
 }
 
 func New(
@@ -78,6 +90,7 @@ func New(
 		referenceResults:      map[uint64]*ReferenceResultInfo{},
 		packageInformationIDs: map[string]uint64{},
 		preloader:             newPreloader(),
+		rangesMutex:           newMutexMap(),
 	}
 }
 
@@ -277,11 +290,30 @@ func (i *Indexer) indexDefinitionsForFile(p *packages.Package, filename string, 
 		}
 
 		// Already indexed (can happen due to build flags)
-		if _, ok := i.ranges[filename][pos.Offset]; ok {
+		i.rangesMutex.RLock(pos.Filename)
+		_, ok := i.ranges[filename][pos.Offset]
+		i.rangesMutex.RUnlock(pos.Filename)
+		if ok {
 			continue
 		}
 
-		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, i.indexDefinition(p, filename, f, d, ident, pos, obj))
+		i.rangesMutex.Lock(pos.Filename)
+		if _, ok := i.ranges[filename][pos.Offset]; ok {
+			i.rangesMutex.Unlock(pos.Filename)
+			continue
+		}
+		i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
+		i.rangesMutex.Unlock(pos.Filename)
+
+		rangeID := i.indexDefinition(p, filename, f, d, ident, pos, obj)
+
+		i.rangesMutex.Lock(pos.Filename)
+		i.ranges[pos.Filename][pos.Offset] = rangeID
+		i.rangesMutex.Unlock(pos.Filename)
+
+		d.m.Lock()
+		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
+		d.m.Unlock()
 	}
 }
 
@@ -317,13 +349,16 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, _ *ast.F
 		ResultSetID: resultSetID,
 	})
 
-	i.referenceResults[rangeID] = &ReferenceResultInfo{
+	referenceResultInfo := &ReferenceResultInfo{
 		ResultSetID:        resultSetID,
 		DefinitionRangeIDs: map[uint64][]uint64{document.DocumentID: {rangeID}},
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 	}
 
-	i.ranges[pos.Filename][pos.Offset] = rangeID
+	i.referenceResultsMutex.Lock()
+	i.referenceResults[rangeID] = referenceResultInfo
+	i.referenceResultsMutex.Unlock()
+
 	return rangeID
 }
 
@@ -333,17 +368,34 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, _ *ast.F
 func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *DefinitionInfo) {
 	switch v := obj.(type) {
 	case *types.Const:
+		i.constsMutex.Lock()
 		i.consts[ident.Pos()] = d
+		i.constsMutex.Unlock()
+
 	case *types.Func:
+		i.funcsMutex.Lock()
 		i.funcs[v.FullName()] = d
+		i.funcsMutex.Unlock()
+
 	case *types.Label:
+		i.labelsMutex.Lock()
 		i.labels[ident.Pos()] = d
+		i.labelsMutex.Unlock()
+
 	case *types.PkgName:
+		i.importsMutex.Lock()
 		i.imports[ident.Pos()] = d
+		i.importsMutex.Unlock()
+
 	case *types.TypeName:
+		i.typesMutex.Lock()
 		i.types[obj.Type().String()] = d
+		i.typesMutex.Unlock()
+
 	case *types.Var:
+		i.varsMutex.Lock()
 		i.vars[ident.Pos()] = d
+		i.varsMutex.Unlock()
 	}
 }
 
@@ -365,9 +417,14 @@ func (i *Indexer) indexReferencesForFile(p *packages.Package, filename string, f
 			continue
 		}
 
-		if rangeID, ok := i.indexReference(p, f, d, ident, pos, obj); ok {
-			d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+		rangeID, ok := i.indexReference(p, f, d, ident, pos, obj)
+		if !ok {
+			continue
 		}
+
+		d.m.Lock()
+		d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+		d.m.Unlock()
 	}
 }
 
@@ -410,7 +467,10 @@ func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, ident *ast.
 
 	if refResult := i.referenceResults[d.RangeID]; refResult != nil {
 		documentID := document.DocumentID
+
+		refResult.m.Lock()
 		refResult.ReferenceRangeIDs[documentID] = append(refResult.ReferenceRangeIDs[documentID], rangeID)
+		refResult.m.Unlock()
 	}
 
 	return rangeID, true
@@ -449,11 +509,24 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, _ *ast
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
 func (i *Indexer) ensureRangeFor(ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
+	i.rangesMutex.RLock(pos.Filename)
+	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
+	i.rangesMutex.RUnlock(pos.Filename)
+	if ok {
+		return rangeID
+	}
+
+	// Note: we calculate this outside of the critical section
+	start, end := rangeForObject(obj, ident, pos)
+
+	i.rangesMutex.Lock(pos.Filename)
+	defer i.rangesMutex.Unlock(pos.Filename)
+
 	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
 		return rangeID
 	}
 
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, ident, pos))
+	rangeID = i.emitter.EmitRange(start, end)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 	return rangeID
 }
@@ -497,7 +570,7 @@ func (i *Indexer) emitContainsForFile(p *packages.Package, _ string, _ *ast.File
 
 // emitContainsForProject emits a contains edge between the target project and all indexed documents.
 func (i *Indexer) emitContainsForProject() {
-	var documentIDs []uint64
+	documentIDs := make([]uint64, 0, len(i.documents))
 	for _, info := range i.documents {
 		documentIDs = append(documentIDs, info.DocumentID)
 	}
