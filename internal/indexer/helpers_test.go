@@ -87,11 +87,7 @@ func getFileContaining(t *testing.T, p *packages.Package, obj types.Object) *ast
 func preload(packages []*packages.Package) *Preloader {
 	preloader := newPreloader()
 	for _, p := range getAllReferencedPackages(packages) {
-		positions := getDefinitionPositions(p)
-
-		for _, f := range p.Syntax {
-			preloader.Load(f, positions)
-		}
+		preloader.Load(p, getDefinitionPositions(p))
 	}
 
 	return preloader
