@@ -594,14 +594,17 @@ func (i *Indexer) linkReferenceResult(referenceResult *ReferenceResultInfo) {
 
 // emitContains emits the contains relationship for all documents and the ranges that it contains.
 func (i *Indexer) emitContains() {
-	for _, d := range i.documents {
-		if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
-			_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
-		}
-	}
+	i.visitEachDocument("Emitting contains relationships", i.animate, i.silent, i.emitContainsForDocument)
 
 	// TODO(efritz) - think about printing a title here
 	i.emitContainsForProject()
+}
+
+// emitContainsForProject emits a contains edge between a document and its ranges.
+func (i *Indexer) emitContainsForDocument(d *DocumentInfo) {
+	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
+		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
+	}
 }
 
 // emitContainsForProject emits a contains edge between the target project and all indexed documents.
