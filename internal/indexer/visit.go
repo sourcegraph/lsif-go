@@ -37,14 +37,12 @@ func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(fi
 // visitEachPackage invokes the given visitor function on each indexed package. This method prints the
 // progress of the traversal to stdout asynchronously.
 func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p *packages.Package)) {
-	var n uint64
 	ch := make(chan func() error)
 
 	go func() {
 		defer close(ch)
 
 		for _, p := range i.packages {
-			atomic.AddUint64(&n, 1)
 			ch <- func(p *packages.Package) func() error {
 				return func() error {
 					fn(p)
@@ -54,6 +52,7 @@ func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p 
 		}
 	}()
 
+	n := uint64(len(i.packages))
 	wg, errs, count := runParallel(ch)
 	withProgress(wg, name, i.animate, i.silent, count, &n)
 	<-errs
@@ -62,14 +61,12 @@ func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p 
 // visitEachReferenceResult invokes the given visitor function on each reference result. This method
 // prints the progress of the traversal to stdout asynchronously.
 func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn func(referenceResult *ReferenceResultInfo)) {
-	var n uint64
 	ch := make(chan func() error)
 
 	go func() {
 		defer close(ch)
 
 		for _, r := range i.referenceResults {
-			atomic.AddUint64(&n, 1)
 			ch <- func(r *ReferenceResultInfo) func() error {
 				return func() error {
 					fn(r)
@@ -79,6 +76,7 @@ func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn
 		}
 	}()
 
+	n := uint64(len(i.referenceResults))
 	wg, errs, count := runParallel(ch)
 	withProgress(wg, name, i.animate, i.silent, count, &n)
 	<-errs
@@ -87,14 +85,12 @@ func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn
 // visitEachDocument invokes the given visitor function on each document. This method prints the
 // progress of the traversal to stdout asynchronously.
 func (i *Indexer) visitEachDocument(name string, animate, silent bool, fn func(d *DocumentInfo)) {
-	var n uint64
 	ch := make(chan func() error)
 
 	go func() {
 		defer close(ch)
 
 		for _, d := range i.documents {
-			atomic.AddUint64(&n, 1)
 			ch <- func(d *DocumentInfo) func() error {
 				return func() error {
 					fn(d)
@@ -104,6 +100,7 @@ func (i *Indexer) visitEachDocument(name string, animate, silent bool, fn func(d
 		}
 	}()
 
+	n := uint64(len(i.documents))
 	wg, errs, count := runParallel(ch)
 	withProgress(wg, name, i.animate, i.silent, count, &n)
 	<-errs

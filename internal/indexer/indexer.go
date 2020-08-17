@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/writer"
@@ -230,15 +229,13 @@ func importSpecName(spec *ast.ImportSpec) string {
 // imported packages). This will also load the moniker paths for all identifiers in the same
 // files.
 func (i *Indexer) preload() error {
-	var n uint64
 	ch := make(chan func() error)
+	pkgs := getAllReferencedPackages(i.packages)
 
 	go func() {
 		defer close(ch)
 
-		for _, p := range getAllReferencedPackages(i.packages) {
-			atomic.AddUint64(&n, 1)
-
+		for _, p := range pkgs {
 			ch <- func(p *packages.Package) func() error {
 				return func() error {
 					i.preloader.Load(p, getDefinitionPositions(p))
@@ -249,6 +246,7 @@ func (i *Indexer) preload() error {
 	}()
 
 	// Load hovers for each package concurrently
+	n := uint64(len(pkgs))
 	wg, errs, count := runParallel(ch)
 	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, count, &n)
 	return <-errs
