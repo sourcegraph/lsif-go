@@ -19,6 +19,7 @@ func TestEmitExportMoniker(t *testing.T) {
 		moduleVersion:         "3.14.159",
 		emitter:               writer.NewEmitter(w),
 		packageInformationIDs: map[string]uint64{},
+		stripedMutex:          newStripedMutex(),
 	}
 
 	object := types.NewConst(
@@ -66,6 +67,7 @@ func TestEmitImportMoniker(t *testing.T) {
 		},
 		emitter:               writer.NewEmitter(w),
 		packageInformationIDs: map[string]uint64{},
+		stripedMutex:          newStripedMutex(),
 	}
 
 	object := types.NewConst(

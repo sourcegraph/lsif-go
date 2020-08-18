@@ -89,7 +89,7 @@ func TestIndexer(t *testing.T) {
 
 		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
 		if len(definitions) != 1 {
-			t.Errorf("incorrect definition count. want=%d have=%d", 1, len(definitions))
+			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
 		}
 
 		compareRange(t, definitions[0], 15, 1, 15, 5)
@@ -103,7 +103,7 @@ func TestIndexer(t *testing.T) {
 
 		references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
 		if len(references) != 4 {
-			t.Errorf("incorrect reference count. want=%d have=%d", 4, len(references))
+			t.Fatalf("incorrect reference count. want=%d have=%d", 4, len(references))
 		}
 
 		sort.Slice(references, func(i, j int) bool { return references[i].Start.Line < references[j].Start.Line })
@@ -122,7 +122,7 @@ func TestIndexer(t *testing.T) {
 
 		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
 		if len(monikers) != 1 {
-			t.Errorf("incorrect moniker count. want=%d have=%d", 1, len(monikers))
+			t.Fatalf("incorrect moniker count. want=%d have=%d", 1, len(monikers))
 		}
 
 		if value := monikers[0].Scheme; value != "gomod" {

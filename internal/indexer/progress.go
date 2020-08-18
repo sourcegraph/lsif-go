@@ -76,6 +76,8 @@ func withTitleStatic(name string, fn func(printer *pentimento.Printer) error) er
 func withTitleAnimated(name string, fn func(printer *pentimento.Printer) error) error {
 	fmt.Printf("%s %s... ", ticker, name)
 
+	start := time.Now()
+
 	if err := pentimento.PrintProgress(func(printer *pentimento.Printer) error {
 		defer func() {
 			_ = printer.Reset()
@@ -86,7 +88,7 @@ func withTitleAnimated(name string, fn func(printer *pentimento.Printer) error) 
 		fmt.Printf("%s %s... Errored.\n", successPrefix, name)
 	}
 
-	fmt.Printf("%s %s... Done.\n", failurePrefix, name)
+	fmt.Printf("%s %s... Done (%s).\n", failurePrefix, name, time.Since(start))
 	return nil
 }
 

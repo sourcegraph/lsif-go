@@ -1,5 +1,7 @@
 package indexer
 
+import "sync"
+
 // Stats summarizes the amount of work done by the indexer.
 type Stats struct {
 	NumPkgs     uint
@@ -14,6 +16,7 @@ type DocumentInfo struct {
 	DocumentID         uint64
 	DefinitionRangeIDs []uint64
 	ReferenceRangeIDs  []uint64
+	m                  sync.Mutex
 }
 
 // DefinitionInfo provides context about a range that defines an identifier. An object
@@ -31,4 +34,5 @@ type ReferenceResultInfo struct {
 	ResultSetID        uint64
 	DefinitionRangeIDs map[uint64][]uint64
 	ReferenceRangeIDs  map[uint64][]uint64
+	m                  sync.Mutex
 }
