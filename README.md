@@ -1,4 +1,4 @@
-# Go LSIF indexer
+# Go LSIF indexer ![](https://img.shields.io/badge/status-ready-brightgreen)
 
 Visit https://lsif.dev/ to learn about LSIF.
 
