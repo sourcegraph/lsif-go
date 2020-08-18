@@ -102,7 +102,7 @@ func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, p *pa
 	}
 
 	if target := p.Imports[obj.Pkg().Path()]; target != nil {
-		// Resolve the object o into its respective ast.Node
+		// Resolve the object obj into its respective ast.Node
 		return preloader.Text(target, obj.Pos())
 	}
 
