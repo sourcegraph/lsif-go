@@ -29,10 +29,7 @@ func TestEmitExportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	indexer.emitExportMoniker(123, ObjectInfo{
-		Ident:  &ast.Ident{Name: "foobar"},
-		Object: object,
-	})
+	indexer.emitExportMoniker(123, nil, &ast.Ident{Name: "foobar"}, object)
 
 	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
 	if monikers == nil || len(monikers) < 1 {
@@ -79,10 +76,7 @@ func TestEmitImportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	indexer.emitImportMoniker(123, ObjectInfo{
-		Ident:  &ast.Ident{Name: "foobar"},
-		Object: object,
-	})
+	indexer.emitImportMoniker(123, nil, &ast.Ident{Name: "foobar"}, object)
 
 	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
 	if monikers == nil || len(monikers) < 1 {
@@ -127,33 +121,45 @@ func TestPackagePrefixes(t *testing.T) {
 }
 
 func TestMonikerIdentifierBasic(t *testing.T) {
-	packages, o := findObjectInfoByUseName(t, "Score")
+	packages := getTestPackages(t)
+	p, obj := findUseByName(t, packages, "Score")
+	ident := &ast.Ident{Name: "Score", NamePos: obj.Pos()}
+	f := getFileContaining(t, p, obj)
 
-	if identifier := monikerIdentifier(preload(packages), o); identifier != "Score" {
+	if identifier := monikerIdentifier(preload(packages), f, ident, obj); identifier != "Score" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "Score", identifier)
 	}
 }
 
 func TestMonikerIdentifierPackageName(t *testing.T) {
-	packages, o := findObjectInfoByUseName(t, "sync")
+	packages := getTestPackages(t)
+	p, obj := findUseByName(t, packages, "sync")
+	ident := &ast.Ident{Name: "sync", NamePos: obj.Pos()}
+	f := getFileContaining(t, p, obj)
 
-	if identifier := monikerIdentifier(preload(packages), o); identifier != "" {
+	if identifier := monikerIdentifier(preload(packages), f, ident, obj); identifier != "" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "", identifier)
 	}
 }
 
 func TestMonikerIdentifierSignature(t *testing.T) {
-	packages, o := findObjectInfoByDefinitionName(t, "Doer")
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "Doer")
+	ident := &ast.Ident{Name: "Doer", NamePos: obj.Pos()}
+	f := getFileContaining(t, p, obj)
 
-	if identifier := monikerIdentifier(preload(packages), o); identifier != "TestStruct.Doer" {
+	if identifier := monikerIdentifier(preload(packages), f, ident, obj); identifier != "TestStruct.Doer" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.Doer", identifier)
 	}
 }
 
 func TestMonikerIdentifierField(t *testing.T) {
-	packages, o := findObjectInfoByDefinitionName(t, "NestedB")
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "NestedB")
+	ident := &ast.Ident{Name: "NestedB", NamePos: obj.Pos()}
+	f := getFileContaining(t, p, obj)
 
-	if identifier := monikerIdentifier(preload(packages), o); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
+	if identifier := monikerIdentifier(preload(packages), f, ident, obj); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
 	}
 }

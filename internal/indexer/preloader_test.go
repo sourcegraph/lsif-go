@@ -1,13 +1,11 @@
 package indexer
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestPreloader(t *testing.T) {
 	packages := getTestPackages(t)
 	preloader := preload(packages)
-	p, target := findDefinitionByName(t, packages, "ParallelizableFunc")
+	p, obj := findDefinitionByName(t, packages, "ParallelizableFunc")
 
 	expectedText := normalizeDocstring(`
 		ParallelizableFunc is a function that can be called concurrently with other instances
@@ -16,7 +14,7 @@ func TestPreloader(t *testing.T) {
 
 	t.Run("Text", func(t *testing.T) {
 		for _, f := range p.Syntax {
-			if text := normalizeDocstring(preloader.Text(f, target.Pos())); text != "" {
+			if text := normalizeDocstring(preloader.Text(f, obj.Pos())); text != "" {
 				if text != expectedText {
 					t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 				}
@@ -29,7 +27,7 @@ func TestPreloader(t *testing.T) {
 	})
 
 	t.Run("TextFromPackage", func(t *testing.T) {
-		if text := normalizeDocstring(preloader.TextFromPackage(p, target.Pos())); text != expectedText {
+		if text := normalizeDocstring(preloader.TextFromPackage(p, obj.Pos())); text != expectedText {
 			t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 		}
 	})
