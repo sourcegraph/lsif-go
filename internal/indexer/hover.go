@@ -74,7 +74,7 @@ func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.P
 	}
 
 	// Resolve the object into its respective ast.Node
-	return preloader.Text(f, obj.Pos())
+	return preloader.Text(p, obj.Pos())
 }
 
 // findExternalDocstring extracts the comments form the given object. It is assumed that this object is
@@ -91,7 +91,7 @@ func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, p *pa
 
 	if target := p.Imports[obj.Pkg().Path()]; target != nil {
 		// Resolve the object o into its respective ast.Node
-		return preloader.TextFromPackage(target, obj.Pos())
+		return preloader.Text(target, obj.Pos())
 	}
 
 	return ""

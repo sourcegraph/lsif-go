@@ -208,18 +208,14 @@ func (i *Indexer) preload() error {
 		defer close(ch)
 
 		for _, p := range getAllReferencedPackages(i.packages) {
-			positions := getDefinitionPositions(p)
+			atomic.AddUint64(&n, 1)
 
-			for _, f := range p.Syntax {
-				atomic.AddUint64(&n, 1)
-
-				ch <- func(f *ast.File) func() error {
-					return func() error {
-						i.preloader.Load(f, positions)
-						return nil
-					}
-				}(f)
-			}
+			ch <- func(p *packages.Package) func() error {
+				return func() error {
+					i.preloader.Load(p, getDefinitionPositions(p))
+					return nil
+				}
+			}(p)
 		}
 	}()
 
@@ -308,11 +304,11 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.F
 	_ = i.emitter.EmitTextDocumentHover(resultSetID, hoverResultID)
 
 	if _, ok := obj.(*types.PkgName); ok {
-		i.emitImportMoniker(resultSetID, f, ident, obj)
+		i.emitImportMoniker(resultSetID, p, f, ident, obj)
 	}
 
 	if ident.IsExported() {
-		i.emitExportMoniker(resultSetID, f, ident, obj)
+		i.emitExportMoniker(resultSetID, p, f, ident, obj)
 	}
 
 	i.setDefinitionInfo(ident, obj, &DefinitionInfo{
@@ -446,7 +442,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, f *ast
 		_ = i.emitter.EmitTextDocumentHover(rangeID, hoverResultID)
 	}
 
-	i.emitImportMoniker(rangeID, f, ident, obj)
+	i.emitImportMoniker(rangeID, p, f, ident, obj)
 	return rangeID, true
 }
 
