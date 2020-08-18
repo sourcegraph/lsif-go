@@ -7,13 +7,12 @@ import (
 func TestFindDocstring(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "ParallelizableFunc")
-	f := getFileContaining(t, p, obj)
 
 	expectedText := normalizeDocstring(`
 		ParallelizableFunc is a function that can be called concurrently with other instances
 		of this function type.
 	`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, f, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -21,10 +20,9 @@ func TestFindDocstring(t *testing.T) {
 func TestFindDocstringInternalPackageName(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "secret")
-	f := getFileContaining(t, p, obj)
 
 	expectedText := normalizeDocstring(`secret is a package that holds secrets.`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, f, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -32,7 +30,6 @@ func TestFindDocstringInternalPackageName(t *testing.T) {
 func TestFindDocstringExternalPackageName(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "sync")
-	f := getFileContaining(t, p, obj)
 
 	expectedText := normalizeDocstring(`
 		Package sync provides basic synchronization primitives such as mutual exclusion locks.
@@ -40,7 +37,7 @@ func TestFindDocstringExternalPackageName(t *testing.T) {
 		Higher-level synchronization is better done via channels and communication.
 		Values containing the types defined in this package should not be copied.
 	`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, f, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }

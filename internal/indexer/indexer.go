@@ -174,7 +174,7 @@ func (i *Indexer) addImports() {
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
 // statements so they can be indexed uniformly in subsequent steps.
-func (i *Indexer) addImportsToFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
+func (i *Indexer) addImportsToFile(p *packages.Package, _ string, f *ast.File, _ *DocumentInfo) {
 	for _, spec := range f.Imports {
 		pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
 		if pkg == nil {
@@ -286,12 +286,12 @@ func (i *Indexer) indexDefinitionsForFile(p *packages.Package, filename string, 
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) uint64 {
 	// Create a hover result vertex and cache the result identifier keyed by the definition location.
 	// Caching this gives us a big win for package documentation, which is likely to be large and is
 	// repeated at each import and selector within referenced files.
 	hoverResultID := i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
-		return findHoverContents(i.preloader, i.packages, p, f, obj)
+		return findHoverContents(i.preloader, i.packages, p, obj)
 	})
 
 	rangeID := i.emitter.EmitRange(rangeForObject(obj, ident, pos))
@@ -304,11 +304,11 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, f *ast.F
 	_ = i.emitter.EmitTextDocumentHover(resultSetID, hoverResultID)
 
 	if _, ok := obj.(*types.PkgName); ok {
-		i.emitImportMoniker(resultSetID, p, f, ident, obj)
+		i.emitImportMoniker(resultSetID, p, ident, obj)
 	}
 
 	if ident.IsExported() {
-		i.emitExportMoniker(resultSetID, p, f, ident, obj)
+		i.emitExportMoniker(resultSetID, p, ident, obj)
 	}
 
 	i.setDefinitionInfo(ident, obj, &DefinitionInfo{
@@ -419,7 +419,7 @@ func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, ident *ast.
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, f *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
+func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, _ *ast.File, document *DocumentInfo, ident *ast.Ident, pos token.Position, obj types.Object) (uint64, bool) {
 	definitionPkg := obj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
@@ -442,7 +442,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, f *ast
 		_ = i.emitter.EmitTextDocumentHover(rangeID, hoverResultID)
 	}
 
-	i.emitImportMoniker(rangeID, p, f, ident, obj)
+	i.emitImportMoniker(rangeID, p, ident, obj)
 	return rangeID, true
 }
 
@@ -489,7 +489,7 @@ func (i *Indexer) emitContains() {
 
 // emitContainsForFile emits a contains edge between the given document and the ranges that in contains.
 // No edge is emitted if the document contains no ranges.
-func (i *Indexer) emitContainsForFile(p *packages.Package, filename string, f *ast.File, d *DocumentInfo) {
+func (i *Indexer) emitContainsForFile(p *packages.Package, _ string, _ *ast.File, d *DocumentInfo) {
 	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
 		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
 	}
