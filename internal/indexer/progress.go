@@ -21,7 +21,7 @@ var failurePrefix = "✔"
 // withProgress will continuously print progress to stdout until the given wait group counter
 // goes to zero. Progress is determined by the values of `c` (number of tasks completed) and
 // the value `n` (total number of tasks).
-func withProgress(wg *sync.WaitGroup, name string, animate, silent bool, c, n *uint64) {
+func withProgress(wg *sync.WaitGroup, name string, animate, silent bool, c *uint64, n uint64) {
 	sync := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -37,7 +37,7 @@ func withProgress(wg *sync.WaitGroup, name string, animate, silent bool, c, n *u
 			case <-time.After(updateInterval):
 			}
 
-			printProgress(printer, name, int(atomic.LoadUint64(c)), int(atomic.LoadUint64(n)))
+			printProgress(printer, name, c, n)
 		}
 
 		return nil
@@ -94,12 +94,18 @@ func withTitleAnimated(name string, fn func(printer *pentimento.Printer) error) 
 
 // printProgress outputs a throbber, the given name, and the given number of tasks completed to
 // the given printer.
-func printProgress(printer *pentimento.Printer, name string, i, n int) {
+func printProgress(printer *pentimento.Printer, name string, c *uint64, n uint64) {
 	if printer == nil {
 		return
 	}
 
 	content := pentimento.NewContent()
-	content.AddLine("%s %s... %d/%d\n", ticker, name, i, n)
+
+	if c == nil {
+		content.AddLine("%s %s...", ticker, name)
+	} else {
+		content.AddLine("%s %s... %d/%d\n", ticker, name, atomic.LoadUint64(c), n)
+	}
+
 	printer.WriteContent(content)
 }
