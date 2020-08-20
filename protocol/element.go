@@ -21,7 +21,6 @@ type VertexLabel string
 
 const (
 	VertexMetaData             VertexLabel = "metaData"
-	VertexEvent                VertexLabel = "$event"
 	VertexProject              VertexLabel = "project"
 	VertexRange                VertexLabel = "range"
 	VertexLocation             VertexLabel = "location"

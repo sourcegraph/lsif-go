@@ -140,18 +140,6 @@ func (e *Emitter) EmitNext(outV, inV uint64) uint64 {
 	return id
 }
 
-func (e *Emitter) EmitBeginEvent(scope string, data string) uint64 {
-	id := e.nextID()
-	e.writer.Write(protocol.NewEvent(id, "begin", scope, data))
-	return id
-}
-
-func (e *Emitter) EmitEndEvent(scope string, data string) uint64 {
-	id := e.nextID()
-	e.writer.Write(protocol.NewEvent(id, "end", scope, data))
-	return id
-}
-
 func (e *Emitter) NumElements() uint64 {
 	return atomic.LoadUint64(&e.id)
 }

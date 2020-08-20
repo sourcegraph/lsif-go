@@ -18,8 +18,8 @@ type ToolInfo struct {
 	Args    []string `json:"args,omitempty"`
 }
 
-func NewMetaData(id uint64, root string, info ToolInfo) *MetaData {
-	return &MetaData{
+func NewMetaData(id uint64, root string, info ToolInfo) MetaData {
+	return MetaData{
 		Vertex: Vertex{
 			Element: Element{
 				ID:   id,

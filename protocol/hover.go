@@ -11,8 +11,8 @@ type hoverResult struct {
 	Contents []MarkedString `json:"contents"`
 }
 
-func NewHoverResult(id uint64, contents []MarkedString) *HoverResult {
-	return &HoverResult{
+func NewHoverResult(id uint64, contents []MarkedString) HoverResult {
+	return HoverResult{
 		Vertex: Vertex{
 			Element: Element{
 				ID:   id,
@@ -61,8 +61,8 @@ type TextDocumentHover struct {
 	InV  uint64 `json:"inV"`
 }
 
-func NewTextDocumentHover(id, outV, inV uint64) *TextDocumentHover {
-	return &TextDocumentHover{
+func NewTextDocumentHover(id, outV, inV uint64) TextDocumentHover {
+	return TextDocumentHover{
 		Edge: Edge{
 			Element: Element{
 				ID:   id,

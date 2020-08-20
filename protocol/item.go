@@ -8,8 +8,8 @@ type Item struct {
 	Property string   `json:"property,omitempty"`
 }
 
-func NewItem(id, outV uint64, inVs []uint64, document uint64) *Item {
-	return &Item{
+func NewItem(id, outV uint64, inVs []uint64, document uint64) Item {
+	return Item{
 		Edge: Edge{
 			Element: Element{
 				ID:   id,
@@ -23,17 +23,16 @@ func NewItem(id, outV uint64, inVs []uint64, document uint64) *Item {
 	}
 }
 
-func NewItemWithProperty(id, outV uint64, inVs []uint64, document uint64, property string) *Item {
+func NewItemWithProperty(id, outV uint64, inVs []uint64, document uint64, property string) Item {
 	i := NewItem(id, outV, inVs, document)
 	i.Property = property
 	return i
 }
 
-func NewItemOfDefinitions(id, outV uint64, inVs []uint64, document uint64) *Item {
+func NewItemOfDefinitions(id, outV uint64, inVs []uint64, document uint64) Item {
 	return NewItemWithProperty(id, outV, inVs, document, "definitions")
 }
 
-// informationand in "references" relationship.
-func NewItemOfReferences(id, outV uint64, inVs []uint64, document uint64) *Item {
+func NewItemOfReferences(id, outV uint64, inVs []uint64, document uint64) Item {
 	return NewItemWithProperty(id, outV, inVs, document, "references")
 }
