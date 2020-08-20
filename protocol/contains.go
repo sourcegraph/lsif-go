@@ -6,8 +6,8 @@ type Contains struct {
 	InVs []uint64 `json:"inVs"`
 }
 
-func NewContains(id, outV uint64, inVs []uint64) *Contains {
-	return &Contains{
+func NewContains(id, outV uint64, inVs []uint64) Contains {
+	return Contains{
 		Edge: Edge{
 			Element: Element{
 				ID:   id,

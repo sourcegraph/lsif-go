@@ -11,8 +11,8 @@ type Pos struct {
 	Character int `json:"character"`
 }
 
-func NewRange(id uint64, start, end Pos) *Range {
-	return &Range{
+func NewRange(id uint64, start, end Pos) Range {
+	return Range{
 		Vertex: Vertex{
 			Element: Element{
 				ID:   id,

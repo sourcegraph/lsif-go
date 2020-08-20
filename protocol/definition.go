@@ -4,8 +4,8 @@ type DefinitionResult struct {
 	Vertex
 }
 
-func NewDefinitionResult(id uint64) *DefinitionResult {
-	return &DefinitionResult{
+func NewDefinitionResult(id uint64) DefinitionResult {
+	return DefinitionResult{
 		Vertex: Vertex{
 			Element: Element{
 				ID:   id,
@@ -22,8 +22,8 @@ type TextDocumentDefinition struct {
 	InV  uint64 `json:"inV"`
 }
 
-func NewTextDocumentDefinition(id, outV, inV uint64) *TextDocumentDefinition {
-	return &TextDocumentDefinition{
+func NewTextDocumentDefinition(id, outV, inV uint64) TextDocumentDefinition {
+	return TextDocumentDefinition{
 		Edge: Edge{
 			Element: Element{
 				ID:   id,

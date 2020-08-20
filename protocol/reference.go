@@ -4,8 +4,8 @@ type ReferenceResult struct {
 	Vertex
 }
 
-func NewReferenceResult(id uint64) *ResultSet {
-	return &ResultSet{
+func NewReferenceResult(id uint64) ResultSet {
+	return ResultSet{
 		Vertex: Vertex{
 			Element: Element{
 				ID:   id,
@@ -22,8 +22,8 @@ type TextDocumentReferences struct {
 	InV  uint64 `json:"inV"`
 }
 
-func NewTextDocumentReferences(id, outV, inV uint64) *TextDocumentReferences {
-	return &TextDocumentReferences{
+func NewTextDocumentReferences(id, outV, inV uint64) TextDocumentReferences {
+	return TextDocumentReferences{
 		Edge: Edge{
 			Element: Element{
 				ID:   id,

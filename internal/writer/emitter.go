@@ -34,7 +34,7 @@ func (e *Emitter) EmitProject(languageID string) uint64 {
 
 func (e *Emitter) EmitDocument(languageID, path string) uint64 {
 	id := e.nextID()
-	e.writer.Write(protocol.NewDocument(id, languageID, "file://"+path, nil))
+	e.writer.Write(protocol.NewDocument(id, languageID, "file://"+path))
 	return id
 }
 
@@ -137,18 +137,6 @@ func (e *Emitter) EmitContains(outV uint64, inVs []uint64) uint64 {
 func (e *Emitter) EmitNext(outV, inV uint64) uint64 {
 	id := e.nextID()
 	e.writer.Write(protocol.NewNext(id, outV, inV))
-	return id
-}
-
-func (e *Emitter) EmitBeginEvent(scope string, data string) uint64 {
-	id := e.nextID()
-	e.writer.Write(protocol.NewEvent(id, "begin", scope, data))
-	return id
-}
-
-func (e *Emitter) EmitEndEvent(scope string, data string) uint64 {
-	id := e.nextID()
-	e.writer.Write(protocol.NewEvent(id, "end", scope, data))
 	return id
 }
 
