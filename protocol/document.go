@@ -1,16 +1,13 @@
 package protocol
 
-import "encoding/base64"
-
 type Document struct {
 	Vertex
 	URI        string `json:"uri"`
 	LanguageID string `json:"languageId"`
-	Contents   string `json:"contents,omitempty"`
 }
 
-func NewDocument(id uint64, languageID, uri string, contents []byte) *Document {
-	d := &Document{
+func NewDocument(id uint64, languageID, uri string) Document {
+	d := Document{
 		Vertex: Vertex{
 			Element: Element{
 				ID:   id,
@@ -20,10 +17,6 @@ func NewDocument(id uint64, languageID, uri string, contents []byte) *Document {
 		},
 		URI:        uri,
 		LanguageID: languageID,
-	}
-
-	if len(contents) > 0 {
-		d.Contents = base64.StdEncoding.EncodeToString(contents)
 	}
 
 	return d
