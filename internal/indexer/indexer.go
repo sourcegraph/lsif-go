@@ -123,17 +123,21 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 func (i *Indexer) loadPackages() error {
-	config := &packages.Config{
-		Mode:  loadMode,
-		Dir:   i.projectRoot,
-		Tests: true,
-	}
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	load := func() (err error) {
-		if i.packages, err = packages.Load(config, "./..."); err != nil {
-			return errors.Wrap(err, "packages.Load")
+	go func() {
+		defer wg.Done()
+		defer close(errs)
+
+		pkgs, err := packages.Load(&packages.Config{Mode: loadMode, Dir: i.projectRoot, Tests: true}, "./...")
+		if err != nil {
+			errs <- errors.Wrap(err, "packages.Load")
+			return
 		}
 
+		i.packages = pkgs
 		i.packagesByFile = map[string][]*packages.Package{}
 
 		for _, p := range i.packages {
@@ -142,18 +146,11 @@ func (i *Indexer) loadPackages() error {
 				i.packagesByFile[filename] = append(i.packagesByFile[filename], p)
 			}
 		}
+	}()
 
-		return nil
-	}
-
-	ch := make(chan func() error, 1)
-	ch <- load
-	close(ch)
-
-	n := uint64(1)
-	wg, errs, count := runParallel(ch)
-	withProgress(wg, "Loading packages", i.animate, i.silent, count, &n)
+	withProgress(&wg, "Loading packages", i.animate, i.silent, nil, 0)
 	return <-errs
+
 }
 
 // emitMetadata emits a metadata and project vertex. This method returns the identifier of the project
@@ -228,28 +225,22 @@ func importSpecName(spec *ast.ImportSpec) string {
 // packages, as well as the definitions in all directly imported packages (but no transitively
 // imported packages). This will also load the moniker paths for all identifiers in the same
 // files.
-func (i *Indexer) preload() error {
-	ch := make(chan func() error)
+func (i *Indexer) preload() {
+	ch := make(chan func())
 	pkgs := getAllReferencedPackages(i.packages)
 
 	go func() {
 		defer close(ch)
 
 		for _, p := range pkgs {
-			ch <- func(p *packages.Package) func() error {
-				return func() error {
-					i.preloader.Load(p, getDefinitionPositions(p))
-					return nil
-				}
-			}(p)
+			t := p
+			ch <- func() { i.preloader.Load(t, getDefinitionPositions(t)) }
 		}
 	}()
 
 	// Load hovers for each package concurrently
-	n := uint64(len(pkgs))
-	wg, errs, count := runParallel(ch)
-	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, count, &n)
-	return <-errs
+	wg, count := runParallel(ch)
+	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, count, uint64(len(pkgs)))
 }
 
 // getDefinitionPositions extracts the positions of all definitions from the given package. This
