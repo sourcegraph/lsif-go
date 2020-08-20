@@ -34,7 +34,7 @@ func (e *Emitter) EmitProject(languageID string) uint64 {
 
 func (e *Emitter) EmitDocument(languageID, path string) uint64 {
 	id := e.nextID()
-	e.writer.Write(protocol.NewDocument(id, languageID, "file://"+path, nil))
+	e.writer.Write(protocol.NewDocument(id, languageID, "file://"+path))
 	return id
 }
 
