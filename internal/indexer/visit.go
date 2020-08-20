@@ -53,21 +53,36 @@ func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p 
 	withProgress(wg, name, i.animate, i.silent, count, n)
 }
 
-// visitEachReferenceResult invokes the given visitor function on each reference result. This method
+// visitEachDefinitionInfo invokes the given visitor function on each definition info value. This method
 // prints the progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn func(referenceResult *ReferenceResultInfo)) {
+func (i *Indexer) visitEachDefinitionInfo(name string, animate, silent bool, fn func(d *DefinitionInfo)) {
+	maps := []map[interface{}]*DefinitionInfo{
+		i.consts,
+		i.funcs,
+		i.imports,
+		i.labels,
+		i.types,
+		i.vars,
+	}
+
+	n := uint64(0)
+	for _, m := range maps {
+		n += uint64(len(m))
+	}
+
 	ch := make(chan func())
 
 	go func() {
 		defer close(ch)
 
-		for _, r := range i.referenceResults {
-			t := r
-			ch <- func() { fn(t) }
+		for _, m := range maps {
+			for _, d := range m {
+				t := d
+				ch <- func() { fn(t) }
+			}
 		}
 	}()
 
-	n := uint64(len(i.referenceResults))
 	wg, count := runParallel(ch)
 	withProgress(wg, name, i.animate, i.silent, count, n)
 }
