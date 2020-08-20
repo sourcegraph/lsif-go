@@ -27,22 +27,21 @@ type Indexer struct {
 	silent         bool              // Whether to suppress all output
 
 	// Definition type cache
-	consts  map[token.Pos]*DefinitionInfo // position -> info
-	funcs   map[string]*DefinitionInfo    // name -> info
-	imports map[token.Pos]*DefinitionInfo // position -> info
-	labels  map[token.Pos]*DefinitionInfo // position -> info
-	types   map[string]*DefinitionInfo    // name -> info
-	vars    map[token.Pos]*DefinitionInfo // position -> info
+	consts  map[interface{}]*DefinitionInfo // position -> info
+	funcs   map[interface{}]*DefinitionInfo // name -> info
+	imports map[interface{}]*DefinitionInfo // position -> info
+	labels  map[interface{}]*DefinitionInfo // position -> info
+	types   map[interface{}]*DefinitionInfo // name -> info
+	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
-	documents             map[string]*DocumentInfo        // filename -> info
-	ranges                map[string]map[int]uint64       // filename -> offset -> rangeID
-	hoverResultCache      map[string]uint64               // cache key -> hoverResultID
-	referenceResults      map[uint64]*ReferenceResultInfo // rangeID -> info
-	packageInformationIDs map[string]uint64               // name -> packageInformationID
-	preloader             *Preloader                      // hover text cache
-	packages              []*packages.Package             // index target packages
-	projectID             uint64                          // project vertex identifier
+	documents             map[string]*DocumentInfo  // filename -> info
+	ranges                map[string]map[int]uint64 // filename -> offset -> rangeID
+	hoverResultCache      map[string]uint64         // cache key -> hoverResultID
+	packageInformationIDs map[string]uint64         // name -> packageInformationID
+	preloader             *Preloader                // hover text cache
+	packages              []*packages.Package       // index target packages
+	projectID             uint64                    // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
 
 	constsMutex                sync.Mutex
@@ -53,7 +52,6 @@ type Indexer struct {
 	varsMutex                  sync.Mutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
-	referenceResultsMutex      sync.Mutex
 	packageInformationIDsMutex sync.RWMutex
 }
 
@@ -78,16 +76,15 @@ func New(
 		emitter:               protocolwriter.NewEmitter(writer),
 		animate:               animate,
 		silent:                silent,
-		consts:                map[token.Pos]*DefinitionInfo{},
-		funcs:                 map[string]*DefinitionInfo{},
-		imports:               map[token.Pos]*DefinitionInfo{},
-		labels:                map[token.Pos]*DefinitionInfo{},
-		types:                 map[string]*DefinitionInfo{},
-		vars:                  map[token.Pos]*DefinitionInfo{},
+		consts:                map[interface{}]*DefinitionInfo{},
+		funcs:                 map[interface{}]*DefinitionInfo{},
+		imports:               map[interface{}]*DefinitionInfo{},
+		labels:                map[interface{}]*DefinitionInfo{},
+		types:                 map[interface{}]*DefinitionInfo{},
+		vars:                  map[interface{}]*DefinitionInfo{},
 		documents:             map[string]*DocumentInfo{},
 		ranges:                map[string]map[int]uint64{},
 		hoverResultCache:      map[string]uint64{},
-		referenceResults:      map[uint64]*ReferenceResultInfo{},
 		packageInformationIDs: map[string]uint64{},
 		preloader:             newPreloader(),
 		stripedMutex:          newStripedMutex(),
@@ -384,20 +381,11 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	}
 
 	i.setDefinitionInfo(ident, obj, &DefinitionInfo{
-		DocumentID:  document.DocumentID,
-		RangeID:     rangeID,
-		ResultSetID: resultSetID,
+		DocumentID:        document.DocumentID,
+		RangeID:           rangeID,
+		ResultSetID:       resultSetID,
+		ReferenceRangeIDs: map[uint64][]uint64{},
 	})
-
-	referenceResultInfo := &ReferenceResultInfo{
-		ResultSetID:        resultSetID,
-		DefinitionRangeIDs: map[uint64][]uint64{document.DocumentID: {rangeID}},
-		ReferenceRangeIDs:  map[uint64][]uint64{},
-	}
-
-	i.referenceResultsMutex.Lock()
-	i.referenceResults[rangeID] = referenceResultInfo
-	i.referenceResultsMutex.Unlock()
 
 	return rangeID
 }
@@ -503,13 +491,9 @@ func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, ident *ast.
 	rangeID := i.ensureRangeFor(ident, pos, obj)
 	_ = i.emitter.EmitNext(rangeID, d.ResultSetID)
 
-	if refResult := i.referenceResults[d.RangeID]; refResult != nil {
-		documentID := document.DocumentID
-
-		refResult.m.Lock()
-		refResult.ReferenceRangeIDs[documentID] = append(refResult.ReferenceRangeIDs[documentID], rangeID)
-		refResult.m.Unlock()
-	}
+	d.m.Lock()
+	d.ReferenceRangeIDs[document.DocumentID] = append(d.ReferenceRangeIDs[document.DocumentID], rangeID)
+	d.m.Unlock()
 
 	return rangeID, true
 }
@@ -569,23 +553,19 @@ func (i *Indexer) ensureRangeFor(ident *ast.Ident, pos token.Position, obj types
 	return rangeID
 }
 
-// linkReferenceResultsToRanges emits textDocument/definition and textDocument/hover relations
-// for each indexed reference result.
+// linkReferenceResultsToRanges emits item relations for each indexed definition result value.
 func (i *Indexer) linkReferenceResultsToRanges() {
-	i.visitEachReferenceResult("Linking reference results to ranges", i.animate, i.silent, i.linkReferenceResult)
+	i.visitEachDefinitionInfo("Linking items to definitions", i.animate, i.silent, i.linkItemsToDefinitions)
 }
 
-// linkReferenceResult adds textDocument/definition and textDocument/hover relations between the
-// given reference result and the ranges attached to it.
-func (i *Indexer) linkReferenceResult(referenceResult *ReferenceResultInfo) {
+// linkItemsToDefinitions adds item relations between the given definition range and the ranges that
+// define and reference it.
+func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
 	refResultID := i.emitter.EmitReferenceResult()
-	_ = i.emitter.EmitTextDocumentReferences(referenceResult.ResultSetID, refResultID)
+	_ = i.emitter.EmitTextDocumentReferences(d.ResultSetID, refResultID)
+	_ = i.emitter.EmitItemOfDefinitions(refResultID, []uint64{d.RangeID}, d.DocumentID)
 
-	for documentID, rangeIDs := range referenceResult.DefinitionRangeIDs {
-		_ = i.emitter.EmitItemOfDefinitions(refResultID, rangeIDs, documentID)
-	}
-
-	for documentID, rangeIDs := range referenceResult.ReferenceRangeIDs {
+	for documentID, rangeIDs := range d.ReferenceRangeIDs {
 		_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
 	}
 }

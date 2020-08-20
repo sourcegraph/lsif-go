@@ -23,16 +23,9 @@ type DocumentInfo struct {
 // of this shape is keyed by type and identifier in the indexer so that it can be
 // re-retrieved for a range that uses the definition.
 type DefinitionInfo struct {
-	DocumentID  uint64
-	RangeID     uint64
-	ResultSetID uint64
-}
-
-// ReferenceResultInfo provides context about a definition range. Each definition and
-// reference range will be added to an object of this shape as it is processed.
-type ReferenceResultInfo struct {
-	ResultSetID        uint64
-	DefinitionRangeIDs map[uint64][]uint64
-	ReferenceRangeIDs  map[uint64][]uint64
-	m                  sync.Mutex
+	DocumentID        uint64
+	RangeID           uint64
+	ResultSetID       uint64
+	ReferenceRangeIDs map[uint64][]uint64
+	m                 sync.Mutex
 }

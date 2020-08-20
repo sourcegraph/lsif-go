@@ -58,25 +58,40 @@ func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p 
 	<-errs
 }
 
-// visitEachReferenceResult invokes the given visitor function on each reference result. This method
+// visitEachDefinitionInfo invokes the given visitor function on each definition info value. This method
 // prints the progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachReferenceResult(name string, animate, silent bool, fn func(referenceResult *ReferenceResultInfo)) {
+func (i *Indexer) visitEachDefinitionInfo(name string, animate, silent bool, fn func(d *DefinitionInfo)) {
+	maps := []map[interface{}]*DefinitionInfo{
+		i.consts,
+		i.funcs,
+		i.imports,
+		i.labels,
+		i.types,
+		i.vars,
+	}
+
+	n := uint64(0)
+	for _, m := range maps {
+		n += uint64(len(m))
+	}
+
 	ch := make(chan func() error)
 
 	go func() {
 		defer close(ch)
 
-		for _, r := range i.referenceResults {
-			ch <- func(r *ReferenceResultInfo) func() error {
-				return func() error {
-					fn(r)
-					return nil
-				}
-			}(r)
+		for _, m := range maps {
+			for _, d := range m {
+				ch <- func(d *DefinitionInfo) func() error {
+					return func() error {
+						fn(d)
+						return nil
+					}
+				}(d)
+			}
 		}
 	}()
 
-	n := uint64(len(i.referenceResults))
 	wg, errs, count := runParallel(ch)
 	withProgress(wg, name, i.animate, i.silent, count, &n)
 	<-errs
