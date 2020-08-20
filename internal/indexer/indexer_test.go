@@ -28,13 +28,13 @@ func TestIndexer(t *testing.T) {
 	}
 
 	t.Run("check Parallel function hover text", func(t *testing.T) {
-		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
-		if r == nil {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
+		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		hoverResult := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if hoverResult == nil || len(hoverResult.Result.Contents) < 2 {
+		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		if !ok || len(hoverResult.Result.Contents) < 2 {
 			t.Fatalf("could not find hover text")
 		}
 
@@ -55,13 +55,13 @@ func TestIndexer(t *testing.T) {
 	// TODO(efritz) - support "package testdata" identifiers
 
 	t.Run("check external package hover text", func(t *testing.T) {
-		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
-		if r == nil {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
+		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		hoverResult := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if hoverResult == nil || len(hoverResult.Result.Contents) < 2 {
+		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		if !ok || len(hoverResult.Result.Contents) < 2 {
 			t.Fatalf("could not find hover text")
 		}
 
@@ -82,8 +82,8 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check errs definition", func(t *testing.T) {
-		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 23, 3)
-		if r == nil {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 23, 3)
+		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
@@ -96,8 +96,8 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check wg references", func(t *testing.T) {
-		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 27, 1)
-		if r == nil {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 27, 1)
+		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
@@ -115,8 +115,8 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check NestedB monikers", func(t *testing.T) {
-		r := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 26, 2)
-		if r == nil {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 26, 2)
+		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
@@ -136,7 +136,7 @@ func TestIndexer(t *testing.T) {
 	})
 }
 
-func compareRange(t *testing.T, r *protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
+func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
 	if r.Start.Line != startLine || r.Start.Character != startCharacter || r.End.Line != endLine || r.End.Character != endCharacter {
 		t.Errorf(
 			"incorrect range. want=[%d:%d,%d:%d) have=[%d:%d,%d:%d)",
