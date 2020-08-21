@@ -18,13 +18,21 @@ After installing `lsif-go` onto your PATH, run the command in the root where you
 
 ```
 $ lsif-go
-...........
-5 package(s), 8 file(s), 689 def(s), 13681 element(s)
-Processed in 1.002227943s
+✔ Loading packages... Done (1.004256336s).
+✔ Emitting documents... Done (112.332µs).
+✔ Adding import definitions... Done (106.871µs).
+✔ Preloading hover text and moniker paths... Done (206.538662ms).
+✔ Indexing definitions... Done (14.696201ms).
+✔ Indexing references... Done (12.748611ms).
+✔ Linking reference results to ranges... Done (7.027725ms).
+✔ Emitting contains relations... Done (330.363µs).
+
+14 package(s), 52 file(s), 1642 def(s), 33725 element(s)
+Processed in 1.246392158s
 ```
 
 Use `lsif-go --help` for more information.
 
 ## Updating your index
 
-To keep your index up-to-date, you can add a step to your CI to generate new data when your repository changes.  For example, you can use our [LSIF Go action workflow](https://github.com/sourcegraph/lsif-go-action) to generate and upload an index in GitHub Actions.
+To keep your index up-to-date, you can add a step to your CI to generate new data when your repository changes. See [our documentation](https://docs.sourcegraph.com/user/code_intelligence/adding_lsif_to_workflows) on adding LSIF to your workflows.
