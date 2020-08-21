@@ -10,17 +10,24 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+// nodePathLength is the number of ancestor nodes that will be searched when trying to extract a
+// comment from a particular AST node.
+const nodePathLength = 3
+
+// nodePath is a fixed-size array of AST nodes.
+type nodePath = [nodePathLength]ast.Node
+
 // Preloader is a cache of hover text by file and token position.
 type Preloader struct {
 	m            sync.RWMutex
-	hoverText    map[*packages.Package]map[token.Pos]string
+	hoverText    map[*packages.Package]map[token.Pos]nodePath
 	monikerPaths map[*packages.Package]map[token.Pos][]string
 }
 
 // Preloader creates a new empty Preloader.
 func newPreloader() *Preloader {
 	return &Preloader{
-		hoverText:    map[*packages.Package]map[token.Pos]string{},
+		hoverText:    map[*packages.Package]map[token.Pos]nodePath{},
 		monikerPaths: map[*packages.Package]map[token.Pos][]string{},
 	}
 }
@@ -29,11 +36,11 @@ func newPreloader() *Preloader {
 // paths for each of the given positions. This function assumes that the given positions are already
 // ordered so that a binary-search can be used to efficiently bound lookups.
 func (l *Preloader) Load(p *packages.Package, positions []token.Pos) {
-	hoverTextMap := map[token.Pos]string{}
+	hoverTextMap := map[token.Pos]nodePath{}
 	monikerPathMap := map[token.Pos][]string{}
 
 	for _, root := range p.Syntax {
-		visit(root, positions, hoverTextMap, monikerPathMap, nil, nil)
+		visit(root, positions, hoverTextMap, monikerPathMap, nodePath{}, nil)
 	}
 
 	l.m.Lock()
@@ -48,7 +55,7 @@ func (l *Preloader) Load(p *packages.Package, positions []token.Pos) {
 func (l *Preloader) Text(p *packages.Package, position token.Pos) string {
 	l.m.RLock()
 	defer l.m.RUnlock()
-	return l.hoverText[p][position]
+	return commentsFromPath(l.hoverText[p][position])
 }
 
 func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []string {
@@ -65,9 +72,10 @@ func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []strin
 func visit(
 	node ast.Node,
 	positions []token.Pos,
-	hoverTextMap map[token.Pos]string,
+	hoverTextMap map[token.Pos]nodePath,
 	monikerPathMap map[token.Pos][]string,
-	path []ast.Node, monikerPath []string,
+	path nodePath,
+	monikerPath []string,
 ) {
 	newPath := updateNodePath(path, node)
 	newMonikerPath := updateMonikerPath(monikerPath, node)
@@ -86,17 +94,21 @@ func visit(
 
 	for i := start; i < end; i++ {
 		if _, ok := hoverTextMap[positions[i]]; !ok {
-			hoverTextMap[positions[i]] = commentsFromPath(newPath)
+			hoverTextMap[positions[i]] = newPath
 		}
 	}
 
 	monikerPathMap[node.Pos()] = newMonikerPath
 }
 
-// updateNodePath appends the given node to the given path. This function does not modify
-// the input slice.
-func updateNodePath(path []ast.Node, node ast.Node) []ast.Node {
-	return append(append([]ast.Node(nil), path...), node)
+// updateNodePath creates a array composed of the previous path plus the given node. This function
+// does not modify the input array.
+func updateNodePath(path nodePath, node ast.Node) nodePath {
+	newPath := nodePath{node}
+	for i := 0; i < nodePathLength-1; i++ {
+		newPath[i+1] = path[i]
+	}
+	return newPath
 }
 
 // updateMonikerPath appends to the given slice the name of the node if it has a name that
@@ -108,15 +120,24 @@ func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 		if len(q.Names) > 0 {
 			// Add names of distinct fields whose type is an anonymous struct type
 			// containing the target field (e.g. `X struct { target string }`).
-			return append(append([]string(nil), monikerPath...), q.Names[0].String())
+			return addString(monikerPath, q.Names[0].String())
 		}
 
 	case *ast.TypeSpec:
 		// Add the top-level type spec (e.g. `type X struct` and `type Y interface`)
-		return append(append([]string(nil), monikerPath...), q.Name.String())
+		return addString(monikerPath, q.Name.String())
 	}
 
 	return monikerPath
+}
+
+// addString creates a new slice composed of the element of slice plus the given value.
+// This function does not modify the input slice.
+func addString(slice []string, value string) []string {
+	newSlice := make([]string, len(slice), len(slice)+1)
+	copy(newSlice, slice)
+	newSlice = append(newSlice, value)
+	return newSlice
 }
 
 // childrenOf returns the direct non-nil children of ast.Node n.
@@ -134,14 +155,14 @@ func childrenOf(n ast.Node) (children []ast.Node) {
 	return children
 }
 
-const maxCommentDistance = 3
+// commentsFromPath returns the first non-empty comment attached to a node in the given path.
+func commentsFromPath(path nodePath) (comment string) {
+	for _, node := range path {
+		if comment != "" || node == nil {
+			break
+		}
 
-// commentsFromPath searches the given node path backwards and returns the first comment
-// attached to the node that it finds. This will only look at the last MaxCommentDistance
-// nodes of the given path.
-func commentsFromPath(path []ast.Node) (comment string) {
-	for i := 0; i < len(path) && i < maxCommentDistance && comment == ""; i++ {
-		switch v := path[len(path)-i-1].(type) {
+		switch v := node.(type) {
 		case *ast.Field:
 			// Concat associated documentation with any inline comments
 			comment = joinNonEmpty(v.Doc.Text(), v.Comment.Text())
