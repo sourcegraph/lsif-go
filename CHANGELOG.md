@@ -13,6 +13,12 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.1.1
+
+### Fixed
+
+- Replaced the digest of the golang base image.
+
 ## v1.1.0
 
 ### Added
