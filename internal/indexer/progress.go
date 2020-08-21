@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/efritz/pentimento"
+	"github.com/sourcegraph/lsif-go/internal/util"
 )
 
 // updateInterval is the duration between updates in withProgress.
@@ -68,7 +69,7 @@ func withTitleStatic(name string, verbose bool, fn func(printer *pentimento.Prin
 	}
 
 	if verbose {
-		fmt.Printf("%s Done (%s).\n", failurePrefix, time.Since(start))
+		fmt.Printf("%s Done (%s).\n", failurePrefix, util.HumanElapsed(start))
 	} else {
 		fmt.Printf("%s Done.\n", failurePrefix)
 	}
@@ -94,7 +95,7 @@ func withTitleAnimated(name string, verbose bool, fn func(printer *pentimento.Pr
 	}
 
 	if verbose {
-		fmt.Printf("%s %s... Done (%s).\n", failurePrefix, name, time.Since(start))
+		fmt.Printf("%s %s... Done (%s).\n", failurePrefix, name, util.HumanElapsed(start))
 	} else {
 		fmt.Printf("%s %s... Done.\n", failurePrefix, name)
 	}
