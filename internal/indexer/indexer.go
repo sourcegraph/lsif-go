@@ -314,7 +314,7 @@ func (i *Indexer) positionAndDocument(p *packages.Package, ident *ast.Ident, obj
 
 	pos := p.Fset.Position(ident.Pos())
 
-	if i.packagesByFile[pos.Filename][0] != p {
+	if packages := i.packagesByFile[pos.Filename]; len(packages) == 0 || packages[0] != p {
 		return token.Position{}, nil, false
 	}
 
