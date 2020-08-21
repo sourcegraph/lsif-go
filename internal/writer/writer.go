@@ -6,19 +6,10 @@ import (
 	"sync"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/sourcegraph/lsif-go/protocol"
 )
 
 var marshaller = jsoniter.ConfigFastest
-
-// JSONWriter serializes vertexes and edges into JSON and writes them to an
-// underlying writer as newline-delimited JSON.
-type JSONWriter interface {
-	// Write emits a single vertex or edge value.
-	Write(v interface{})
-
-	// Flush ensures that all elements have been written to the underlying writer.
-	Flush() error
-}
 
 type jsonWriter struct {
 	wg             sync.WaitGroup
@@ -27,6 +18,8 @@ type jsonWriter struct {
 	err            error
 }
 
+var _ protocol.JSONWriter = &jsonWriter{}
+
 // channelBufferSize is the number of elements that can be queued to be written.
 const channelBufferSize = 512
 
@@ -34,7 +27,7 @@ const channelBufferSize = 512
 const writerBufferSize = 4096
 
 // NewJSONWriter creates a new JSONWriter wrapping the given writer.
-func NewJSONWriter(w io.Writer) JSONWriter {
+func NewJSONWriter(w io.Writer) protocol.JSONWriter {
 	ch := make(chan interface{}, channelBufferSize)
 	bufferedWriter := bufio.NewWriterSize(w, writerBufferSize)
 	jw := &jsonWriter{ch: ch, bufferedWriter: bufferedWriter}
