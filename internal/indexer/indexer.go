@@ -25,6 +25,7 @@ type Indexer struct {
 	emitter        *writer.Emitter   // LSIF data emitter
 	animate        bool              // Whether to animate output
 	silent         bool              // Whether to suppress all output
+	verbose        bool              // Whether to display elapsed time
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -65,6 +66,7 @@ func New(
 	writer protocolwriter.JSONWriter,
 	animate bool,
 	silent bool,
+	verbose bool,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:        repositoryRoot,
@@ -76,6 +78,7 @@ func New(
 		emitter:               protocolwriter.NewEmitter(writer),
 		animate:               animate,
 		silent:                silent,
+		verbose:               verbose,
 		consts:                map[interface{}]*DefinitionInfo{},
 		funcs:                 map[interface{}]*DefinitionInfo{},
 		imports:               map[interface{}]*DefinitionInfo{},
@@ -94,9 +97,9 @@ func New(
 // Index generates an LSIF dump from a workspace by traversing through source files
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
-func (i *Indexer) Index() (*Stats, error) {
+func (i *Indexer) Index() error {
 	if err := i.loadPackages(); err != nil {
-		return nil, errors.Wrap(err, "loadPackages")
+		return errors.Wrap(err, "loadPackages")
 	}
 
 	i.emitMetadataAndProjectVertex()
@@ -109,10 +112,10 @@ func (i *Indexer) Index() (*Stats, error) {
 	i.emitContains()
 
 	if err := i.emitter.Flush(); err != nil {
-		return nil, errors.Wrap(err, "emitter.Flush")
+		return errors.Wrap(err, "emitter.Flush")
 	}
 
-	return i.stats(), nil
+	return nil
 }
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
@@ -145,7 +148,7 @@ func (i *Indexer) loadPackages() error {
 		}
 	}()
 
-	withProgress(&wg, "Loading packages", i.animate, i.silent, nil, 0)
+	withProgress(&wg, "Loading packages", i.animate, i.silent, i.verbose, nil, 0)
 	return <-errs
 
 }
@@ -162,7 +165,7 @@ func (i *Indexer) emitMetadataAndProjectVertex() {
 // and ranges map for each document. Methods should skip any document that does not have a file entry as
 // it may fall outside of the project root (and is thus not properly indexable).
 func (i *Indexer) emitDocuments() {
-	i.visitEachRawFile("Emitting documents", i.animate, i.silent, i.emitDocument)
+	i.visitEachRawFile("Emitting documents", i.emitDocument)
 }
 
 // emitDocument emits a document vertex and a contains relation to the enclosing project. This method
@@ -189,7 +192,7 @@ func (i *Indexer) emitDocument(filename string) {
 // addImports modifies the definitions map of each file to include entries for import statements so
 // they can be indexed uniformly in subsequent steps.
 func (i *Indexer) addImports() {
-	i.visitEachPackage("Adding import definitions", i.animate, i.silent, i.addImportsToPackage)
+	i.visitEachPackage("Adding import definitions", i.addImportsToPackage)
 }
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
@@ -237,7 +240,7 @@ func (i *Indexer) preload() {
 
 	// Load hovers for each package concurrently
 	wg, count := runParallel(ch)
-	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, count, uint64(len(pkgs)))
+	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, i.verbose, count, uint64(len(pkgs)))
 }
 
 // getDefinitionPositions extracts the positions of all definitions from the given package. This
@@ -278,7 +281,7 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 // a result set, a definition result, a hover result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
 func (i *Indexer) indexDefinitions() {
-	i.visitEachPackage("Indexing definitions", i.animate, i.silent, i.indexDefinitionsForPackage)
+	i.visitEachPackage("Indexing definitions", i.indexDefinitionsForPackage)
 }
 
 // indexDefinitionsForPackage emits data for each definition within the given package.
@@ -342,7 +345,6 @@ func (i *Indexer) markRange(pos token.Position) bool {
 
 	i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
 	return true
-
 }
 
 // indexDefinition emits data for the given definition object.
@@ -423,7 +425,7 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 // a hover result, and import monikers (for external definitions). This method will also populate
 // each document's reference range identifier slice.
 func (i *Indexer) indexReferences() {
-	i.visitEachPackage("Indexing references", i.animate, i.silent, i.indexReferencesForPackage)
+	i.visitEachPackage("Indexing references", i.indexReferencesForPackage)
 }
 
 // indexReferencesForPackage emits data for each reference within the given package.
@@ -546,7 +548,7 @@ func (i *Indexer) ensureRangeFor(ident *ast.Ident, pos token.Position, obj types
 
 // linkReferenceResultsToRanges emits item relations for each indexed definition result value.
 func (i *Indexer) linkReferenceResultsToRanges() {
-	i.visitEachDefinitionInfo("Linking items to definitions", i.animate, i.silent, i.linkItemsToDefinitions)
+	i.visitEachDefinitionInfo("Linking items to definitions", i.linkItemsToDefinitions)
 }
 
 // linkItemsToDefinitions adds item relations between the given definition range and the ranges that
@@ -563,7 +565,7 @@ func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
 
 // emitContains emits the contains relationship for all documents and the ranges that it contains.
 func (i *Indexer) emitContains() {
-	i.visitEachDocument("Emitting contains relations", i.animate, i.silent, i.emitContainsForDocument)
+	i.visitEachDocument("Emitting contains relations", i.emitContainsForDocument)
 
 	// TODO(efritz) - think about printing a title here
 	i.emitContainsForProject()
@@ -588,9 +590,9 @@ func (i *Indexer) emitContainsForProject() {
 	}
 }
 
-// stats returns a Stats object with the number of packages, files, and elements analyzed/emitted.
-func (i *Indexer) stats() *Stats {
-	return &Stats{
+// Stats returns an IndexerStats object with the number of packages, files, and elements analyzed/emitted.
+func (i *Indexer) Stats() *IndexerStats {
+	return &IndexerStats{
 		NumPkgs:     uint(len(i.packages)),
 		NumFiles:    uint(len(i.documents)),
 		NumDefs:     uint(len(i.consts) + len(i.funcs) + len(i.imports) + len(i.labels) + len(i.types) + len(i.vars)),

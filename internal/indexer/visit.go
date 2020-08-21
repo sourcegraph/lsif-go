@@ -10,7 +10,7 @@ import (
 // visitEachRawFile invokes the given visitor function on each file reachable from the given set of
 // packages. The file info object passed to the given callback function does not have an associated
 // document value. This method prints the progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(filename string)) {
+func (i *Indexer) visitEachRawFile(name string, fn func(filename string)) {
 	n := uint64(0)
 	for _, p := range i.packages {
 		n += uint64(len(p.Syntax))
@@ -31,12 +31,12 @@ func (i *Indexer) visitEachRawFile(name string, animate, silent bool, fn func(fi
 		}
 	}()
 
-	withProgress(&wg, name, animate, silent, &count, n)
+	withProgress(&wg, name, i.animate, i.silent, i.verbose, &count, n)
 }
 
 // visitEachPackage invokes the given visitor function on each indexed package. This method prints the
 // progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p *packages.Package)) {
+func (i *Indexer) visitEachPackage(name string, fn func(p *packages.Package)) {
 	ch := make(chan func())
 
 	go func() {
@@ -50,12 +50,12 @@ func (i *Indexer) visitEachPackage(name string, animate, silent bool, fn func(p 
 
 	n := uint64(len(i.packages))
 	wg, count := runParallel(ch)
-	withProgress(wg, name, i.animate, i.silent, count, n)
+	withProgress(wg, name, i.animate, i.silent, i.verbose, count, n)
 }
 
 // visitEachDefinitionInfo invokes the given visitor function on each definition info value. This method
 // prints the progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachDefinitionInfo(name string, animate, silent bool, fn func(d *DefinitionInfo)) {
+func (i *Indexer) visitEachDefinitionInfo(name string, fn func(d *DefinitionInfo)) {
 	maps := []map[interface{}]*DefinitionInfo{
 		i.consts,
 		i.funcs,
@@ -84,12 +84,12 @@ func (i *Indexer) visitEachDefinitionInfo(name string, animate, silent bool, fn 
 	}()
 
 	wg, count := runParallel(ch)
-	withProgress(wg, name, i.animate, i.silent, count, n)
+	withProgress(wg, name, i.animate, i.silent, i.verbose, count, n)
 }
 
 // visitEachDocument invokes the given visitor function on each document. This method prints the
 // progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachDocument(name string, animate, silent bool, fn func(d *DocumentInfo)) {
+func (i *Indexer) visitEachDocument(name string, fn func(d *DocumentInfo)) {
 	ch := make(chan func())
 
 	go func() {
@@ -103,5 +103,5 @@ func (i *Indexer) visitEachDocument(name string, animate, silent bool, fn func(d
 
 	n := uint64(len(i.documents))
 	wg, count := runParallel(ch)
-	withProgress(wg, name, i.animate, i.silent, count, n)
+	withProgress(wg, name, i.animate, i.silent, i.verbose, count, n)
 }

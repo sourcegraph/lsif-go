@@ -24,6 +24,7 @@ var (
 	projectRoot    string
 	noProgress     bool
 	noOutput       bool
+	verboseOutput  bool
 )
 
 func init() {
@@ -37,6 +38,7 @@ func init() {
 	app.Flag("moduleRoot", "Specifies the module root directory relative to the repository").Default(".").StringVar(&moduleRoot)
 	app.Flag("noProgress", "Do not output verbose progress.").Default("false").BoolVar(&noProgress)
 	app.Flag("noOutput", "Do not output progress.").Default("false").BoolVar(&noOutput)
+	app.Flag("verbose", "Display timings and stats.").Default("false").BoolVar(&verboseOutput)
 }
 
 func parseArgs(args []string) (err error) {
