@@ -2,8 +2,8 @@ package indexer
 
 import "sync"
 
-// Stats summarizes the amount of work done by the indexer.
-type Stats struct {
+// IndexerStats summarizes the amount of work done by the indexer.
+type IndexerStats struct {
 	NumPkgs     uint
 	NumFiles    uint
 	NumDefs     uint

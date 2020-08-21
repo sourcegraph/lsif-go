@@ -3,11 +3,18 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/sourcegraph/lsif-go/internal/git"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 )
+
+func init() {
+	log.SetFlags(0)
+	log.SetPrefix("")
+	log.SetOutput(os.Stdout)
+}
 
 func main() {
 	if err := mainErr(); err != nil {

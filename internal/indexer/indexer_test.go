@@ -21,9 +21,10 @@ func TestIndexer(t *testing.T) {
 		w,
 		false,
 		true,
+		false,
 	)
 
-	if _, err := indexer.Index(); err != nil {
+	if err := indexer.Index(); err != nil {
 		t.Fatalf("unexpected error indexing testdata: %s", err.Error())
 	}
 
