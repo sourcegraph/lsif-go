@@ -9,8 +9,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/sourcegraph/lsif-go/internal/writer"
-	protocolwriter "github.com/sourcegraph/lsif-go/internal/writer"
 	"github.com/sourcegraph/lsif-go/protocol"
 	"golang.org/x/tools/go/packages"
 )
@@ -22,7 +20,7 @@ type Indexer struct {
 	moduleName     string            // name of this module
 	moduleVersion  string            // version of this module
 	dependencies   map[string]string // parsed module data
-	emitter        *writer.Emitter   // LSIF data emitter
+	emitter        *protocol.Emitter // LSIF data emitter
 	animate        bool              // Whether to animate output
 	silent         bool              // Whether to suppress all output
 	verbose        bool              // Whether to display elapsed time
@@ -63,7 +61,7 @@ func New(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]string,
-	writer protocolwriter.JSONWriter,
+	writer protocol.JSONWriter,
 	animate bool,
 	silent bool,
 	verbose bool,
@@ -75,7 +73,7 @@ func New(
 		moduleName:            moduleName,
 		moduleVersion:         moduleVersion,
 		dependencies:          dependencies,
-		emitter:               protocolwriter.NewEmitter(writer),
+		emitter:               protocol.NewEmitter(writer),
 		animate:               animate,
 		silent:                silent,
 		verbose:               verbose,
