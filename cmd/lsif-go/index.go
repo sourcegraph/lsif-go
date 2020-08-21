@@ -52,7 +52,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 	}
 
 	if !noOutput && verboseOutput {
-		displayStats(indexer.Stats(), time.Since(start), atomic.LoadUint64(&maxAlloc))
+		displayStats(indexer.Stats(), start, atomic.LoadUint64(&maxAlloc))
 	}
 
 	return nil
