@@ -3,6 +3,7 @@ package indexer
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 	"sort"
 	"strings"
 	"sync"
@@ -17,14 +18,14 @@ const nodePathLength = 3
 // nodePath is a fixed-size array of AST nodes.
 type nodePath = [nodePathLength]ast.Node
 
-// Preloader is a cache of hover text by file and token position.
+// Preloader is a cache of hover text and enclosing type identifiers by file and token position.
 type Preloader struct {
 	m            sync.RWMutex
 	hoverText    map[*packages.Package]map[token.Pos]nodePath
 	monikerPaths map[*packages.Package]map[token.Pos][]string
 }
 
-// Preloader creates a new empty Preloader.
+// newPreloader creates a new empty Preloader.
 func newPreloader() *Preloader {
 	return &Preloader{
 		hoverText:    map[*packages.Package]map[token.Pos]nodePath{},
@@ -36,17 +37,48 @@ func newPreloader() *Preloader {
 // paths for each of the given positions. This function assumes that the given positions are already
 // ordered so that a binary-search can be used to efficiently bound lookups.
 func (l *Preloader) Load(p *packages.Package, positions []token.Pos) {
+	definitionPositions, fieldPositions := interestingPositions(p)
 	hoverTextMap := map[token.Pos]nodePath{}
 	monikerPathMap := map[token.Pos][]string{}
 
 	for _, root := range p.Syntax {
-		visit(root, positions, hoverTextMap, monikerPathMap, nodePath{}, nil)
+		visit(root, definitionPositions, fieldPositions, hoverTextMap, monikerPathMap, nodePath{}, nil)
 	}
 
 	l.m.Lock()
 	l.hoverText[p] = hoverTextMap
 	l.monikerPaths[p] = monikerPathMap
 	l.m.Unlock()
+}
+
+// interestingPositions returns a sorted slice of token positions represeting the location of all definitions
+// of the given package, and a map of all unique token positions representing the location of fields. This is
+// used to determine which positions should have preloaded data held in memory (as doing it for every node in
+// the package's AST will occupy too much memory needlessly).
+func interestingPositions(p *packages.Package) ([]token.Pos, map[token.Pos]struct{}) {
+	definitionPositions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
+	fieldPositions := make(map[token.Pos]struct{}, len(p.TypesInfo.Defs)+len(p.TypesInfo.Uses))
+
+	for _, obj := range p.TypesInfo.Defs {
+		if obj != nil {
+			definitionPositions = append(definitionPositions, obj.Pos())
+		}
+
+		if v, ok := obj.(*types.Var); ok && v.IsField() {
+			fieldPositions[obj.Pos()] = struct{}{}
+		}
+	}
+
+	for _, obj := range p.TypesInfo.Uses {
+		if v, ok := obj.(*types.Var); ok && v.IsField() {
+			fieldPositions[obj.Pos()] = struct{}{}
+		}
+	}
+
+	// We run binary search over this so we need to ensure that it's ordered
+	sort.Slice(definitionPositions, func(i, j int) bool { return definitionPositions[i] < definitionPositions[j] })
+
+	return definitionPositions, fieldPositions
 }
 
 // Text will return the hover text extracted from the given package. For non-empty hover text to
@@ -64,14 +96,14 @@ func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []strin
 	return l.monikerPaths[p][position]
 }
 
-// visit walks the AST for a file and assigns hover text and a moniker path to each position. A
-// position's hover text is the comment associated with the deepest node that encloses the position.
+// visit walks the AST for a file and assigns hover text and a moniker path to interesting positions.
+// A position's hover text is the comment associated with the deepest node that encloses the position.
 // A position's moniker path is the name of the object prefixed with the names of the containers that
-// enclose that position. Each call to visit is given the unique path of ancestors from the root to
-// the parent of the node. This slice should not be directly altered.
+// enclose that position.
 func visit(
 	node ast.Node,
-	positions []token.Pos,
+	definitionPositions []token.Pos,
+	fieldPositions map[token.Pos]struct{},
 	hoverTextMap map[token.Pos]nodePath,
 	monikerPathMap map[token.Pos][]string,
 	path nodePath,
@@ -79,26 +111,28 @@ func visit(
 ) {
 	newPath := updateNodePath(path, node)
 	newMonikerPath := updateMonikerPath(monikerPath, node)
-	start := sort.Search(len(positions), func(i int) bool {
-		return positions[i] >= node.Pos()
+	start := sort.Search(len(definitionPositions), func(i int) bool {
+		return definitionPositions[i] >= node.Pos()
 	})
 
 	end := start
-	for end < len(positions) && positions[end] <= node.End() {
+	for end < len(definitionPositions) && definitionPositions[end] <= node.End() {
 		end++
 	}
 
 	for _, child := range childrenOf(node) {
-		visit(child, positions[start:end], hoverTextMap, monikerPathMap, newPath, newMonikerPath)
+		visit(child, definitionPositions[start:end], fieldPositions, hoverTextMap, monikerPathMap, newPath, newMonikerPath)
 	}
 
 	for i := start; i < end; i++ {
-		if _, ok := hoverTextMap[positions[i]]; !ok {
-			hoverTextMap[positions[i]] = newPath
+		if _, ok := hoverTextMap[definitionPositions[i]]; !ok {
+			hoverTextMap[definitionPositions[i]] = newPath
 		}
 	}
 
-	monikerPathMap[node.Pos()] = newMonikerPath
+	if _, ok := fieldPositions[node.Pos()]; ok {
+		monikerPathMap[node.Pos()] = newMonikerPath
+	}
 }
 
 // updateNodePath creates a array composed of the previous path plus the given node. This function
