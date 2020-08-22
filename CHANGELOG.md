@@ -13,6 +13,12 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.1.2
+
+### Changed
+
+- Downgraded go1.15 to go1.14 in Dockerfile to help diagnose customer build issues.
+
 ## v1.1.1
 
 ### Fixed
