@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"sort"
 	"strings"
 	"sync"
 
@@ -232,27 +231,13 @@ func (i *Indexer) preload() {
 
 		for _, p := range pkgs {
 			t := p
-			ch <- func() { i.preloader.Load(t, getDefinitionPositions(t)) }
+			ch <- func() { i.preloader.Load(t) }
 		}
 	}()
 
 	// Load hovers for each package concurrently
 	wg, count := runParallel(ch)
 	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, i.verbose, count, uint64(len(pkgs)))
-}
-
-// getDefinitionPositions extracts the positions of all definitions from the given package. This
-// returns a sorted slice.
-func getDefinitionPositions(p *packages.Package) []token.Pos {
-	positions := make([]token.Pos, 0, len(p.TypesInfo.Defs))
-	for _, obj := range p.TypesInfo.Defs {
-		if obj != nil {
-			positions = append(positions, obj.Pos())
-		}
-	}
-
-	sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
-	return positions
 }
 
 // getAllReferencedPackages returns a slice of packages containing the index target packages

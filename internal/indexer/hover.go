@@ -73,15 +73,14 @@ func makeCacheKey(pkg *types.Package, obj types.Object) string {
 	return ""
 }
 
-// findDocstring extracts the comments form the given object. It is assumed that this object is
+// findDocstring extracts the comments from the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
 func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) string {
 	if obj == nil {
 		return ""
 	}
 
-	switch v := obj.(type) {
-	case *types.PkgName:
+	if v, ok := obj.(*types.PkgName); ok {
 		return findPackageDocstring(pkgs, p, v)
 	}
 
@@ -89,15 +88,14 @@ func findDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.P
 	return preloader.Text(p, obj.Pos())
 }
 
-// findExternalDocstring extracts the comments form the given object. It is assumed that this object is
+// findExternalDocstring extracts the comments from the given object. It is assumed that this object is
 // declared in a dependency.
 func findExternalDocstring(preloader *Preloader, pkgs []*packages.Package, p *packages.Package, obj types.Object) string {
 	if obj == nil {
 		return ""
 	}
 
-	switch v := obj.(type) {
-	case *types.PkgName:
+	if v, ok := obj.(*types.PkgName); ok {
 		return findPackageDocstring(pkgs, p, v)
 	}
 
@@ -132,8 +130,8 @@ func findPackageDocstring(pkgs []*packages.Package, p *packages.Package, target 
 // extractPackagedocstring returns the first doc text attached to a file in the given package.
 func extractPackageDocstring(p *packages.Package) string {
 	for _, f := range p.Syntax {
-		if f.Doc.Text() != "" {
-			return f.Doc.Text()
+		if text := f.Doc.Text(); text != "" {
+			return text
 		}
 	}
 
