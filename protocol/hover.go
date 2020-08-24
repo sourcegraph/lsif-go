@@ -1,8 +1,6 @@
 package protocol
 
-import (
-	jsoniter "github.com/json-iterator/go"
-)
+import jsoniter "github.com/json-iterator/go"
 
 type HoverResult struct {
 	Vertex
