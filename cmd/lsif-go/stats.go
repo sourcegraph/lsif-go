@@ -9,13 +9,12 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/util"
 )
 
-func displayStats(indexerStats *indexer.IndexerStats, start time.Time, heapAlloc uint64) {
+func displayStats(indexerStats *indexer.IndexerStats, start time.Time) {
 	stats := []struct {
 		name  string
 		value string
 	}{
 		{"Wall time elapsed", fmt.Sprintf("%s", util.HumanElapsed(start))},
-		{"Peak heap allocations", fmt.Sprintf("%dMB", heapAlloc/1024/1024)},
 		{"Packages indexed", fmt.Sprintf("%d", indexerStats.NumPkgs)},
 		{"Files indexed", fmt.Sprintf("%d", indexerStats.NumFiles)},
 		{"Definitions indexed", fmt.Sprintf("%d", indexerStats.NumDefs)},
