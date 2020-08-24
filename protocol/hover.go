@@ -1,6 +1,8 @@
 package protocol
 
-import "encoding/json"
+import (
+	jsoniter "github.com/json-iterator/go"
+)
 
 type HoverResult struct {
 	Vertex
@@ -48,11 +50,13 @@ func RawMarkedString(s string) MarkedString {
 	}
 }
 
+var marshaller = jsoniter.ConfigFastest
+
 func (m MarkedString) MarshalJSON() ([]byte, error) {
 	if m.isRawString {
-		return json.Marshal(m.Value)
+		return marshaller.Marshal(m.Value)
 	}
-	return json.Marshal((markedString)(m))
+	return marshaller.Marshal((markedString)(m))
 }
 
 type TextDocumentHover struct {

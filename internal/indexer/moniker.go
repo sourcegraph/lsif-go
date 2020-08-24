@@ -47,7 +47,7 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, ident 
 	}
 }
 
-// packagePrefixes return sall prefix of the go package path. For example, the package
+// packagePrefixes returns all prefix of the go package path. For example, the package
 // `foo/bar/baz` will return the slice containing `foo/bar/baz`, `foo/bar`, and `foo`.
 func packagePrefixes(packageName string) []string {
 	parts := strings.Split(packageName, "/")
