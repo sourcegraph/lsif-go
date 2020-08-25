@@ -13,17 +13,23 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
-## v1.1.2
+## v1.1.3
 
 ### Changed
 
-- Downgraded go1.15 to go1.14 in Dockerfile to help diagnose customer build issues.
+- Additional updates to lower resident memory. [#109](https://github.com/sourcegraph/lsif-go/pull/109)
+
+## v1.1.2
+
+### Fixed
+
+- Downgraded go1.15 to go1.14 in Dockerfile to help diagnose customer build issues. [5d8865d](https://github.com/sourcegraph/lsif-go/commit/5d8865d6feacb4fce3313cade2c61dc29c6271e6)
 
 ## v1.1.1
 
 ### Fixed
 
-- Replaced the digest of the golang base image.
+- Replaced the digest of the golang base image. [ae1cd6e](https://github.com/sourcegraph/lsif-go/commit/ae1cd6e97cf6551e68da9f010a3d86f438552bdb)
 
 ## v1.1.0
 
