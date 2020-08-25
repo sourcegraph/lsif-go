@@ -4,16 +4,26 @@ Visit https://lsif.dev/ to learn about LSIF.
 
 ## Installation
 
-### Docker
+Binary downloads are available on the [releases tab](https://github.com/sourcegraph/lsif-go/releases).
+
+### Installation: Linux
+
+```
+curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.3/src_linux_amd64 -o /usr/local/bin/lsif-go
+chmod +x /usr/local/bin/lsif-go
+```
+
+### Installation: MacOS
+
+```
+curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.3/src_darwin_amd64 -o /usr/local/bin/lsif-go
+chmod +x /usr/local/bin/lsif-go
+```
+
+### Installation: Docker
 
 ```
 docker pull sourcegraph/lsif-go:v1.1.2
-```
-
-### Binary
-
-```
-go get github.com/sourcegraph/lsif-go/cmd/lsif-go
 ```
 
 ## Indexing your repository
