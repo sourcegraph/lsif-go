@@ -12,27 +12,31 @@ type TestInterface interface {
 	Do(ctx context.Context, data string) (score int, _ error)
 }
 
-// TestStruct is a struct used for testing.
-type TestStruct struct {
-	// SimpleA docs
-	SimpleA int
-	// SimpleB docs
-	SimpleB int
-	// SimpleC docs
-	SimpleC int
+type (
+	// TestStruct is a struct used for testing.
+	TestStruct struct {
+		// SimpleA docs
+		SimpleA int
+		// SimpleB docs
+		SimpleB int
+		// SimpleC docs
+		SimpleC int
 
-	FieldWithTag           string `json:"tag"`
-	FieldWithAnonymousType struct {
-		NestedA string
-		NestedB string
-		NestedC string
+		FieldWithTag           string `json:"tag"`
+		FieldWithAnonymousType struct {
+			NestedA string
+			NestedB string
+			// NestedC docs
+			NestedC string
+		}
+
+		EmptyStructField struct{}
 	}
 
-	EmptyStructField struct{}
-}
+	TestEmptyStruct struct{}
+)
 
-type TestEmptyStruct struct{}
-
+// Score is just a hardcoded number.
 const Score = uint64(42)
 const secretScore = secret.SecretScore
 

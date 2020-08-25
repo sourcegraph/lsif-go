@@ -75,7 +75,7 @@ func findUseByName(t *testing.T, packages []*packages.Package, name string) (*pa
 func preload(packages []*packages.Package) *Preloader {
 	preloader := newPreloader()
 	for _, p := range getAllReferencedPackages(packages) {
-		preloader.Load(p, getDefinitionPositions(p))
+		preloader.Load(p)
 	}
 
 	return preloader

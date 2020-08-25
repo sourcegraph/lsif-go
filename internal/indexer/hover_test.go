@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestFindDocstring(t *testing.T) {
+func TestFindDocstringFunc(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "ParallelizableFunc")
 
@@ -12,6 +12,60 @@ func TestFindDocstring(t *testing.T) {
 		ParallelizableFunc is a function that can be called concurrently with other instances
 		of this function type.
 	`)
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
+	}
+}
+
+func TestFindDocstringInterface(t *testing.T) {
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "TestInterface")
+
+	expectedText := normalizeDocstring(`TestInterface is an interface used for testing.`)
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
+	}
+}
+
+func TestFindDocstringStruct(t *testing.T) {
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "TestStruct")
+
+	expectedText := normalizeDocstring(`TestStruct is a struct used for testing.`)
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
+	}
+}
+
+func TestFindDocstringField(t *testing.T) {
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "NestedC")
+
+	expectedText := normalizeDocstring(`NestedC docs`)
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
+	}
+}
+
+func TestFindDocstringConst(t *testing.T) {
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "Score")
+
+	expectedText := normalizeDocstring(`Score is just a hardcoded number.`)
+	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
+	}
+}
+
+// TestFindDocstringLocalVariable ensures that local definitions within a function with a
+// docstring do not take their parent's docstring as their own. This was a brief (unpublished)
+// regression made when switching from storing node paths for hover text extraction to only
+// storing a single ancestor node from which hover text is extracted.
+func TestFindDocstringLocalVariable(t *testing.T) {
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "errs")
+
+	expectedText := normalizeDocstring(``)
 	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}

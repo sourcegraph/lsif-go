@@ -19,9 +19,8 @@ func Parallel(ctx context.Context, fns ...ParallelizableFunc) error {
 		wg.Add(1)
 
 		go func(fn ParallelizableFunc) {
-			defer wg.Done()
-
 			errs <- fn(ctx)
+			wg.Done()
 		}(fn)
 	}
 
