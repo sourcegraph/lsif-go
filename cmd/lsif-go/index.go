@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"sync/atomic"
 	"time"
 
 	"github.com/sourcegraph/lsif-go/internal/indexer"
@@ -13,11 +11,7 @@ import (
 )
 
 func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, dependencies map[string]string, outFile string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	start := time.Now()
-	go monitorHeap(ctx)
 
 	out, err := os.Create(outFile)
 	if err != nil {
@@ -52,7 +46,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 	}
 
 	if !noOutput && verboseOutput {
-		displayStats(indexer.Stats(), start, atomic.LoadUint64(&maxAlloc))
+		displayStats(indexer.Stats(), start)
 	}
 
 	return nil
