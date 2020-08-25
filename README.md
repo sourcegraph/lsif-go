@@ -2,11 +2,15 @@
 
 Visit https://lsif.dev/ to learn about LSIF.
 
-## Prerequisites
-
-- [Go](https://golang.org/)
-
 ## Installation
+
+### Docker
+
+```
+docker pull sourcegraph/lsif-go:v1.1.2
+```
+
+### Binary
 
 ```
 go get github.com/sourcegraph/lsif-go/cmd/lsif-go
@@ -17,18 +21,22 @@ go get github.com/sourcegraph/lsif-go/cmd/lsif-go
 After installing `lsif-go` onto your PATH, run the command in the root where your `go.mod` file is located.
 
 ```
-$ lsif-go
-✔ Loading packages... Done (1.004256336s).
-✔ Emitting documents... Done (112.332µs).
-✔ Adding import definitions... Done (106.871µs).
-✔ Preloading hover text and moniker paths... Done (206.538662ms).
-✔ Indexing definitions... Done (14.696201ms).
-✔ Indexing references... Done (12.748611ms).
-✔ Linking reference results to ranges... Done (7.027725ms).
-✔ Emitting contains relations... Done (330.363µs).
+$ lsif-go --verbose
+✔ Loading packages... Done (846.22ms).
+✔ Emitting documents... Done (87.69µs).
+✔ Adding import definitions... Done (163.11µs).
+✔ Preloading hover text and moniker paths... Done (85.85ms).
+✔ Indexing definitions... Done (15.8ms).
+✔ Indexing references... Done (12.03ms).
+✔ Linking items to definitions... Done (6.83ms).
+✔ Emitting contains relations... Done (210.09µs).
 
-14 package(s), 52 file(s), 1642 def(s), 33725 element(s)
-Processed in 1.246392158s
+Stats:
+	Wall time elapsed:   968.11ms
+	Packages indexed:    14
+	Files indexed:       51
+	Definitions indexed: 1657
+	Elements emitted:    34040
 ```
 
 Use `lsif-go --help` for more information.
