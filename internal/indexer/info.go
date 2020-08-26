@@ -10,8 +10,8 @@ type IndexerStats struct {
 	NumElements uint64
 }
 
-// PreloaderStats summarizes the amount of work done by the preloader.
-type PreloaderStats struct {
+// PackageDataCacheStats summarizes the amount of work done by the package data cache.
+type PackageDataCacheStats struct {
 	NumPks uint
 }
 

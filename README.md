@@ -32,21 +32,21 @@ After installing `lsif-go` onto your PATH, run the command in the root where you
 
 ```
 $ lsif-go --verbose
-✔ Loading packages... Done (846.22ms).
-✔ Emitting documents... Done (87.69µs).
-✔ Adding import definitions... Done (163.11µs).
-✔ Preloading hover text and moniker paths... Done (85.85ms).
-✔ Indexing definitions... Done (15.8ms).
-✔ Indexing references... Done (12.03ms).
-✔ Linking items to definitions... Done (6.83ms).
-✔ Emitting contains relations... Done (210.09µs).
+✔ Loading packages... Done (742.23ms).
+✔ Emitting documents... Done (63.89µs).
+✔ Adding import definitions... Done (164.49µs).
+✔ Indexing definitions... Done (14.99ms).
+✔ Indexing references... Done (78.11ms).
+✔ Linking items to definitions... Done (8.98ms).
+✔ Emitting contains relations... Done (258.99µs).
 
 Stats:
-	Wall time elapsed:   968.11ms
+	Wall time elapsed:   845.53ms
 	Packages indexed:    14
 	Files indexed:       51
-	Definitions indexed: 1657
-	Elements emitted:    34040
+	Definitions indexed: 1654
+	Elements emitted:    33956
+	Packages traversed:  40
 ```
 
 Use `lsif-go --help` for more information.

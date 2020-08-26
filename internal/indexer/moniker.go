@@ -20,7 +20,7 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, ident 
 
 	i.addMonikers(
 		"export",
-		strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(obj), monikerIdentifier(i.preloader, p, ident, obj)), ":"),
+		strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(obj), monikerIdentifier(i.packageDataCache, p, ident, obj)), ":"),
 		sourceID,
 		i.ensurePackageInformation(i.moduleName, i.moduleVersion),
 	)
@@ -37,7 +37,7 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, ident 
 		if moduleVersion, ok := i.dependencies[moduleName]; ok {
 			i.addMonikers(
 				"import",
-				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.preloader, p, ident, obj)), ":"),
+				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.packageDataCache, p, ident, obj)), ":"),
 				sourceID,
 				i.ensurePackageInformation(moduleName, moduleVersion),
 			)
@@ -105,7 +105,7 @@ func monikerPackage(obj types.Object) string {
 // monikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`. The identifier is meant to act as a
 // qualified type path to the given object (e.g. `StructName.FieldName` or `StructName.MethodName`).
-func monikerIdentifier(preloader *Preloader, p *packages.Package, ident *ast.Ident, obj types.Object) string {
+func monikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, ident *ast.Ident, obj types.Object) string {
 	if _, ok := obj.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
 		return ""
@@ -115,7 +115,7 @@ func monikerIdentifier(preloader *Preloader, p *packages.Package, ident *ast.Ide
 		// Qualifiers for fields were populated as pre-load step so we do not need to traverse
 		// the AST path back up to the root to find the enclosing type specs and fields with an
 		// anonymous struct type.
-		return strings.Join(preloader.MonikerPath(p, obj.Pos()), ".")
+		return strings.Join(packageDataCache.MonikerPath(p, obj.Pos()), ".")
 	}
 
 	if signature, ok := obj.Type().(*types.Signature); ok {

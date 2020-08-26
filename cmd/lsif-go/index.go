@@ -25,7 +25,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		Args:    os.Args[1:],
 	}
 
-	preloader := indexer.NewPreloader()
+	packageDataCache := indexer.NewPackageDataCache()
 
 	// TODO(efritz) - With cgo enabled, the indexer cannot handle packages
 	// that include assembly (.s) files. To index such a package you need to
@@ -38,7 +38,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		moduleVersion,
 		dependencies,
 		writer.NewJSONWriter(out),
-		preloader,
+		packageDataCache,
 		!noProgress,
 		noOutput,
 		verboseOutput,
@@ -49,7 +49,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 	}
 
 	if !noOutput && verboseOutput {
-		displayStats(indexer.Stats(), preloader.Stats(), start)
+		displayStats(indexer.Stats(), packageDataCache.Stats(), start)
 	}
 
 	return nil
