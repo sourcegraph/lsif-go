@@ -37,7 +37,7 @@ type Indexer struct {
 	ranges                map[string]map[int]uint64 // filename -> offset -> rangeID
 	hoverResultCache      map[string]uint64         // cache key -> hoverResultID
 	packageInformationIDs map[string]uint64         // name -> packageInformationID
-	preloader             *Preloader                // hover text cache
+	packageDataCache      *PackageDataCache         // hover text and moniker path cache
 	packages              []*packages.Package       // index target packages
 	projectID             uint64                    // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
@@ -61,7 +61,7 @@ func New(
 	moduleVersion string,
 	dependencies map[string]string,
 	writer protocol.JSONWriter,
-	preloader *Preloader,
+	packageDataCache *PackageDataCache,
 	animate bool,
 	silent bool,
 	verbose bool,
@@ -87,7 +87,7 @@ func New(
 		ranges:                map[string]map[int]uint64{},
 		hoverResultCache:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
-		preloader:             preloader,
+		packageDataCache:      packageDataCache,
 		stripedMutex:          newStripedMutex(),
 	}
 }
@@ -314,7 +314,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	// Caching this gives us a big win for package documentation, which is likely to be large and is
 	// repeated at each import and selector within referenced files.
 	hoverResultID := i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
-		return findHoverContents(i.preloader, i.packages, p, obj)
+		return findHoverContents(i.packageDataCache, i.packages, p, obj)
 	})
 
 	rangeID := i.emitter.EmitRange(rangeForObject(obj, ident, pos))
@@ -466,7 +466,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	// methods imported from other packages are likely to be used many times in a dependent
 	// project (e.g., context.Context, http.Request, etc).
 	hoverResultID := i.makeCachedHoverResult(definitionPkg, obj, func() []protocol.MarkedString {
-		return findExternalHoverContents(i.preloader, i.packages, p, obj)
+		return findExternalHoverContents(i.packageDataCache, i.packages, p, obj)
 	})
 
 	rangeID := i.ensureRangeFor(ident, pos, obj)

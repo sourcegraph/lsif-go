@@ -10,44 +10,44 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// Preloader is a cache of hover text and enclosing type identifiers by file and token position.
-type Preloader struct {
+// PackageDataCache is a cache of hover text and enclosing type identifiers by file and token position.
+type PackageDataCache struct {
 	m           sync.RWMutex
-	packageData map[*packages.Package]*PreloadedPackageData
+	packageData map[*packages.Package]*PackageData
 }
 
-// NewPreloader creates a new empty Preloader.
-func NewPreloader() *Preloader {
-	return &Preloader{
-		packageData: map[*packages.Package]*PreloadedPackageData{},
+// NewPackageDataCache creates a new empty PackageDataCache.
+func NewPackageDataCache() *PackageDataCache {
+	return &PackageDataCache{
+		packageData: map[*packages.Package]*PackageData{},
 	}
 }
 
 // Text will return the hover text extracted from the given package for the symbol at the given position.
 // This method will parse the package if the package results haven't been previously calculated or have been
 // evicted from the cache.
-func (l *Preloader) Text(p *packages.Package, position token.Pos) string {
+func (l *PackageDataCache) Text(p *packages.Package, position token.Pos) string {
 	return extractHoverText(l.getPackageData(p).HoverText[position])
 }
 
 // MonikerPath will return the names of enclosing nodes extracted form the given package for the symbol at
 // the given position. This method will parse the package if the package results haven't been previously
 // calculated or have been evicted  from the cache.
-func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []string {
+func (l *PackageDataCache) MonikerPath(p *packages.Package, position token.Pos) []string {
 	return l.getPackageData(p).MonikerPaths[position]
 }
 
-// Stats returns a PreloaderStats object with the number of unique packages traversed.
-func (l *Preloader) Stats() PreloaderStats {
-	return PreloaderStats{
+// Stats returns a PackageDataCacheStats object with the number of unique packages traversed.
+func (l *PackageDataCache) Stats() PackageDataCacheStats {
+	return PackageDataCacheStats{
 		NumPks: uint(len(l.packageData)),
 	}
 }
 
-// getPackageData will return a loaded package data value for the given package. If the data for this package
-// has not already been loaded, it will be loaded immediately. This method will block until the package data
-// has been completely loaded before returning to the caller.
-func (l *Preloader) getPackageData(p *packages.Package) *PreloadedPackageData {
+// getPackageData will return a package data value for the given package. If the data for this package has not
+// already been loaded, it will be loaded immediately. This method will block until the package data has been
+// completely loaded before returning to the caller.
+func (l *PackageDataCache) getPackageData(p *packages.Package) *PackageData {
 	data := l.getPackageDataRaw(p)
 	data.load(p)
 	return data
@@ -55,7 +55,7 @@ func (l *Preloader) getPackageData(p *packages.Package) *PreloadedPackageData {
 
 // getPackageDataRaw will return the package data value for the given package or create one of it doesn't exist.
 // It is not guaranteed that the value has bene loaded, so load (which is idempotent) should be called before use.
-func (l *Preloader) getPackageDataRaw(p *packages.Package) *PreloadedPackageData {
+func (l *PackageDataCache) getPackageDataRaw(p *packages.Package) *PackageData {
 	l.m.RLock()
 	data, ok := l.packageData[p]
 	l.m.RUnlock()
@@ -69,7 +69,7 @@ func (l *Preloader) getPackageDataRaw(p *packages.Package) *PreloadedPackageData
 		return data
 	}
 
-	data = &PreloadedPackageData{
+	data = &PackageData{
 		HoverText:    map[token.Pos]ast.Node{},
 		MonikerPaths: map[token.Pos][]string{},
 	}
@@ -77,8 +77,8 @@ func (l *Preloader) getPackageDataRaw(p *packages.Package) *PreloadedPackageData
 	return data
 }
 
-// PreloadedPackageData is a cache of hover text and moniker paths by token position within a package.
-type PreloadedPackageData struct {
+// PackageData is a cache of hover text and moniker paths by token position within a package.
+type PackageData struct {
 	once         sync.Once
 	HoverText    map[token.Pos]ast.Node
 	MonikerPaths map[token.Pos][]string
@@ -86,22 +86,19 @@ type PreloadedPackageData struct {
 
 // load will parse the package and populate the maps of hover text and moniker paths. This method is
 // idempotent. All calls to this method will block until the first call has completed.
-func (data *PreloadedPackageData) load(p *packages.Package) (loaded bool) {
+func (data *PackageData) load(p *packages.Package) {
 	data.once.Do(func() {
-		loaded = true
 		definitionPositions, fieldPositions := interestingPositions(p)
 
 		for _, root := range p.Syntax {
 			visit(root, definitionPositions, fieldPositions, data.HoverText, data.MonikerPaths, nil, nil)
 		}
 	})
-
-	return loaded
 }
 
 // interestingPositions returns a pair of maps whose keys are token positions for which we want values
-// in the preloader's hoverText and monikerPaths maps. Determining which types of types we will query
-// for this data and populating values only for those nodes saves a lot of resident memory.
+// in the package data cache's hoverText and monikerPaths maps. Determining which types of types we will
+// query for this data and populating values only for those nodes saves a lot of resident memory.
 func interestingPositions(p *packages.Package) (map[token.Pos]struct{}, map[token.Pos]struct{}) {
 	hoverTextPositions := map[token.Pos]struct{}{}
 	monikerPathPositions := map[token.Pos]struct{}{}
