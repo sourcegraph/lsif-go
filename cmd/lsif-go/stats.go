@@ -9,7 +9,7 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/util"
 )
 
-func displayStats(indexerStats *indexer.IndexerStats, start time.Time) {
+func displayStats(indexerStats indexer.IndexerStats, preloaderStats indexer.PreloaderStats, start time.Time) {
 	stats := []struct {
 		name  string
 		value string
@@ -19,6 +19,7 @@ func displayStats(indexerStats *indexer.IndexerStats, start time.Time) {
 		{"Files indexed", fmt.Sprintf("%d", indexerStats.NumFiles)},
 		{"Definitions indexed", fmt.Sprintf("%d", indexerStats.NumDefs)},
 		{"Elements emitted", fmt.Sprintf("%d", indexerStats.NumElements)},
+		{"Unique packages traversed", fmt.Sprintf("%d", preloaderStats.NumPks)},
 	}
 
 	n := 0

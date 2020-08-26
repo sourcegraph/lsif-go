@@ -10,6 +10,11 @@ type IndexerStats struct {
 	NumElements uint64
 }
 
+// PreloaderStats summarizes the amount of work done by the preloader.
+type PreloaderStats struct {
+	NumPks uint
+}
+
 // DocumentInfo provides context for constructing the contains relationship between
 // a document and the ranges that it contains.
 type DocumentInfo struct {

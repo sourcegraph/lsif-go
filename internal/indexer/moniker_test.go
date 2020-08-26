@@ -126,8 +126,9 @@ func TestMonikerIdentifierBasic(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "Score")
 	ident := &ast.Ident{Name: "Score", NamePos: obj.Pos()}
+	preloader := NewPreloader()
 
-	if identifier := monikerIdentifier(preload(packages), p, ident, obj); identifier != "Score" {
+	if identifier := monikerIdentifier(preloader, p, ident, obj); identifier != "Score" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "Score", identifier)
 	}
 }
@@ -136,8 +137,9 @@ func TestMonikerIdentifierPackageName(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "sync")
 	ident := &ast.Ident{Name: "sync", NamePos: obj.Pos()}
+	preloader := NewPreloader()
 
-	if identifier := monikerIdentifier(preload(packages), p, ident, obj); identifier != "" {
+	if identifier := monikerIdentifier(preloader, p, ident, obj); identifier != "" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "", identifier)
 	}
 }
@@ -146,8 +148,9 @@ func TestMonikerIdentifierSignature(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "Doer")
 	ident := &ast.Ident{Name: "Doer", NamePos: obj.Pos()}
+	preloader := NewPreloader()
 
-	if identifier := monikerIdentifier(preload(packages), p, ident, obj); identifier != "TestStruct.Doer" {
+	if identifier := monikerIdentifier(preloader, p, ident, obj); identifier != "TestStruct.Doer" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.Doer", identifier)
 	}
 }
@@ -156,8 +159,9 @@ func TestMonikerIdentifierField(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "NestedB")
 	ident := &ast.Ident{Name: "NestedB", NamePos: obj.Pos()}
+	preloader := NewPreloader()
 
-	if identifier := monikerIdentifier(preload(packages), p, ident, obj); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
+	if identifier := monikerIdentifier(preloader, p, ident, obj); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
 	}
 }

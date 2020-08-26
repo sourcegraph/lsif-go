@@ -7,12 +7,13 @@ import (
 func TestFindDocstringFunc(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "ParallelizableFunc")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`
 		ParallelizableFunc is a function that can be called concurrently with other instances
 		of this function type.
 	`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -20,9 +21,10 @@ func TestFindDocstringFunc(t *testing.T) {
 func TestFindDocstringInterface(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "TestInterface")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`TestInterface is an interface used for testing.`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -30,9 +32,10 @@ func TestFindDocstringInterface(t *testing.T) {
 func TestFindDocstringStruct(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "TestStruct")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`TestStruct is a struct used for testing.`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -40,9 +43,10 @@ func TestFindDocstringStruct(t *testing.T) {
 func TestFindDocstringField(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "NestedC")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`NestedC docs`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -50,9 +54,10 @@ func TestFindDocstringField(t *testing.T) {
 func TestFindDocstringConst(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "Score")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`Score is just a hardcoded number.`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -64,9 +69,10 @@ func TestFindDocstringConst(t *testing.T) {
 func TestFindDocstringLocalVariable(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "errs")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(``)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -74,9 +80,10 @@ func TestFindDocstringLocalVariable(t *testing.T) {
 func TestFindDocstringInternalPackageName(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "secret")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`secret is a package that holds secrets.`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -84,6 +91,7 @@ func TestFindDocstringInternalPackageName(t *testing.T) {
 func TestFindDocstringExternalPackageName(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "sync")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`
 		Package sync provides basic synchronization primitives such as mutual exclusion locks.
@@ -91,7 +99,7 @@ func TestFindDocstringExternalPackageName(t *testing.T) {
 		Higher-level synchronization is better done via channels and communication.
 		Values containing the types defined in this package should not be copied.
 	`)
-	if text := normalizeDocstring(findDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }
@@ -99,6 +107,7 @@ func TestFindDocstringExternalPackageName(t *testing.T) {
 func TestFindExternalDocstring(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "WaitGroup")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`
 		A WaitGroup waits for a collection of goroutines to finish.
@@ -107,7 +116,7 @@ func TestFindExternalDocstring(t *testing.T) {
 		At the same time, Wait can be used to block until all goroutines have finished.
 		A WaitGroup must not be copied after first use.
 	`)
-	if text := normalizeDocstring(findExternalDocstring(preload(packages), packages, p, obj)); text != expectedText {
+	if text := normalizeDocstring(findExternalDocstring(preloader, packages, p, obj)); text != expectedText {
 		t.Errorf("unexpected hover text. want=%q have=%q", expectedText, text)
 	}
 }

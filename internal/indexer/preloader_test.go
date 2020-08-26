@@ -4,8 +4,8 @@ import "testing"
 
 func TestPreloader(t *testing.T) {
 	packages := getTestPackages(t)
-	preloader := preload(packages)
 	p, obj := findDefinitionByName(t, packages, "ParallelizableFunc")
+	preloader := NewPreloader()
 
 	expectedText := normalizeDocstring(`
 		ParallelizableFunc is a function that can be called concurrently with other instances

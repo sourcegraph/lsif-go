@@ -70,17 +70,6 @@ func findUseByName(t *testing.T, packages []*packages.Package, name string) (*pa
 	return nil, nil
 }
 
-// preload populates and returns a Preloader instance with the hover text and moniker
-// paths for all definitions in in the given packages.
-func preload(packages []*packages.Package) *Preloader {
-	preloader := newPreloader()
-	for _, p := range getAllReferencedPackages(packages) {
-		preloader.Load(p)
-	}
-
-	return preloader
-}
-
 // normalizeDocstring removes leading indentation from each line, removes empty lines,
 // trims trailing whitespace, and returns the remaining lines joined by a single space.
 func normalizeDocstring(s string) string {
