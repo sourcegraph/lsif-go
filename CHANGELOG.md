@@ -17,7 +17,7 @@ Nothing yet.
 
 ### Changed
 
-- Replaced "Preloading hover text and moniker paths" step with on-demand processing of packages. This should give a small index time speed boost and is likely to lower resident memory in some environments. [#104](https://github.com/sourcegraph/lsif-go/pull/104).
+- Replaced "Preloading hover text and moniker paths" step with on-demand processing of packages. This should give a small index time speed boost and is likely to lower resident memory in some environments. [#104](https://github.com/sourcegraph/lsif-go/pull/104)
 
 ## v1.1.3
 
