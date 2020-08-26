@@ -61,6 +61,7 @@ func New(
 	moduleVersion string,
 	dependencies map[string]string,
 	writer protocol.JSONWriter,
+	preloader *Preloader,
 	animate bool,
 	silent bool,
 	verbose bool,
@@ -86,7 +87,7 @@ func New(
 		ranges:                map[string]map[int]uint64{},
 		hoverResultCache:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
-		preloader:             newPreloader(),
+		preloader:             preloader,
 		stripedMutex:          newStripedMutex(),
 	}
 }
@@ -102,7 +103,6 @@ func (i *Indexer) Index() error {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
-	i.preload()
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
@@ -216,28 +216,6 @@ func importSpecName(spec *ast.ImportSpec) string {
 	}
 
 	return spec.Path.Value
-}
-
-// preload populates the preloader with hover text for every definition within the index target
-// packages, as well as the definitions in all directly imported packages (but no transitively
-// imported packages). This will also load the moniker paths for all identifiers in the same
-// files.
-func (i *Indexer) preload() {
-	ch := make(chan func())
-	pkgs := getAllReferencedPackages(i.packages)
-
-	go func() {
-		defer close(ch)
-
-		for _, p := range pkgs {
-			t := p
-			ch <- func() { i.preloader.Load(t) }
-		}
-	}()
-
-	// Load hovers for each package concurrently
-	wg, count := runParallel(ch)
-	withProgress(wg, "Preloading hover text and moniker paths", i.animate, i.silent, i.verbose, count, uint64(len(pkgs)))
 }
 
 // getAllReferencedPackages returns a slice of packages containing the index target packages
@@ -574,8 +552,8 @@ func (i *Indexer) emitContainsForProject() {
 }
 
 // Stats returns an IndexerStats object with the number of packages, files, and elements analyzed/emitted.
-func (i *Indexer) Stats() *IndexerStats {
-	return &IndexerStats{
+func (i *Indexer) Stats() IndexerStats {
+	return IndexerStats{
 		NumPkgs:     uint(len(i.packages)),
 		NumFiles:    uint(len(i.documents)),
 		NumDefs:     uint(len(i.consts) + len(i.funcs) + len(i.imports) + len(i.labels) + len(i.types) + len(i.vars)),

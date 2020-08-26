@@ -11,6 +11,7 @@ import (
 func TestIndexer(t *testing.T) {
 	w := &capturingWriter{}
 	projectRoot := getRepositoryRoot(t)
+	preloader := NewPreloader()
 	indexer := New(
 		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
 		projectRoot,
@@ -19,6 +20,7 @@ func TestIndexer(t *testing.T) {
 		"0.0.1",
 		nil,
 		w,
+		preloader,
 		false,
 		true,
 		false,

@@ -12,52 +12,91 @@ import (
 
 // Preloader is a cache of hover text and enclosing type identifiers by file and token position.
 type Preloader struct {
-	m            sync.RWMutex
-	hoverText    map[*packages.Package]map[token.Pos]ast.Node
-	monikerPaths map[*packages.Package]map[token.Pos][]string
+	m           sync.RWMutex
+	packageData map[*packages.Package]*PreloadedPackageData
 }
 
-// newPreloader creates a new empty Preloader.
-func newPreloader() *Preloader {
+// NewPreloader creates a new empty Preloader.
+func NewPreloader() *Preloader {
 	return &Preloader{
-		hoverText:    map[*packages.Package]map[token.Pos]ast.Node{},
-		monikerPaths: map[*packages.Package]map[token.Pos][]string{},
+		packageData: map[*packages.Package]*PreloadedPackageData{},
 	}
 }
 
-// Load will walk the AST of each file in the given package and cache the hover text and moniker
-// paths for each interesting position in the
-func (l *Preloader) Load(p *packages.Package) {
-	hoverTextPositions, monikerPathPositions := interestingPositions(p)
-	hoverTextMap := map[token.Pos]ast.Node{}
-	monikerPathMap := map[token.Pos][]string{}
+// Text will return the hover text extracted from the given package for the symbol at the given position.
+// This method will parse the package if the package results haven't been previously calculated or have been
+// evicted from the cache.
+func (l *Preloader) Text(p *packages.Package, position token.Pos) string {
+	return extractHoverText(l.getPackageData(p).HoverText[position])
+}
 
-	for _, root := range p.Syntax {
-		visit(root, hoverTextPositions, monikerPathPositions, hoverTextMap, monikerPathMap, nil, nil)
+// MonikerPath will return the names of enclosing nodes extracted form the given package for the symbol at
+// the given position. This method will parse the package if the package results haven't been previously
+// calculated or have been evicted  from the cache.
+func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []string {
+	return l.getPackageData(p).MonikerPaths[position]
+}
+
+// Stats returns a PreloaderStats object with the number of unique packages traversed.
+func (l *Preloader) Stats() PreloaderStats {
+	return PreloaderStats{
+		NumPks: uint(len(l.packageData)),
+	}
+}
+
+// getPackageData will return a loaded package data value for the given package. If the data for this package
+// has not already been loaded, it will be loaded immediately. This method will block until the package data
+// has been completely loaded before returning to the caller.
+func (l *Preloader) getPackageData(p *packages.Package) *PreloadedPackageData {
+	data := l.getPackageDataRaw(p)
+	data.load(p)
+	return data
+}
+
+// getPackageDataRaw will return the package data value for the given package or create one of it doesn't exist.
+// It is not guaranteed that the value has bene loaded, so load (which is idempotent) should be called before use.
+func (l *Preloader) getPackageDataRaw(p *packages.Package) *PreloadedPackageData {
+	l.m.RLock()
+	data, ok := l.packageData[p]
+	l.m.RUnlock()
+	if ok {
+		return data
 	}
 
 	l.m.Lock()
-	l.hoverText[p] = hoverTextMap
-	l.monikerPaths[p] = monikerPathMap
-	l.m.Unlock()
+	defer l.m.Unlock()
+	if data, ok = l.packageData[p]; ok {
+		return data
+	}
+
+	data = &PreloadedPackageData{
+		HoverText:    map[token.Pos]ast.Node{},
+		MonikerPaths: map[token.Pos][]string{},
+	}
+	l.packageData[p] = data
+	return data
 }
 
-// Text will return the hover text for the given token position extracted from the given package. For a
-// non-empty hover text to be returned from this method, Load must have been previously called with this
-// package as an argument.
-func (l *Preloader) Text(p *packages.Package, position token.Pos) string {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return extractHoverText(l.hoverText[p][position])
+// PreloadedPackageData is a cache of hover text and moniker paths by token position within a package.
+type PreloadedPackageData struct {
+	once         sync.Once
+	HoverText    map[token.Pos]ast.Node
+	MonikerPaths map[token.Pos][]string
 }
 
-// MonikerPath returns the names of types enclosing the given position extracted from the given package.
-// For a non-empty path to be returned from this method, Load must have been previously called with this
-// package as an argument.
-func (l *Preloader) MonikerPath(p *packages.Package, position token.Pos) []string {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.monikerPaths[p][position]
+// load will parse the package and populate the maps of hover text and moniker paths. This method is
+// idempotent. All calls to this method will block until the first call has completed.
+func (data *PreloadedPackageData) load(p *packages.Package) (loaded bool) {
+	data.once.Do(func() {
+		loaded = true
+		definitionPositions, fieldPositions := interestingPositions(p)
+
+		for _, root := range p.Syntax {
+			visit(root, definitionPositions, fieldPositions, data.HoverText, data.MonikerPaths, nil, nil)
+		}
+	})
+
+	return loaded
 }
 
 // interestingPositions returns a pair of maps whose keys are token positions for which we want values
@@ -91,8 +130,8 @@ func interestingPositions(p *packages.Package) (map[token.Pos]struct{}, map[toke
 // enclose that position.
 func visit(
 	node ast.Node, // Current node
-	hoverTextPositions map[token.Pos]struct{}, // Positions for which to assign hover text
-	monikerPathPositions map[token.Pos]struct{}, // Positions for which to assign moniker paths
+	hoverTextPositions map[token.Pos]struct{}, // Positions for hover text assignment
+	monikerPathPositions map[token.Pos]struct{}, // Positions for moniker paths assignment
 	hoverTextMap map[token.Pos]ast.Node, // Target hover text map
 	monikerPathMap map[token.Pos][]string, // Target moniker path map
 	nodeWithHoverText ast.Node, // The ancestor node with non-empty hover text (if any)
@@ -251,7 +290,7 @@ func commentGroupsEmpty(gs ...*ast.CommentGroup) bool {
 // one in which comments can be reasonably shared. This will return a nil node for most relationships,
 // except things like (1) FuncDecl -> Ident, in which case we want to store the function's comment
 // in the ident, or (2) GenDecl -> TypeSpec, in which case we want to store the generic declaration's
-// comments if the type pnode doesn't have any directly attached to it.
+// comments if the type node doesn't have any directly attached to it.
 func chooseNodeWithHoverText(parent, child ast.Node) ast.Node {
 	if _, ok := parent.(*ast.GenDecl); ok {
 		return parent
