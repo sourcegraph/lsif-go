@@ -13,6 +13,12 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.1.4
+
+### Changed
+
+- Replaced "Preloading hover text and moniker paths" step with on-demand processing of packages. This should give a small index time speed boost and is likely to lower resident memory in some environments. [#104](https://github.com/sourcegraph/lsif-go/pull/104).
+
 ## v1.1.3
 
 ### Changed
