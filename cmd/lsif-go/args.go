@@ -25,6 +25,7 @@ var (
 	noProgress     bool
 	noOutput       bool
 	verboseOutput  bool
+	filesToIndex   *[]string
 )
 
 func init() {
@@ -39,6 +40,7 @@ func init() {
 	app.Flag("noProgress", "Do not output verbose progress.").Default("false").BoolVar(&noProgress)
 	app.Flag("noOutput", "Do not output progress.").Default("false").BoolVar(&noOutput)
 	app.Flag("verbose", "Display timings and stats.").Default("false").BoolVar(&verboseOutput)
+	filesToIndex = app.Flag("file", "Repeatable flag for specific files to index. The resulting LSIF dump will contain only information necessary to resolve definition, reference, and hover requests for within these files.").Strings()
 }
 
 func parseArgs(args []string) (err error) {
@@ -68,6 +70,20 @@ func parseArgs(args []string) (err error) {
 	// Ensure the module root is inside the repository
 	if !strings.HasPrefix(projectRoot, repositoryRoot) {
 		return errors.New("module root is outside the repository")
+	}
+
+	if len(*filesToIndex) == 0 {
+		filesToIndex = nil
+	} else {
+		for idx := range *filesToIndex {
+			(*filesToIndex)[idx], err = filepath.Abs((*filesToIndex)[idx])
+			if err != nil {
+				return fmt.Errorf("get abspath of manually specified file to index: %v", err)
+			}
+			if !strings.HasPrefix((*filesToIndex)[idx], repositoryRoot) {
+				return errors.New("manually specified file to index is outside the repository")
+			}
+		}
 	}
 
 	return nil

@@ -45,11 +45,24 @@ func mainErr() error {
 		}
 	}
 
+	var fileSet map[string]struct{}
+	if filesToIndex != nil {
+		fileSet = make(map[string]struct{})
+		for _, file := range *filesToIndex {
+			fileSet[file] = struct{}{}
+		}
+	}
+
+	for file := range fileSet {
+		fmt.Printf("%v\n", file)
+	}
+
 	return writeIndex(
 		repositoryRoot,
 		projectRoot,
 		moduleName,
 		moduleVersion,
+		fileSet,
 		dependencies,
 		outFile,
 	)

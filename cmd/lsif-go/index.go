@@ -10,7 +10,7 @@ import (
 	"github.com/sourcegraph/lsif-go/protocol"
 )
 
-func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, dependencies map[string]string, outFile string) error {
+func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, filesToIndex map[string]struct{}, dependencies map[string]string, outFile string) error {
 	start := time.Now()
 
 	out, err := os.Create(outFile)
@@ -36,6 +36,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		toolInfo,
 		moduleName,
 		moduleVersion,
+		filesToIndex,
 		dependencies,
 		writer.NewJSONWriter(out),
 		packageDataCache,
