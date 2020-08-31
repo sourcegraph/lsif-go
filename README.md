@@ -9,14 +9,14 @@ Binary downloads are available on the [releases tab](https://github.com/sourcegr
 ### Installation: Linux
 
 ```
-curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.3/src_linux_amd64 -o /usr/local/bin/lsif-go
+curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.4/src_linux_amd64 -o /usr/local/bin/lsif-go
 chmod +x /usr/local/bin/lsif-go
 ```
 
 ### Installation: MacOS
 
 ```
-curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.3/src_darwin_amd64 -o /usr/local/bin/lsif-go
+curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.4/src_darwin_amd64 -o /usr/local/bin/lsif-go
 chmod +x /usr/local/bin/lsif-go
 ```
 
