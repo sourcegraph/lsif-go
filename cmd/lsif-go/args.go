@@ -35,7 +35,8 @@ func init() {
 	app.Flag("out", "The output file.").Short('o').Default("dump.lsif").StringVar(&outFile)
 	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").PlaceHolder("version").StringVar(&moduleVersion)
 	app.Flag("repositoryRoot", "Specifies the path of the current repository (inferred automatically via git).").PlaceHolder("root").StringVar(&repositoryRoot)
-	app.Flag("moduleRoot", "Specifies the module root directory relative to the repository").Default(".").StringVar(&moduleRoot)
+	app.Flag("moduleRoot", "Specifies the directory containing the go.mod file.").Default(".").StringVar(&moduleRoot)
+	app.Flag("projectRoot", "Specifies the root directory to index.").Default(".").StringVar(&projectRoot)
 	app.Flag("noProgress", "Do not output verbose progress.").Default("false").BoolVar(&noProgress)
 	app.Flag("noOutput", "Do not output progress.").Default("false").BoolVar(&noOutput)
 	app.Flag("verbose", "Display timings and stats.").Default("false").BoolVar(&verboseOutput)
@@ -46,11 +47,6 @@ func parseArgs(args []string) (err error) {
 		return err
 	}
 
-	repositoryRoot, err = filepath.Abs(repositoryRoot)
-	if err != nil {
-		return fmt.Errorf("get abspath of repository root: %v", err)
-	}
-
 	if repositoryRoot == "" {
 		toplevel, err := git.TopLevel(repositoryRoot)
 		if err != nil {
@@ -58,16 +54,31 @@ func parseArgs(args []string) (err error) {
 		}
 
 		repositoryRoot = strings.TrimSpace(string(toplevel))
+	} else {
+		repositoryRoot, err = filepath.Abs(repositoryRoot)
+		if err != nil {
+			return fmt.Errorf("get abspath of repository root: %v", err)
+		}
 	}
 
-	projectRoot, err = filepath.Abs(moduleRoot)
+	moduleRoot, err = filepath.Abs(moduleRoot)
+	if err != nil {
+		return fmt.Errorf("get abspath of module root: %v", err)
+	}
+
+	projectRoot, err = filepath.Abs(projectRoot)
 	if err != nil {
 		return fmt.Errorf("get abspath of project root: %v", err)
 	}
 
 	// Ensure the module root is inside the repository
-	if !strings.HasPrefix(projectRoot, repositoryRoot) {
+	if !strings.HasPrefix(moduleRoot, repositoryRoot) {
 		return errors.New("module root is outside the repository")
+	}
+
+	// Ensure the project root is inside the repository
+	if !strings.HasPrefix(projectRoot, repositoryRoot) {
+		return errors.New("project root is outside the repository")
 	}
 
 	return nil

@@ -29,18 +29,18 @@ func mainErr() error {
 	}
 
 	// Ensure all the dependencies of the specified module are cached
-	if err := gomod.Download(projectRoot); err != nil {
+	if err := gomod.Download(moduleRoot); err != nil {
 		return fmt.Errorf("fetching dependencies: %v", err)
 	}
 
-	moduleName, dependencies, err := gomod.ListModules(projectRoot)
+	moduleName, dependencies, err := gomod.ListModules(moduleRoot)
 	if err != nil {
 		return err
 	}
 
 	if moduleVersion == "" {
 		// Infer module version from git data if one is not explicitly supplied
-		if moduleVersion, err = git.InferModuleVersion(projectRoot); err != nil {
+		if moduleVersion, err = git.InferModuleVersion(moduleRoot); err != nil {
 			return err
 		}
 	}
