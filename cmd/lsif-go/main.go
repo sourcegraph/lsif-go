@@ -31,5 +31,12 @@ func mainErr() error {
 		return err
 	}
 
-	return writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion, dependencies, outFile)
+	return writeIndex(
+		repositoryRoot,
+		projectRoot,
+		moduleName,
+		moduleVersion,
+		dependencies,
+		outFile,
+	)
 }
