@@ -53,10 +53,6 @@ func mainErr() error {
 		}
 	}
 
-	for file := range fileSet {
-		fmt.Printf("%v\n", file)
-	}
-
 	return writeIndex(
 		repositoryRoot,
 		projectRoot,

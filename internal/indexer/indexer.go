@@ -43,12 +43,13 @@ type Indexer struct {
 	projectID             uint64                    // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
 
-	constsMutex                sync.Mutex
-	funcsMutex                 sync.Mutex
-	importsMutex               sync.Mutex
-	labelsMutex                sync.Mutex
-	typesMutex                 sync.Mutex
-	varsMutex                  sync.Mutex
+	constsMutex                sync.RWMutex
+	funcsMutex                 sync.RWMutex
+	importsMutex               sync.RWMutex
+	labelsMutex                sync.RWMutex
+	typesMutex                 sync.RWMutex
+	varsMutex                  sync.RWMutex
+	documentsMutex             sync.RWMutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
 	packageInformationIDsMutex sync.RWMutex
@@ -177,51 +178,47 @@ func (i *Indexer) emitDocuments() {
 	i.visitEachRawFile("Emitting documents", i.maybeEmitDocument)
 }
 
-func (i *Indexer) ensureDocument(filename string) (*DocumentInfo, bool) {
-	i.emitDocument(filename)
-
-	i.stripedMutex.RLockKey(filename)
-	defer i.stripedMutex.RUnlockKey(filename)
-	d, ok := i.documents[filename]
-	return d, ok
-}
-
 func (i *Indexer) maybeEmitDocument(filename string) {
 	if i.filesToIndex != nil {
 		if _, exists := i.filesToIndex[filename]; exists {
-			i.emitDocument(filename)
+			i.ensureDocument(filename)
 		}
+	} else {
+		i.ensureDocument(filename)
 	}
 }
 
 // emitDocument emits a document vertex and a contains relation to the enclosing project. This method
 // also prepares the documents and ranges maps (alternatively: this method must be called before any
 // other method that requires the filename key be present in either map).
-func (i *Indexer) emitDocument(filename string) {
+func (i *Indexer) ensureDocument(filename string) (*DocumentInfo, bool) {
 	// Emit each document only once
-	i.stripedMutex.RLockKey(filename)
-	_, exists := i.documents[filename]
-	i.stripedMutex.RUnlockKey(filename)
+	i.documentsMutex.RLock()
+	d, exists := i.documents[filename]
+	i.documentsMutex.RUnlock()
 	if exists {
-		return
+		return d, exists
 	}
 
 	// Indexing test files means that we're also indexing the code _generated_ by go test;
 	// e.g. file://Users/efritz/Library/Caches/go-build/07/{64-character identifier}-d. Skip
 	// These files as they won't be navigable outside of the machine that indexed the project.
 	if !strings.HasPrefix(filename, i.projectRoot) {
-		return
+		return nil, false
 	}
 
-	i.stripedMutex.LockKey(filename)
-	defer i.stripedMutex.UnlockKey(filename)
-	if _, exists := i.documents[filename]; exists {
-		return
+	i.documentsMutex.Lock()
+	defer i.documentsMutex.Unlock()
+	if d, exists := i.documents[filename]; exists {
+		return d, exists
 	}
 
 	documentID := i.emitter.EmitDocument(languageGo, filename)
-	i.documents[filename] = &DocumentInfo{DocumentID: documentID}
+	documentInfo := DocumentInfo{DocumentID: documentID}
+	i.documents[filename] = &documentInfo
 	i.ranges[filename] = map[int]uint64{}
+
+	return &documentInfo, true
 }
 
 // addImports modifies the definitions map of each file to include entries for import statements so
@@ -315,7 +312,9 @@ func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token
 		return position, nil, false
 	}
 
+	i.documentsMutex.RLock()
 	d, hasDocument := i.documents[position.Filename]
+	i.documentsMutex.RUnlock()
 	if !hasDocument {
 		return position, nil, false
 	}
@@ -347,9 +346,8 @@ func (i *Indexer) markRange(pos token.Position) bool {
 // indexDefinition emits data for the given definition object.
 func (i *Indexer) ensureDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, obj types.Object) *DefinitionInfo {
 	if !i.markRange(pos) {
-		i.stripedMutex.RLockKey(pos.Filename)
-		defer i.stripedMutex.RUnlockKey(pos.Filename)
-		return i.getDefinitionInfo(p, obj)
+		info := i.getDefinitionInfo(p, obj)
+		return info
 	}
 
 	// Create a hover result vertex and cache the result identifier keyed by the definition location.
@@ -383,8 +381,9 @@ func (i *Indexer) ensureDefinition(p *packages.Package, document *DocumentInfo, 
 		ReferenceRangeIDs: map[uint64][]uint64{},
 	}
 
-	i.stripedMutex.LockKey(pos.Filename)
 	i.setDefinitionInfo(obj, &defInfo)
+
+	i.stripedMutex.LockKey(pos.Filename)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 	i.stripedMutex.UnlockKey(pos.Filename)
 
@@ -491,17 +490,29 @@ func (i *Indexer) ensureDefinitionInfo(p *packages.Package, obj types.Object) (d
 func (i *Indexer) getDefinitionInfo(p *packages.Package, obj types.Object) (def *DefinitionInfo) {
 	switch v := obj.(type) {
 	case *types.Const:
+		i.constsMutex.RLock()
 		def = i.consts[v.Pos()]
+		i.constsMutex.RUnlock()
 	case *types.Func:
+		i.funcsMutex.RLock()
 		def = i.funcs[v.FullName()]
+		i.funcsMutex.RUnlock()
 	case *types.Label:
+		i.labelsMutex.RLock()
 		def = i.labels[v.Pos()]
+		i.labelsMutex.RUnlock()
 	case *types.PkgName:
+		i.importsMutex.RLock()
 		def = i.imports[v.Pos()]
+		i.importsMutex.RUnlock()
 	case *types.TypeName:
+		i.typesMutex.RLock()
 		def = i.types[obj.Type().String()]
+		i.typesMutex.RUnlock()
 	case *types.Var:
+		i.varsMutex.RLock()
 		def = i.vars[v.Pos()]
+		i.varsMutex.RUnlock()
 	}
 	return def
 }
