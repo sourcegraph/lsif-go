@@ -39,18 +39,38 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		dependencies,
 		writer.NewJSONWriter(out),
 		packageDataCache,
-		!noProgress,
-		noOutput,
-		verboseOutput,
+		indexer.OutputOptions{
+			Verbosity:      getVerbosity(),
+			ShowAnimations: !noAnimation,
+		},
 	)
 
 	if err := indexer.Index(); err != nil {
 		return fmt.Errorf("index: %v", err)
 	}
 
-	if !noOutput && verboseOutput {
+	if !noOutput && verbosity > 0 {
 		displayStats(indexer.Stats(), packageDataCache.Stats(), start)
 	}
 
 	return nil
+}
+
+var verbosityLevels = map[int]indexer.Verbosity{
+	0: indexer.DefaultOutput,
+	1: indexer.VerboseOutput,
+	2: indexer.VeryVerboseOutput,
+	3: indexer.VeryVeryVerboseOutput,
+}
+
+func getVerbosity() indexer.Verbosity {
+	if noOutput {
+		return indexer.NoOutput
+	}
+
+	if verbosity >= len(verbosityLevels) {
+		verbosity = len(verbosityLevels) - 1
+	}
+
+	return verbosityLevels[verbosity]
 }
