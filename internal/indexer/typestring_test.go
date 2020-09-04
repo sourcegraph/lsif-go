@@ -90,3 +90,22 @@ func TestTypeStringEmptyStruct(t *testing.T) {
 		t.Errorf("unexpected extra (-want +got): %s", diff)
 	}
 }
+
+func TestStructTagRegression(t *testing.T) {
+	_, f := findDefinitionByName(t, getTestPackages(t), "StructTagRegression")
+
+	signature, extra := typeString(f)
+	if signature != "type StructTagRegression struct" {
+		t.Errorf("unexpected type string. want=%q have=%q", "type StructTagRegression struct", signature)
+	}
+
+	expectedExtra := strings.TrimSpace(stripIndent(`
+		struct {
+		    Value int "key:\",range=[:}\""
+		}
+	`))
+
+	if diff := cmp.Diff(expectedExtra, extra); diff != "" {
+		t.Errorf("unexpected extra (-want +got): %s", diff)
+	}
+}
