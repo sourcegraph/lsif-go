@@ -135,5 +135,5 @@ func extractPackageDocstring(p *packages.Package) string {
 		}
 	}
 
-	return "'"
+	return ""
 }
