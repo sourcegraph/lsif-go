@@ -123,10 +123,10 @@ func monikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, 
 			return strings.Join([]string{
 				// Qualify function with receiver stripped of a pointer indicator `*` and its package path
 				strings.TrimPrefix(strings.TrimPrefix(recv.Type().String(), "*"), obj.Pkg().Path()+"."),
-				ident.String(),
+				obj.Name(),
 			}, ".")
 		}
 	}
 
-	return ident.String()
+	return obj.Name()
 }

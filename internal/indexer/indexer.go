@@ -248,7 +248,11 @@ func (i *Indexer) indexDefinitions() {
 // indexDefinitionsForPackage emits data for each definition within the given package.
 func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	for ident, obj := range p.TypesInfo.Defs {
-		pos, d, ok := i.positionAndDocument(p, ident, obj)
+		if obj == nil {
+			continue
+		}
+
+		pos, d, ok := i.positionAndDocument(p, obj.Pos())
 		if !ok || !i.markRange(pos) {
 			continue
 		}
@@ -268,23 +272,19 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 // positionAndDocument returns the position of the given object and the document info object
 // that contains it. If the given package is not the canonical package for the containing file
 // in the packagesByFile map, this method returns false.
-func (i *Indexer) positionAndDocument(p *packages.Package, ident *ast.Ident, obj types.Object) (token.Position, *DocumentInfo, bool) {
-	if obj == nil {
+func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token.Position, *DocumentInfo, bool) {
+	position := p.Fset.Position(pos)
+
+	if packages := i.packagesByFile[position.Filename]; len(packages) == 0 || packages[0] != p {
 		return token.Position{}, nil, false
 	}
 
-	pos := p.Fset.Position(ident.Pos())
-
-	if packages := i.packagesByFile[pos.Filename]; len(packages) == 0 || packages[0] != p {
-		return token.Position{}, nil, false
-	}
-
-	d, hasDocument := i.documents[pos.Filename]
+	d, hasDocument := i.documents[position.Filename]
 	if !hasDocument {
 		return token.Position{}, nil, false
 	}
 
-	return pos, d, true
+	return position, d, true
 }
 
 // markRange sets an empty range identifier in the ranges map for the given position.
@@ -351,7 +351,7 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 	switch v := obj.(type) {
 	case *types.Const:
 		i.constsMutex.Lock()
-		i.consts[ident.Pos()] = d
+		i.consts[obj.Pos()] = d
 		i.constsMutex.Unlock()
 
 	case *types.Func:
@@ -361,12 +361,12 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 
 	case *types.Label:
 		i.labelsMutex.Lock()
-		i.labels[ident.Pos()] = d
+		i.labels[obj.Pos()] = d
 		i.labelsMutex.Unlock()
 
 	case *types.PkgName:
 		i.importsMutex.Lock()
-		i.imports[ident.Pos()] = d
+		i.imports[obj.Pos()] = d
 		i.importsMutex.Unlock()
 
 	case *types.TypeName:
@@ -376,7 +376,7 @@ func (i *Indexer) setDefinitionInfo(ident *ast.Ident, obj types.Object, d *Defin
 
 	case *types.Var:
 		i.varsMutex.Lock()
-		i.vars[ident.Pos()] = d
+		i.vars[obj.Pos()] = d
 		i.varsMutex.Unlock()
 	}
 }
@@ -391,13 +391,17 @@ func (i *Indexer) indexReferences() {
 
 // indexReferencesForPackage emits data for each reference within the given package.
 func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
-	for ident, obj := range p.TypesInfo.Uses {
-		pos, d, ok := i.positionAndDocument(p, ident, obj)
+	for ident, definitionObj := range p.TypesInfo.Uses {
+		if definitionObj == nil {
+			continue
+		}
+
+		pos, d, ok := i.positionAndDocument(p, ident.Pos())
 		if !ok {
 			continue
 		}
 
-		rangeID, ok := i.indexReference(p, d, ident, pos, obj)
+		rangeID, ok := i.indexReference(p, d, ident, pos, definitionObj)
 		if !ok {
 			continue
 		}

@@ -24,7 +24,7 @@ func rangeForObject(obj types.Object, ident *ast.Ident, pos token.Position) (pro
 
 	line := pos.Line - 1
 	column := pos.Column - 1
-	n := len(ident.Name)
+	n := len(obj.Name())
 
 	start := protocol.Pos{Line: line, Character: column + adjustment}
 	end := protocol.Pos{Line: line, Character: column + n - adjustment}
