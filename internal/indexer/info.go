@@ -32,5 +32,6 @@ type DefinitionInfo struct {
 	RangeID           uint64
 	ResultSetID       uint64
 	ReferenceRangeIDs map[uint64][]uint64
+	TypeSwitchHeader  bool
 	m                 sync.Mutex
 }
