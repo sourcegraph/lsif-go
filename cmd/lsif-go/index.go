@@ -49,7 +49,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		return fmt.Errorf("index: %v", err)
 	}
 
-	if !noOutput && verbosity > 0 {
+	if getVerbosity() >= VerboseOutput {
 		displayStats(indexer.Stats(), packageDataCache.Stats(), start)
 	}
 
