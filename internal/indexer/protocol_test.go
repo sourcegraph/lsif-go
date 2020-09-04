@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"encoding/json"
-	"go/ast"
 	"go/token"
 	"go/types"
 	"testing"
@@ -14,7 +13,6 @@ import (
 func TestRangeForObject(t *testing.T) {
 	start, end := rangeForObject(
 		types.NewPkgName(token.Pos(42), nil, "foobar", nil),
-		&ast.Ident{Name: "foobar"},
 		token.Position{Line: 10, Column: 25},
 	)
 
@@ -29,7 +27,6 @@ func TestRangeForObject(t *testing.T) {
 func TestRangeForObjectWithQuotedNamed(t *testing.T) {
 	start, end := rangeForObject(
 		types.NewPkgName(token.Pos(42), nil, `"foobar"`, nil),
-		&ast.Ident{Name: `"foobar"`},
 		token.Position{Line: 10, Column: 25},
 	)
 
