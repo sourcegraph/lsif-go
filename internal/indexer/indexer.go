@@ -515,6 +515,10 @@ func (i *Indexer) linkReferenceResultsToRanges() {
 // linkItemsToDefinitions adds item relations between the given definition range and the ranges that
 // define and reference it.
 func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
+	if len(d.ReferenceRangeIDs) == 0 {
+		return
+	}
+
 	refResultID := i.emitter.EmitReferenceResult()
 	_ = i.emitter.EmitTextDocumentReferences(d.ResultSetID, refResultID)
 	_ = i.emitter.EmitItemOfDefinitions(refResultID, []uint64{d.RangeID}, d.DocumentID)
