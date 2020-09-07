@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/sourcegraph/lsif-go/internal/indexer"
-	"github.com/sourcegraph/lsif-go/internal/writer"
-	"github.com/sourcegraph/lsif-go/protocol"
+	protocol "github.com/sourcegraph/lsif-protocol"
+	"github.com/sourcegraph/lsif-protocol/writer"
 )
 
 func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, dependencies map[string]string, outFile string) error {

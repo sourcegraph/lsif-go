@@ -11,7 +11,8 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/sourcegraph/lsif-go/protocol"
+	protocol "github.com/sourcegraph/lsif-protocol"
+	"github.com/sourcegraph/lsif-protocol/writer"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -22,7 +23,7 @@ type Indexer struct {
 	moduleName     string            // name of this module
 	moduleVersion  string            // version of this module
 	dependencies   map[string]string // parsed module data
-	emitter        *protocol.Emitter // LSIF data emitter
+	emitter        *writer.Emitter   // LSIF data emitter
 	outputOptions  OutputOptions     // What to print to stdout/stderr
 
 	// Definition type cache
@@ -61,7 +62,7 @@ func New(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]string,
-	writer protocol.JSONWriter,
+	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions OutputOptions,
 ) *Indexer {
@@ -72,7 +73,7 @@ func New(
 		moduleName:            moduleName,
 		moduleVersion:         moduleVersion,
 		dependencies:          dependencies,
-		emitter:               protocol.NewEmitter(writer),
+		emitter:               writer.NewEmitter(jsonWriter),
 		outputOptions:         outputOptions,
 		consts:                map[interface{}]*DefinitionInfo{},
 		funcs:                 map[interface{}]*DefinitionInfo{},

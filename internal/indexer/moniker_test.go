@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/sourcegraph/lsif-go/protocol"
+	"github.com/sourcegraph/lsif-protocol/writer"
 )
 
 func TestEmitExportMoniker(t *testing.T) {
@@ -16,7 +16,7 @@ func TestEmitExportMoniker(t *testing.T) {
 	indexer := &Indexer{
 		moduleName:            "github.com/sourcegraph/lsif-go",
 		moduleVersion:         "3.14.159",
-		emitter:               protocol.NewEmitter(w),
+		emitter:               writer.NewEmitter(w),
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
@@ -64,7 +64,7 @@ func TestEmitImportMoniker(t *testing.T) {
 		dependencies: map[string]string{
 			"github.com/test/pkg/sub1": "1.2.3-deadbeef",
 		},
-		emitter:               protocol.NewEmitter(w),
+		emitter:               writer.NewEmitter(w),
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
