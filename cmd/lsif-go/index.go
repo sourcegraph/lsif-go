@@ -49,7 +49,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 		return fmt.Errorf("index: %v", err)
 	}
 
-	if getVerbosity() >= VerboseOutput {
+	if isVerbose() {
 		displayStats(indexer.Stats(), packageDataCache.Stats(), start)
 	}
 
@@ -73,4 +73,8 @@ func getVerbosity() indexer.Verbosity {
 	}
 
 	return verbosityLevels[verbosity]
+}
+
+func isVerbose() bool {
+	return getVerbosity() >= indexer.VerboseOutput
 }
