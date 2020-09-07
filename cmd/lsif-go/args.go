@@ -22,31 +22,30 @@ var (
 	moduleRoot     string
 	repositoryRoot string
 	moduleVersion  string
+	verbosity      int
 	noOutput       bool
-	verboseOutput  bool
-	noProgress     bool
+	noAnimation    bool
 )
 
 func init() {
 	app.HelpFlag.Short('h')
-	app.VersionFlag.Short('v')
-	app.HelpFlag.Hidden()
+	app.VersionFlag.Short('V')
 
 	// Outfile options
-	app.Flag("out", "The output file.").Short('o').Default("dump.lsif").StringVar(&outFile)
-
-	// Module version options (inferred by git)
-	app.Flag("moduleVersion", "Specifies the version of the module defined by this project.").Default(defaultModuleVersion.Value()).StringVar(&moduleVersion)
+	app.Flag("output", "The output file.").Short('o').Default("dump.lsif").StringVar(&outFile)
 
 	// Path options (inferred by presence of go.mod; git)
-	app.Flag("projectRoot", "Specifies the root directory to index.").Default(".").StringVar(&projectRoot)
-	app.Flag("moduleRoot", "Specifies the directory containing the go.mod file.").Default(defaultModuleRoot.Value()).StringVar(&moduleRoot)
-	app.Flag("repositoryRoot", "Specifies the path to the root of the current repository.").Default(defaultRepositoryRoot.Value()).StringVar(&repositoryRoot)
+	app.Flag("project-root", "Specifies the directory to index.").Default(".").StringVar(&projectRoot)
+	app.Flag("module-root", "Specifies the directory containing the go.mod file.").Default(defaultModuleRoot.Value()).StringVar(&moduleRoot)
+	app.Flag("repository-root", "Specifies the top-level directory of the git repository.").Default(defaultRepositoryRoot.Value()).StringVar(&repositoryRoot)
+
+	// Module version options (inferred by git)
+	app.Flag("module-version", "Specifies the version of the module defined by module-root.").Default(defaultModuleVersion.Value()).StringVar(&moduleVersion)
 
 	// Verbosity options
-	app.Flag("noOutput", "Do not output progress.").Default("false").BoolVar(&noOutput)
-	app.Flag("verbose", "Display timings and stats.").Default("false").BoolVar(&verboseOutput)
-	app.Flag("noProgress", "Do not output verbose progress.").Default("false").BoolVar(&noProgress)
+	app.Flag("quiet", "Do not output to stdout or stderr.").Short('q').Default("false").BoolVar(&noOutput)
+	app.Flag("verbose", "Output debug logs.").Short('v').CounterVar(&verbosity)
+	app.Flag("no-animation", "Do not animate output.").Default("false").BoolVar(&noAnimation)
 }
 
 func parseArgs(args []string) (err error) {

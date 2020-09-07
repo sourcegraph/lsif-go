@@ -1,9 +1,12 @@
 package indexer
 
 import (
+	"bytes"
+	"encoding/json"
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 	"strings"
 	"sync"
 
@@ -20,9 +23,7 @@ type Indexer struct {
 	moduleVersion  string            // version of this module
 	dependencies   map[string]string // parsed module data
 	emitter        *protocol.Emitter // LSIF data emitter
-	animate        bool              // Whether to animate output
-	silent         bool              // Whether to suppress all output
-	verbose        bool              // Whether to display elapsed time
+	outputOptions  OutputOptions     // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -62,9 +63,7 @@ func New(
 	dependencies map[string]string,
 	writer protocol.JSONWriter,
 	packageDataCache *PackageDataCache,
-	animate bool,
-	silent bool,
-	verbose bool,
+	outputOptions OutputOptions,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:        repositoryRoot,
@@ -74,9 +73,7 @@ func New(
 		moduleVersion:         moduleVersion,
 		dependencies:          dependencies,
 		emitter:               protocol.NewEmitter(writer),
-		animate:               animate,
-		silent:                silent,
-		verbose:               verbose,
+		outputOptions:         outputOptions,
 		consts:                map[interface{}]*DefinitionInfo{},
 		funcs:                 map[interface{}]*DefinitionInfo{},
 		imports:               map[interface{}]*DefinitionInfo{},
@@ -128,7 +125,14 @@ func (i *Indexer) loadPackages() error {
 		defer wg.Done()
 		defer close(errs)
 
-		pkgs, err := packages.Load(&packages.Config{Mode: loadMode, Dir: i.projectRoot, Tests: true}, "./...")
+		config := &packages.Config{
+			Mode:  loadMode,
+			Dir:   i.projectRoot,
+			Tests: true,
+			Logf:  i.packagesLoadLogger,
+		}
+
+		pkgs, err := packages.Load(config, "./...")
 		if err != nil {
 			errs <- errors.Wrap(err, "packages.Load")
 			return
@@ -145,9 +149,32 @@ func (i *Indexer) loadPackages() error {
 		}
 	}()
 
-	withProgress(&wg, "Loading packages", i.animate, i.silent, i.verbose, nil, 0)
+	withProgress(&wg, "Loading packages", i.outputOptions, nil, 0)
 	return <-errs
+}
 
+// packagesLoadLogger logs the debug messages from the packages.Load function.
+//
+// We only care about one message, which contains the output of the `go list`
+// command. In order to determine what relevant data we should print, we try to
+// unmarshal the fourth log argument value (a *bytes.Buffer of go list stdout)
+// as a stream of JSON objects representing loaded (or candidate) packages.
+func (i *Indexer) packagesLoadLogger(format string, args ...interface{}) {
+	if i.outputOptions.Verbosity < VeryVeryVerboseOutput || len(args) < 4 {
+		return
+	}
+	stdoutBuf, ok := args[3].(*bytes.Buffer)
+	if !ok {
+		return
+	}
+
+	var payload struct {
+		ImportPath string `json:"ImportPath"`
+	}
+
+	for decoder := json.NewDecoder(strings.NewReader(stdoutBuf.String())); decoder.Decode(&payload) == nil; {
+		log.Printf("\tPackage %s", payload.ImportPath)
+	}
 }
 
 // emitMetadata emits a metadata and project vertex. This method returns the identifier of the project

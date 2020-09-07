@@ -20,9 +20,7 @@ func TestIndexer(t *testing.T) {
 		nil,
 		w,
 		NewPackageDataCache(),
-		false,
-		true,
-		false,
+		OutputOptions{},
 	)
 
 	if err := indexer.Index(); err != nil {
