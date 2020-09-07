@@ -274,9 +274,31 @@ func (i *Indexer) indexDefinitions() {
 
 // indexDefinitionsForPackage emits data for each definition within the given package.
 func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
-	for _, obj := range p.TypesInfo.Defs {
+	// Create a map of implicit case clause objects by their position. Note that there is an
+	// implicit object for each case clause of a type switch (including default), and they all
+	// share the same position. This creates a map with one arbitrarily chosen argument for
+	// each distinct type switch.
+	caseClauses := map[token.Pos]types.Object{}
+	for node, obj := range p.TypesInfo.Implicits {
+		if _, ok := node.(*ast.CaseClause); ok {
+			caseClauses[obj.Pos()] = obj
+		}
+	}
+
+	for ident, obj := range p.TypesInfo.Defs {
+		typeSwitchHeader := false
 		if obj == nil {
-			continue
+			// The definitions map contains nil objects for symbolic variables t in t := x.(type)
+			// of type switch headers. In these cases we select an arbitrary case clause for the
+			// same type switch to index the definition. We mark this object as a typeSwitchHeader
+			// so that it can distinguished from other definitions with non-nil objects.
+			caseClause, ok := caseClauses[ident.Pos()]
+			if !ok {
+				continue
+			}
+
+			obj = caseClause
+			typeSwitchHeader = true
 		}
 
 		pos, d, ok := i.positionAndDocument(p, obj.Pos())
@@ -284,7 +306,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj)
+		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader)
 
 		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -336,14 +358,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object) uint64 {
-	// Create a hover result vertex and cache the result identifier keyed by the definition location.
-	// Caching this gives us a big win for package documentation, which is likely to be large and is
-	// repeated at each import and selector within referenced files.
-	hoverResultID := i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
-		return findHoverContents(i.packageDataCache, i.packages, p, obj)
-	})
-
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool) uint64 {
 	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
@@ -351,7 +366,19 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
 	_ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
 	_ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
-	_ = i.emitter.EmitTextDocumentHover(resultSetID, hoverResultID)
+
+	if typeSwitchHeader {
+		// TODO(efritz) - not sure how to document a type switch header symbolic variable
+		// I'd like to somehow keep the type string of the RHS, but I'm not yet sure how
+		// to resolve that data given what we have.
+	} else {
+		// Create a hover result vertex and cache the result identifier keyed by the definition location.
+		// Caching this gives us a big win for package documentation, which is likely to be large and is
+		// repeated at each import and selector within referenced files.
+		_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
+			return findHoverContents(i.packageDataCache, i.packages, p, obj)
+		}))
+	}
 
 	if _, ok := obj.(*types.PkgName); ok {
 		i.emitImportMoniker(resultSetID, p, obj)
@@ -366,6 +393,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		RangeID:           rangeID,
 		ResultSetID:       resultSetID,
 		ReferenceRangeIDs: map[uint64][]uint64{},
+		TypeSwitchHeader:  typeSwitchHeader,
 	})
 
 	return rangeID
@@ -442,7 +470,7 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 // indexReference emits data for the given reference object.
 func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object) (uint64, bool) {
 	if def := i.getDefinitionInfo(definitionObj); def != nil {
-		return i.indexReferenceToDefinition(document, pos, definitionObj, def)
+		return i.indexReferenceToDefinition(p, document, pos, definitionObj, def)
 	}
 
 	return i.indexReferenceToExternalDefinition(p, document, pos, definitionObj)
@@ -472,13 +500,23 @@ func (i *Indexer) getDefinitionInfo(obj types.Object) *DefinitionInfo {
 
 // indexReferenceToDefinition emits data for the given reference object that is defined within
 // an index target package.
-func (i *Indexer) indexReferenceToDefinition(document *DocumentInfo, pos token.Position, definitionObj types.Object, d *DefinitionInfo) (uint64, bool) {
+func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, d *DefinitionInfo) (uint64, bool) {
 	rangeID := i.ensureRangeFor(pos, definitionObj)
 	_ = i.emitter.EmitNext(rangeID, d.ResultSetID)
 
 	d.m.Lock()
 	d.ReferenceRangeIDs[document.DocumentID] = append(d.ReferenceRangeIDs[document.DocumentID], rangeID)
 	d.m.Unlock()
+
+	if d.TypeSwitchHeader {
+		// Attache a hover text result _directly_ to the given range so that it "overwrites" the
+		// hover result of the type switch header for this use. Each reference of such a variable
+		// will need a more specific hover text, as the type of the variable is refined in the body
+		// of case clauses of the type switch.
+		_ = i.emitter.EmitTextDocumentHover(rangeID, i.makeCachedHoverResult(nil, definitionObj, func() []protocol.MarkedString {
+			return findHoverContents(i.packageDataCache, i.packages, p, definitionObj)
+		}))
+	}
 
 	return rangeID, true
 }

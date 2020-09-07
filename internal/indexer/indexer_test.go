@@ -71,10 +71,10 @@ func TestIndexer(t *testing.T) {
 		}
 
 		expectedDocumentation := normalizeDocstring(`
-			Package sync provides basic synchronization primitives such as mutual exclusion locks. 
-			Other than the Once and WaitGroup types, most are intended for use by low-level library routines. 
+			Package sync provides basic synchronization primitives such as mutual exclusion locks.
+			Other than the Once and WaitGroup types, most are intended for use by low-level library routines.
 			Higher-level synchronization is better done via channels and communication.
-			Values containing the types defined in this package should not be copied. 
+			Values containing the types defined in this package should not be copied.
 		`)
 		if value := normalizeDocstring(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
@@ -132,6 +132,70 @@ func TestIndexer(t *testing.T) {
 		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:TestStruct.FieldWithAnonymousType.NestedB"
 		if value := monikers[0].Identifier; value != expectedIdentifier {
 			t.Errorf("incorrect identifier. want=%q have=%q", expectedIdentifier, value)
+		}
+	})
+
+	t.Run("check typeswitch", func(t *testing.T) {
+		definition, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 3, 8)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		intReference, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 5, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		boolReference, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 7, 10)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		//
+		// Check definition links
+
+		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, intReference.ID)
+		if len(definitions) != 1 {
+			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
+		}
+		compareRange(t, definitions[0], 3, 8, 3, 21)
+
+		//
+		// Check reference links
+
+		references := findReferenceRangesByRangeOrResultSetID(w.elements, definition.ID)
+		if len(references) != 3 {
+			t.Fatalf("incorrect reference count. want=%d have=%d", 2, len(references))
+		}
+
+		sort.Slice(references, func(i, j int) bool { return references[i].Start.Line < references[j].Start.Line })
+		compareRange(t, references[0], 3, 8, 3, 21)
+		compareRange(t, references[1], 5, 9, 5, 22)
+		compareRange(t, references[2], 7, 10, 7, 23)
+
+		//
+		// Check hover texts
+
+		// TODO(efritz) - update test here if we emit hover text for the header
+
+		intReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, intReference.ID)
+		if !ok || len(intReferenceHoverResult.Result.Contents) < 1 {
+			t.Fatalf("could not find hover text")
+		}
+
+		expectedType := `var concreteValue int`
+		if value := intReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
+			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
+		}
+
+		boolReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, boolReference.ID)
+		if !ok || len(boolReferenceHoverResult.Result.Contents) < 1 {
+			t.Fatalf("could not find hover text")
+		}
+
+		expectedType = `var concreteValue bool`
+		if value := boolReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
+			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 	})
 }
