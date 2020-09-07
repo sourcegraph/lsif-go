@@ -13,6 +13,34 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.2.0
+
+### Changed
+
+- :rotating_light: The `go mod download` step is no longer performed implicitly prior to loading packages. [#115](https://github.com/sourcegraph/lsif-go/pull/115)
+- :rotating_light: Application flags have been updated. [#115](https://github.com/sourcegraph/lsif-go/pull/115), [#118](https://github.com/sourcegraph/lsif-go/pull/118)
+  - `-v` is now for verbosity, not `--version` (use `-V` instead for version)
+  - `-vv` and `-vvv` increase verbosity levels
+  - `--module-root` validation is fixed and can now correctly point to a directory containing a go.mod file outside of the project root
+  - Renamed flags for consistent casing:
+
+    | Previous         | Current           | 
+    | ---------------- | ----------------- |
+    | `out`            | `output`          |
+    | `projectRoot`    | `project-root`    |
+    | `moduleRoot`     | `module-root`     |
+    | `repositoryRoot` | `repository-root` |
+    | `noOutput`       | `quiet`           |
+    | `noProgress`     | `no-animation`    |
+
+
+
+### Fixed
+
+- Fixed a panic that occurs when a struct field contains certain structtag content. [#116](https://github.com/sourcegraph/lsif-go/pull/116)
+- Packages with no documentation no longer have the hover text `'`. [#120](https://github.com/sourcegraph/lsif-go/pull/120)
+- Fixed incorrect indexing of typeswitch. The symbolic variable in the type switch header and all it occurrences in the case clauses are now properly linked, and the hover text of each occurrence contains the refined type. [#122](https://github.com/sourcegraph/lsif-go/pull/122)
+
 ## v1.1.4
 
 ### Changed

@@ -9,21 +9,21 @@ Binary downloads are available on the [releases tab](https://github.com/sourcegr
 ### Installation: Linux
 
 ```
-curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.4/src_linux_amd64 -o /usr/local/bin/lsif-go
+curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.2.0/src_linux_amd64 -o /usr/local/bin/lsif-go
 chmod +x /usr/local/bin/lsif-go
 ```
 
 ### Installation: MacOS
 
 ```
-curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.1.4/src_darwin_amd64 -o /usr/local/bin/lsif-go
+curl -L  https://github.com/sourcegraph/lsif-go/releases/download/v1.2.0/src_darwin_amd64 -o /usr/local/bin/lsif-go
 chmod +x /usr/local/bin/lsif-go
 ```
 
 ### Installation: Docker
 
 ```
-docker pull sourcegraph/lsif-go:v1.1.2
+docker pull sourcegraph/lsif-go:v1.2.0
 ```
 
 ## Indexing your repository
@@ -31,21 +31,21 @@ docker pull sourcegraph/lsif-go:v1.1.2
 After installing `lsif-go` onto your PATH, run the command in the root where your `go.mod` file is located.
 
 ```
-$ lsif-go --verbose
-✔ Loading packages... Done (742.23ms).
-✔ Emitting documents... Done (63.89µs).
-✔ Adding import definitions... Done (164.49µs).
-✔ Indexing definitions... Done (14.99ms).
-✔ Indexing references... Done (78.11ms).
-✔ Linking items to definitions... Done (8.98ms).
-✔ Emitting contains relations... Done (258.99µs).
+$ lsif-go -v
+✔ Loading packages... Done (753.22ms)
+✔ Emitting documents... Done (72.76µs)
+✔ Adding import definitions... Done (86.24µs)
+✔ Indexing definitions... Done (16.83ms)
+✔ Indexing references... Done (93.36ms)
+✔ Linking items to definitions... Done (8.46ms)
+✔ Emitting contains relations... Done (294.13µs)
 
 Stats:
-	Wall time elapsed:   845.53ms
+	Wall time elapsed:   873.2ms
 	Packages indexed:    14
-	Files indexed:       51
-	Definitions indexed: 1654
-	Elements emitted:    33956
+	Files indexed:       53
+	Definitions indexed: 1756
+	Elements emitted:    35718
 	Packages traversed:  40
 ```
 
