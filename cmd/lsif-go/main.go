@@ -1,4 +1,3 @@
-// The program lsif-go is an LSIF indexer for Go.
 package main
 
 import (
@@ -6,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/sourcegraph/lsif-go/internal/git"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 )
 
@@ -28,21 +26,9 @@ func mainErr() error {
 		return err
 	}
 
-	// Ensure all the dependencies of the specified module are cached
-	if err := gomod.Download(projectRoot); err != nil {
-		return fmt.Errorf("fetching dependencies: %v", err)
-	}
-
-	moduleName, dependencies, err := gomod.ListModules(projectRoot)
+	moduleName, dependencies, err := gomod.ListModules(moduleRoot)
 	if err != nil {
 		return err
-	}
-
-	if moduleVersion == "" {
-		// Infer module version from git data if one is not explicitly supplied
-		if moduleVersion, err = git.InferModuleVersion(projectRoot); err != nil {
-			return err
-		}
 	}
 
 	return writeIndex(

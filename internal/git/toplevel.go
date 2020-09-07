@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sourcegraph/lsif-go/internal/command"
 )
@@ -13,5 +14,5 @@ func TopLevel(dir string) (string, error) {
 		return "", fmt.Errorf("failed to get toplevel: %v\n%s", err, output)
 	}
 
-	return output, nil
+	return strings.TrimSpace(string(output)), nil
 }

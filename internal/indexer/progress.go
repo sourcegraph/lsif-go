@@ -2,6 +2,8 @@ package indexer
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,97 +12,103 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/util"
 )
 
+type OutputOptions struct {
+	Verbosity      Verbosity
+	ShowAnimations bool
+}
+
+type Verbosity int
+
+const (
+	NoOutput Verbosity = iota
+	DefaultOutput
+	VerboseOutput
+	VeryVerboseOutput
+	VeryVeryVerboseOutput
+)
+
 // updateInterval is the duration between updates in withProgress.
 var updateInterval = time.Second / 4
 
 // ticker is the animated throbber used in printProgress.
-var ticker = pentimento.NewAnimatedString([]string{"⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏", "⠋", "⠙", "⠹"}, updateInterval)
+var ticker = pentimento.NewAnimatedString([]string{
+	"⠸", "⠼",
+	"⠴", "⠦",
+	"⠧", "⠇",
+	"⠏", "⠋",
+	"⠙", "⠹",
+}, updateInterval)
 
-var successPrefix = "✗"
-var failurePrefix = "✔"
+var successPrefix = "✔"
+var failurePrefix = "✗"
+
+// logger is used to log at the level -vv and above from multiple goroutines.
+var logger = log.New(os.Stdout, "", 0)
 
 // withProgress will continuously print progress to stdout until the given wait group counter
 // goes to zero. Progress is determined by the values of `c` (number of tasks completed) and
 // the value `n` (total number of tasks).
-func withProgress(wg *sync.WaitGroup, name string, animate, silent, verbose bool, c *uint64, n uint64) {
+func withProgress(wg *sync.WaitGroup, name string, outputOptions OutputOptions, c *uint64, n uint64) {
 	sync := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(sync)
 	}()
 
-	_ = withTitle(name, animate, silent, verbose, func(printer *pentimento.Printer) error {
-	loop:
+	withTitle(name, outputOptions, func(printer *pentimento.Printer) {
 		for {
 			select {
 			case <-sync:
-				break loop
+				return
 			case <-time.After(updateInterval):
 			}
 
 			printProgress(printer, name, c, n)
 		}
-
-		return nil
 	})
 }
 
 // withTitle invokes withTitleAnimated withTitleStatic depending on the value of animated.
-func withTitle(name string, animate, silent, verbose bool, fn func(printer *pentimento.Printer) error) error {
-	if silent {
-		return fn(nil)
-	}
-
-	if animate {
-		return withTitleAnimated(name, verbose, fn)
-	}
-
-	return withTitleStatic(name, verbose, fn)
-}
-
-// withTitleStatic invokes the given function. The task name is printed before the function is
-// invoked, and the result of the task (done or errored) is  printed after the function returns.
-func withTitleStatic(name string, verbose bool, fn func(printer *pentimento.Printer) error) error {
-	start := time.Now()
-	fmt.Printf("%s...\n", name)
-
-	if err := fn(nil); err != nil {
-		fmt.Printf("%s Errored.\n", successPrefix)
-	}
-
-	if verbose {
-		fmt.Printf("%s Done (%s).\n", failurePrefix, util.HumanElapsed(start))
+func withTitle(name string, outputOptions OutputOptions, fn func(printer *pentimento.Printer)) {
+	if outputOptions.Verbosity == NoOutput {
+		fn(nil)
+	} else if !outputOptions.ShowAnimations || outputOptions.Verbosity >= VeryVerboseOutput {
+		withTitleStatic(name, outputOptions.Verbosity, fn)
 	} else {
-		fmt.Printf("%s Done.\n", failurePrefix)
+		withTitleAnimated(name, outputOptions.Verbosity, fn)
 	}
-
-	return nil
 }
 
-// withTitleAnimated invokes the given function with a progress indicator. The task name is
-// printed before the function is invoked, and the result of the task (done or errored) is
-// printed after the function returns.
-func withTitleAnimated(name string, verbose bool, fn func(printer *pentimento.Printer) error) error {
+// withTitleStatic invokes the given function with non-animated output.
+func withTitleStatic(name string, verbosity Verbosity, fn func(printer *pentimento.Printer)) {
+	start := time.Now()
+	fmt.Printf("%s\n", name)
+	fn(nil)
+
+	if verbosity > DefaultOutput {
+		fmt.Printf("Finished in %s.\n\n", util.HumanElapsed(start))
+	}
+}
+
+// withTitleStatic invokes the given function with animated output.
+func withTitleAnimated(name string, verbosity Verbosity, fn func(printer *pentimento.Printer)) {
 	start := time.Now()
 	fmt.Printf("%s %s... ", ticker, name)
 
-	if err := pentimento.PrintProgress(func(printer *pentimento.Printer) error {
+	_ = pentimento.PrintProgress(func(printer *pentimento.Printer) error {
 		defer func() {
 			_ = printer.Reset()
 		}()
 
-		return fn(printer)
-	}); err != nil {
-		fmt.Printf("%s %s... Errored.\n", successPrefix, name)
-	}
+		fn(printer)
+		return nil
+	})
 
-	if verbose {
-		fmt.Printf("%s %s... Done (%s).\n", failurePrefix, name, util.HumanElapsed(start))
+	if verbosity > DefaultOutput {
+		fmt.Printf("%s %s... Done (%s)\n", successPrefix, name, util.HumanElapsed(start))
 	} else {
-		fmt.Printf("%s %s... Done.\n", failurePrefix, name)
+		fmt.Printf("%s %s... Done\n", successPrefix, name)
 	}
-
-	return nil
 }
 
 // printProgress outputs a throbber, the given name, and the given number of tasks completed to

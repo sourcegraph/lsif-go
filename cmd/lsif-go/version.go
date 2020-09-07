@@ -1,4 +1,4 @@
 package main
 
 // Set by go releaser
-var version string
+var version string = "dev"

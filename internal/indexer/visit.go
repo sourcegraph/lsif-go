@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 
@@ -24,14 +25,24 @@ func (i *Indexer) visitEachRawFile(name string, fn func(filename string)) {
 		defer wg.Done()
 
 		for _, p := range i.packages {
+			if i.outputOptions.Verbosity >= VeryVerboseOutput {
+				log.Printf("\tPackage %s", p.ID)
+			}
+
 			for _, f := range p.Syntax {
-				fn(p.Fset.Position(f.Package).Filename)
+				filename := p.Fset.Position(f.Package).Filename
+
+				if i.outputOptions.Verbosity >= VeryVeryVerboseOutput {
+					log.Printf("\t\tFile %s", filename)
+				}
+
+				fn(filename)
 				atomic.AddUint64(&count, 1)
 			}
 		}
 	}()
 
-	withProgress(&wg, name, i.animate, i.silent, i.verbose, &count, n)
+	withProgress(&wg, name, i.outputOptions, &count, n)
 }
 
 // visitEachPackage invokes the given visitor function on each indexed package. This method prints the
@@ -44,13 +55,19 @@ func (i *Indexer) visitEachPackage(name string, fn func(p *packages.Package)) {
 
 		for _, p := range i.packages {
 			t := p
-			ch <- func() { fn(t) }
+			ch <- func() {
+				if i.outputOptions.Verbosity >= VeryVerboseOutput {
+					log.Printf("\tPackage %s", p.ID)
+				}
+
+				fn(t)
+			}
 		}
 	}()
 
 	n := uint64(len(i.packages))
 	wg, count := runParallel(ch)
-	withProgress(wg, name, i.animate, i.silent, i.verbose, count, n)
+	withProgress(wg, name, i.outputOptions, count, n)
 }
 
 // visitEachDefinitionInfo invokes the given visitor function on each definition info value. This method
@@ -84,7 +101,7 @@ func (i *Indexer) visitEachDefinitionInfo(name string, fn func(d *DefinitionInfo
 	}()
 
 	wg, count := runParallel(ch)
-	withProgress(wg, name, i.animate, i.silent, i.verbose, count, n)
+	withProgress(wg, name, i.outputOptions, count, n)
 }
 
 // visitEachDocument invokes the given visitor function on each document. This method prints the
@@ -103,5 +120,5 @@ func (i *Indexer) visitEachDocument(name string, fn func(d *DocumentInfo)) {
 
 	n := uint64(len(i.documents))
 	wg, count := runParallel(ch)
-	withProgress(wg, name, i.animate, i.silent, i.verbose, count, n)
+	withProgress(wg, name, i.outputOptions, count, n)
 }
