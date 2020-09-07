@@ -56,8 +56,31 @@ func formatTypeExtra(obj *types.TypeName) string {
 	depth := 0
 	buf := bytes.NewBuffer(make([]byte, 0, len(extra)))
 
+outer:
 	for i := 0; i < len(extra); i++ {
 		switch extra[i] {
+		case '"':
+			for j := i + 1; j < len(extra); j++ {
+				if extra[j] == '\\' {
+					// skip over escaped characters
+					j++
+					continue
+				}
+
+				if extra[j] == '"' {
+					// found non-escaped ending quote
+					// write entire string unchanged, then skip to this
+					// character adn continue the outer loop, which will
+					// start the next iteration on the following character
+					buf.WriteString(extra[i : j+1])
+					i = j
+					continue outer
+				}
+			}
+
+			// note: we should never get down here otherwise
+			// there is some illegal output from types.TypeString.
+
 		case ';':
 			buf.WriteString("\n")
 			buf.WriteString(strings.Repeat(indent, depth))

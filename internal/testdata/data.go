@@ -44,3 +44,11 @@ const secretScore = secret.SecretScore
 func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) {
 	return Score, nil
 }
+
+// StructTagRegression is a struct that caused panic in the wild. Added here to
+// support a regression test.
+//
+// See https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272.
+type StructTagRegression struct {
+	Value int `key:",range=[:}"`
+}
