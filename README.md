@@ -53,4 +53,4 @@ Use `lsif-go --help` for more information.
 
 ## Updating your index
 
-To keep your index up-to-date, you can add a step to your CI to generate new data when your repository changes. See [our documentation](https://docs.sourcegraph.com/user/code_intelligence/adding_lsif_to_workflows) on adding LSIF to your workflows.
+To keep your index up-to-date, you can add a step to your CI to generate new data when your repository changes. See [our documentation](https://docs.sourcegraph.com/code_intelligence/how-to/adding_lsif_to_workflows) on adding LSIF to your workflows.
