@@ -405,7 +405,7 @@ func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packa
 	return packageInformation
 }
 
-func findDocumentSymbols(elements []interface{}, documentURI string) ([]protocol.DocumentSymbol, bool) {
+func findDocumentSymbols(elements []interface{}, documentURI string) ([]protocol.Range, bool) {
 	// TODO(sqs): support range-based symbols
 	var docID uint64
 	for _, elem := range elements {
@@ -435,14 +435,43 @@ func findDocumentSymbols(elements []interface{}, documentURI string) ([]protocol
 		return nil, false
 	}
 
+	var symbolRangeIDs []uint64
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case protocol.DocumentSymbolResult:
 			if v.ID == resultID {
-				return v.Result.([]protocol.DocumentSymbol), true
+				result := v.Result.([]protocol.RangeBasedDocumentSymbol)
+				// TODO(sqs): gather children too
+				for _, s := range result {
+					symbolRangeIDs = append(symbolRangeIDs, s.ID)
+				}
 			}
 		}
 	}
 
-	return nil, false
+	isSymbolRangeID := func(id uint64) bool {
+		for _, candidate := range symbolRangeIDs {
+			if id == candidate {
+				return true
+			}
+		}
+		return false
+	}
+
+	var ranges []protocol.Range
+	for _, elem := range elements {
+		switch v := elem.(type) {
+		case protocol.Range:
+			if isSymbolRangeID(v.ID) {
+				// Zero out irrelevant fields.
+				v.ID = 0
+				v.Type = ""
+				v.Label = ""
+
+				ranges = append(ranges, v)
+			}
+		}
+	}
+
+	return ranges, len(ranges) > 0
 }

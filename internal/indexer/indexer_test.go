@@ -206,40 +206,45 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find document symbols")
 		}
 
-		sort.Slice(symbols, func(i, j int) bool { return symbols[i].Range.Start.Line < symbols[j].Range.Start.Line })
+		sort.Slice(symbols, func(i, j int) bool { return symbols[i].Start.Line < symbols[j].Start.Line })
 
-		expected := []protocol.DocumentSymbol{
+		expected := []protocol.Range{
 			{
-				Name:  "Struct",
-				Kind:  11,
-				Range: protocol.RangeData{Start: protocol.Pos{Line: 2}, End: protocol.Pos{Line: 4, Character: 1}},
-				SelectionRange: protocol.RangeData{
+				Tag: &protocol.RangeSymbolTag{
+					Text:      "Struct",
+					Kind:      11,
+					FullRange: &protocol.RangeData{Start: protocol.Pos{Line: 2}, End: protocol.Pos{Line: 4, Character: 1}},
+				},
+				RangeData: protocol.RangeData{
 					Start: protocol.Pos{Line: 2, Character: 5},
 					End:   protocol.Pos{Line: 2, Character: 11},
 				},
-				Children: []protocol.DocumentSymbol{
-					{
-						Name: "StructMethod",
-						Kind: 6,
-						Range: protocol.RangeData{
-							Start: protocol.Pos{Line: 6, Character: 0},
-							End:   protocol.Pos{Line: 6, Character: 34},
-						},
-						SelectionRange: protocol.RangeData{
-							Start: protocol.Pos{Line: 6, Character: 17},
-							End:   protocol.Pos{Line: 6, Character: 29},
-						},
+			},
+			// TODO(sqs): omits children
+			// Children: []protocol.DocumentSymbol{
+			// 	{
+			// 		Name: "StructMethod",
+			// 		Kind: 6,
+			// 		Range: protocol.RangeData{
+			// 			Start: protocol.Pos{Line: 6, Character: 0},
+			// 			End:   protocol.Pos{Line: 6, Character: 34},
+			// 		},
+			// 		SelectionRange: protocol.RangeData{
+			// 			Start: protocol.Pos{Line: 6, Character: 17},
+			// 			End:   protocol.Pos{Line: 6, Character: 29},
+			// 		},
+			// 	},
+			// },
+			{
+				Tag: &protocol.RangeSymbolTag{
+					Text: "Interface",
+					Kind: 11,
+					FullRange: &protocol.RangeData{
+						Start: protocol.Pos{Line: 8},
+						End:   protocol.Pos{Line: 10, Character: 1},
 					},
 				},
-			},
-			{
-				Name: "Interface",
-				Kind: 11,
-				Range: protocol.RangeData{
-					Start: protocol.Pos{Line: 8},
-					End:   protocol.Pos{Line: 10, Character: 1},
-				},
-				SelectionRange: protocol.RangeData{
+				RangeData: protocol.RangeData{
 					Start: protocol.Pos{Line: 8, Character: 5},
 					End:   protocol.Pos{Line: 8, Character: 14},
 				},
