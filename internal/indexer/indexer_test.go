@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	protocol "github.com/sourcegraph/lsif-protocol"
 )
 
@@ -196,6 +197,56 @@ func TestIndexer(t *testing.T) {
 		expectedType = `var concreteValue bool`
 		if value := boolReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
+		}
+	})
+
+	t.Run("check document symbols", func(t *testing.T) {
+		symbols, ok := findDocumentSymbols(w.elements, "file://"+filepath.Join(projectRoot, "child_symbols.go"))
+		if !ok {
+			t.Fatalf("could not find document symbols")
+		}
+
+		sort.Slice(symbols, func(i, j int) bool { return symbols[i].Range.Start.Line < symbols[j].Range.Start.Line })
+
+		expected := []protocol.DocumentSymbol{
+			{
+				Name:  "Struct",
+				Kind:  11,
+				Range: protocol.RangeData{Start: protocol.Pos{Line: 2}, End: protocol.Pos{Line: 4, Character: 1}},
+				SelectionRange: protocol.RangeData{
+					Start: protocol.Pos{Line: 2, Character: 5},
+					End:   protocol.Pos{Line: 2, Character: 11},
+				},
+				Children: []protocol.DocumentSymbol{
+					{
+						Name: "StructMethod",
+						Kind: 6,
+						Range: protocol.RangeData{
+							Start: protocol.Pos{Line: 6, Character: 0},
+							End:   protocol.Pos{Line: 6, Character: 34},
+						},
+						SelectionRange: protocol.RangeData{
+							Start: protocol.Pos{Line: 6, Character: 17},
+							End:   protocol.Pos{Line: 6, Character: 29},
+						},
+					},
+				},
+			},
+			{
+				Name: "Interface",
+				Kind: 11,
+				Range: protocol.RangeData{
+					Start: protocol.Pos{Line: 8},
+					End:   protocol.Pos{Line: 10, Character: 1},
+				},
+				SelectionRange: protocol.RangeData{
+					Start: protocol.Pos{Line: 8, Character: 5},
+					End:   protocol.Pos{Line: 8, Character: 14},
+				},
+			},
+		}
+		if diff := cmp.Diff(expected, symbols); diff != "" {
+			t.Errorf("unexpected symbols (-want +got): %s", diff)
 		}
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"go/ast"
+	"go/doc"
 	"go/token"
 	"go/types"
 	"log"
@@ -104,6 +105,7 @@ func (i *Indexer) Index() error {
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
+	i.indexSymbols()
 	i.emitContains()
 
 	if err := i.emitter.Flush(); err != nil {
@@ -591,6 +593,108 @@ func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
 
 	for documentID, rangeIDs := range d.ReferenceRangeIDs {
 		_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
+	}
+}
+
+// indexSymbols emits data for each symbol in an index target package.
+func (i *Indexer) indexSymbols() {
+	i.visitEachPackage("Indexing symbols", i.indexSymbolsForPackage)
+}
+
+// indexSymbolsForPackage emits data for each symbol within the given package.
+func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
+	// TODO(sqs): make &ast.Package{} from p.Syntax or just use doc.NewFromFiles?
+	docpkg, err := doc.NewFromFiles(p.Fset, p.Syntax, p.PkgPath, doc.AllDecls|doc.PreserveAST)
+	if err != nil {
+		panic(err)
+	}
+
+	symbolsByDocument := make(map[*DocumentInfo][]protocol.DocumentSymbol, len(docpkg.Filenames))
+	recordSymbol := func(node ast.Node, symbol protocol.DocumentSymbol) {
+		pos := p.Fset.Position(node.Pos())
+		d, ok := i.documents[pos.Filename]
+		if !ok {
+			panic("filename not found: " + pos.Filename) // TODO(sqs)
+		}
+		symbolsByDocument[d] = append(symbolsByDocument[d], symbol)
+	}
+
+	newConstSymbol := func(c *doc.Value) protocol.DocumentSymbol {
+		// TODO(sqs): narrow ranges in GenDecl (multi-const decl)
+		return protocol.DocumentSymbol{
+			Name:           c.Names[0], // TODO(sqs): emit all names
+			Kind:           protocol.Constant,
+			Range:          rangeForNode(p.Fset, c.Decl),
+			SelectionRange: rangeForNode(p.Fset, c.Decl.Specs[0].(*ast.ValueSpec).Names[0]),
+		}
+	}
+	newFuncSymbol := func(f *doc.Func) protocol.DocumentSymbol {
+		var kind protocol.SymbolKind
+		if f.Recv == "" {
+			kind = protocol.Function
+		} else {
+			kind = protocol.Method
+		}
+		return protocol.DocumentSymbol{
+			Name:           f.Name,
+			Kind:           kind,
+			Range:          rangeForNode(p.Fset, f.Decl),
+			SelectionRange: rangeForNode(p.Fset, f.Decl.Name),
+		}
+	}
+	newTypeSymbol := func(t *doc.Type) protocol.DocumentSymbol {
+		// TODO(sqs): narrow down type ranges
+		return protocol.DocumentSymbol{
+			Name:           t.Name,
+			Kind:           protocol.Interface, // TODO(sqs): differentiate between interface/struct/etc.
+			Range:          rangeForNode(p.Fset, t.Decl),
+			SelectionRange: rangeForNode(p.Fset, t.Decl.Specs[0].(*ast.TypeSpec).Name),
+		}
+	}
+	newVarSymbol := func(v *doc.Value) protocol.DocumentSymbol {
+		// TODO(sqs): narrow down ranges
+		return protocol.DocumentSymbol{
+			Name:           v.Names[0], // TODO(sqs): emit all names
+			Kind:           protocol.Variable,
+			Range:          rangeForNode(p.Fset, v.Decl),
+			SelectionRange: rangeForNode(p.Fset, v.Decl.Specs[0].(*ast.ValueSpec).Names[0]),
+		}
+	}
+
+	for _, c := range docpkg.Consts {
+		recordSymbol(c.Decl, newConstSymbol(c))
+	}
+
+	for _, f := range docpkg.Funcs {
+		recordSymbol(f.Decl, newFuncSymbol(f))
+	}
+
+	for _, t := range docpkg.Types {
+		typeSymbol := newTypeSymbol(t)
+
+		for _, c := range t.Consts {
+			typeSymbol.Children = append(typeSymbol.Children, newConstSymbol(c))
+		}
+		for _, f := range t.Funcs {
+			typeSymbol.Children = append(typeSymbol.Children, newFuncSymbol(f))
+		}
+		for _, m := range t.Methods {
+			typeSymbol.Children = append(typeSymbol.Children, newFuncSymbol(m))
+		}
+		for _, v := range t.Vars {
+			typeSymbol.Children = append(typeSymbol.Children, newVarSymbol(v))
+		}
+
+		recordSymbol(t.Decl, typeSymbol)
+	}
+
+	for _, v := range docpkg.Vars {
+		recordSymbol(v.Decl, newVarSymbol(v))
+	}
+
+	for d, symbols := range symbolsByDocument {
+		resultID := i.emitter.EmitDocumentSymbolResult(nil, symbols)
+		_ = i.emitter.EmitTextDocumentDocumentSymbolEdge(d.DocumentID, resultID)
 	}
 }
 

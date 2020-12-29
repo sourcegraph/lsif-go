@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"bytes"
+	"go/ast"
 	"go/token"
 	"go/types"
 	"strings"
@@ -28,6 +29,21 @@ func rangeForObject(obj types.Object, pos token.Position) (protocol.Pos, protoco
 	start := protocol.Pos{Line: line, Character: column + adjustment}
 	end := protocol.Pos{Line: line, Character: column + n - adjustment}
 	return start, end
+}
+
+func rangeForNode(fset *token.FileSet, node ast.Node) protocol.RangeData {
+	start := fset.Position(node.Pos())
+	end := fset.Position(node.End())
+	return protocol.RangeData{
+		Start: protocol.Pos{
+			Line:      start.Line - 1,
+			Character: start.Column - 1,
+		},
+		End: protocol.Pos{
+			Line:      end.Line - 1,
+			Character: end.Column - 1,
+		},
+	}
 }
 
 // toMarkedString creates a protocol.MarkedString object from the given content. The signature
