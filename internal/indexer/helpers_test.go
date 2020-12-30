@@ -429,17 +429,6 @@ type symbolNode struct {
 	Children  []symbolNode
 }
 
-func (n *symbolNode) setFromRange(rng protocol.Range, documentURI string) {
-	n.SymbolData = rng.Tag.SymbolData
-	n.Locations = []protocol.SymbolLocation{
-		{
-			URI:       documentURI,
-			Range:     &rng.RangeData,
-			FullRange: *rng.Tag.FullRange,
-		},
-	}
-}
-
 // buildSymbolTree returns a root node of a symbol tree from the given document symbol result or
 // workspace symbol. Exactly 1 of (result, symbol) must be set.
 func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocumentSymbol, symbol *protocol.Symbol) *symbolNode {
@@ -454,10 +443,17 @@ func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocument
 		if !ok {
 			return nil
 		}
-		root.setFromRange(rng, findDocumentURIContaining(elements, rng.ID))
+		root.SymbolData = rng.Tag.SymbolData
+		root.Locations = []protocol.SymbolLocation{
+			{
+				URI:       findDocumentURIContaining(elements, rng.ID),
+				Range:     &rng.RangeData,
+				FullRange: *rng.Tag.FullRange,
+			},
+		}
 
 		// Add children from documentSymbolResult.
-		childAdded := map[uint64]struct{}{}
+		childAdded := map[uint64]struct{}{} // so we can deduplicate in findMemberSymbolsOf below
 		for _, childResult := range result.Children {
 			childAdded[childResult.ID] = struct{}{}
 			if child := buildSymbolTree(elements, &childResult, nil); child != nil {
@@ -471,7 +467,6 @@ func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocument
 	case symbol != nil:
 		root.SymbolData = symbol.SymbolData
 		root.Locations = symbol.Locations
-
 		root.Children = append(root.Children, findMemberSymbolsOf(elements, symbol.ID, nil)...)
 	}
 
