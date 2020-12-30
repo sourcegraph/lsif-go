@@ -274,6 +274,7 @@ func TestIndexer(t *testing.T) {
 			if !ok {
 				t.Fatalf("could not find document symbols")
 			}
+			symbols = clearSymbolIDs(symbols)
 
 			expected := []symbolNode{testInterfaceSymbol, testStructSymbol}
 			if diff := cmp.Diff(expected, symbols); diff != "" {
@@ -283,7 +284,7 @@ func TestIndexer(t *testing.T) {
 
 		t.Run("workspace", func(t *testing.T) {
 			symbols := findWorkspaceSymbols(w.elements)
-			symbols = filterSymbols(symbols, childSymbolsGoFilePath)
+			symbols = clearSymbolIDs(filterSymbols(symbols, childSymbolsGoFilePath))
 
 			sort.Slice(symbols, func(i, j int) bool {
 				return symbols[i].Detail < symbols[j].Detail
@@ -311,6 +312,37 @@ func TestIndexer(t *testing.T) {
 			}
 			if diff := cmp.Diff(expected, symbols); diff != "" {
 				t.Errorf("unexpected symbols (-want +got): %s", diff)
+			}
+		})
+
+		t.Run("package export moniker", func(t *testing.T) {
+			allSymbols := findWorkspaceSymbols(w.elements)
+
+			// Test only a single package's moniker.
+			const pkgPath = "github.com/sourcegraph/lsif-go/internal/testdata"
+			var pkgSymbol *symbolNode
+			walkSymbolTree(&symbolNode{Children: allSymbols}, func(node *symbolNode) bool {
+				if node.Kind == protocol.Package && node.Detail == pkgPath {
+					pkgSymbol = node
+				}
+				return true
+			})
+			if pkgSymbol == nil {
+				t.Fatalf("no package symbol found with path %q", pkgPath)
+			}
+
+			monikers := findMonikersByRangeOrReferenceResultID(w.elements, pkgSymbol.ID)
+
+			// Clear monikers for comparison to expected value.
+			for i := range monikers {
+				monikers[i].Vertex = protocol.Vertex{}
+			}
+
+			expected := []protocol.Moniker{
+				{Kind: "export", Scheme: "gomod", Identifier: pkgPath},
+			}
+			if diff := cmp.Diff(expected, monikers); diff != "" {
+				t.Errorf("unexpected monikers (-want +got): %s", diff)
 			}
 		})
 	})

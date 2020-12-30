@@ -300,6 +300,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		},
 		nil, // TODO(sqs): include all package files?
 	)
+	i.emitExportMoniker(packageSymbolID, p, types.NewPkgName(0, p.Types, p.PkgPath, p.Types))
 	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
 
 	docpkg, err := doc.NewFromFiles(p.Fset, files, p.PkgPath /* TODO(sqs): doc.AllDecls|*/, doc.PreserveAST)

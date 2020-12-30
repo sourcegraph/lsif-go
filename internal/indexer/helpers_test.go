@@ -424,6 +424,7 @@ func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packa
 // symbolNode is a node in a tree of symbols, generalized so that it can represent a document or
 // workspace symbol.
 type symbolNode struct {
+	ID uint64
 	protocol.SymbolData
 	Locations []protocol.SymbolLocation
 	Children  []symbolNode
@@ -443,6 +444,7 @@ func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocument
 		if !ok {
 			return nil
 		}
+		root.ID = rng.ID
 		root.SymbolData = rng.Tag.SymbolData
 		root.Locations = []protocol.SymbolLocation{
 			{
@@ -465,12 +467,22 @@ func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocument
 		root.Children = append(root.Children, findMemberSymbolsOf(elements, rng.ID, childAdded)...)
 
 	case symbol != nil:
+		root.ID = symbol.ID
 		root.SymbolData = symbol.SymbolData
 		root.Locations = symbol.Locations
 		root.Children = append(root.Children, findMemberSymbolsOf(elements, symbol.ID, nil)...)
 	}
 
 	return &root
+}
+
+func walkSymbolTree(root *symbolNode, walkFn func(*symbolNode) (recurse bool)) {
+	recurse := walkFn(root)
+	if recurse {
+		for i := range root.Children {
+			walkSymbolTree(&root.Children[i], walkFn)
+		}
+	}
 }
 
 func filterSymbols(nodes []symbolNode, keepDocumentURI string) []symbolNode {
@@ -486,6 +498,16 @@ func filterSymbols(nodes []symbolNode, keepDocumentURI string) []symbolNode {
 		keep = nil
 	}
 	return keep
+}
+
+func clearSymbolIDs(nodes []symbolNode) []symbolNode {
+	for i := range nodes {
+		walkSymbolTree(&nodes[i], func(node *symbolNode) bool {
+			node.ID = 0
+			return true
+		})
+	}
+	return nodes
 }
 
 func findDocumentSymbols(elements []interface{}, documentURI string) ([]symbolNode, bool) {
