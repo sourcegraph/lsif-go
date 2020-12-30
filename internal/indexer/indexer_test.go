@@ -262,6 +262,17 @@ func TestIndexer(t *testing.T) {
 					},
 				},
 			}
+			testPackageSymbol = symbolNode{
+				SymbolData: protocol.SymbolData{
+					Text:   "testdata",
+					Detail: "github.com/sourcegraph/lsif-go/internal/testdata",
+					Kind:   4,
+				},
+				Children: []symbolNode{
+					testStructSymbol,
+					testInterfaceSymbol,
+				},
+			}
 		)
 
 		t.Run("document", func(t *testing.T) {
@@ -287,7 +298,7 @@ func TestIndexer(t *testing.T) {
 				return symbols[i].Locations[0].Range.Start.Line < symbols[j].Locations[0].Range.Start.Line
 			})
 
-			expected := []symbolNode{testStructSymbol, testInterfaceSymbol}
+			expected := []symbolNode{testPackageSymbol}
 			if diff := cmp.Diff(expected, symbols); diff != "" {
 				t.Errorf("unexpected symbols (-want +got): %s", diff)
 			}
