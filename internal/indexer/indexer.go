@@ -300,6 +300,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		},
 		nil, // TODO(sqs): include all package files?
 	)
+	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
 
 	docpkg, err := doc.NewFromFiles(p.Fset, files, p.PkgPath /* TODO(sqs): doc.AllDecls|*/, doc.PreserveAST)
 	if err != nil {
@@ -340,6 +341,10 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 				ds.Children[i].ID = childID
 			}
 			symbolsByDocument[d] = append(symbolsByDocument[d], ds)
+		}
+
+		if parent != 0 {
+			_ = i.emitter.EmitMember(parent, []uint64{rangeID})
 		}
 
 		return rangeID
@@ -430,7 +435,8 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			children = append(children, emitAndRecordSymbol(childSymbol, node, 0, nil))
 		}
 
-		emitAndRecordSymbol(symbol, node, packageSymbolID, children)
+		id := emitAndRecordSymbol(symbol, node, packageSymbolID, children)
+		_ = i.emitter.EmitMember(id, children)
 	}
 
 	for _, o := range docpkg.Vars {

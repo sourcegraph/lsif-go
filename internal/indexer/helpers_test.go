@@ -440,9 +440,9 @@ func (n *symbolNode) setFromRange(rng protocol.Range, documentURI string) {
 	}
 }
 
-// buildSymbolTree returns a root node of a symbol tree from the given document symbol result (and
-// resultDocumentURI) or workspace symbol. Exactly 1 of (result, symbol) must be set.
-func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocumentSymbol, resultDocumentURI string, symbol *protocol.Symbol) *symbolNode {
+// buildSymbolTree returns a root node of a symbol tree from the given document symbol result or
+// workspace symbol. Exactly 1 of (result, symbol) must be set.
+func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocumentSymbol, symbol *protocol.Symbol) *symbolNode {
 	var root symbolNode
 
 	switch {
@@ -454,22 +454,43 @@ func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocument
 		if !ok {
 			return nil
 		}
-		root.setFromRange(rng, resultDocumentURI)
+		root.setFromRange(rng, findDocumentURIContaining(elements, rng.ID))
 
+		// Add children from documentSymbolResult.
+		childAdded := map[uint64]struct{}{}
 		for _, childResult := range result.Children {
-			if child := buildSymbolTree(elements, &childResult, resultDocumentURI, nil); child != nil {
+			childAdded[childResult.ID] = struct{}{}
+			if child := buildSymbolTree(elements, &childResult, nil); child != nil {
 				root.Children = append(root.Children, *child)
 			}
 		}
+
+		// Add children from member edges (and deduplicate).
+		root.Children = append(root.Children, findMemberSymbolsOf(elements, rng.ID, childAdded)...)
 
 	case symbol != nil:
 		root.SymbolData = symbol.SymbolData
 		root.Locations = symbol.Locations
 
-		// TODO(sqs): recurse
+		root.Children = append(root.Children, findMemberSymbolsOf(elements, symbol.ID, nil)...)
 	}
 
 	return &root
+}
+
+func filterSymbols(nodes []symbolNode, keepDocumentURI string) []symbolNode {
+	keep := nodes[:0]
+	for _, node := range nodes {
+		node.Children = filterSymbols(node.Children, keepDocumentURI)
+
+		if len(node.Locations) == 0 || node.Locations[0].URI == keepDocumentURI {
+			keep = append(keep, node)
+		}
+	}
+	if len(keep) == 0 {
+		keep = nil
+	}
+	return keep
 }
 
 func findDocumentSymbols(elements []interface{}, documentURI string) ([]symbolNode, bool) {
@@ -507,7 +528,7 @@ func findDocumentSymbols(elements []interface{}, documentURI string) ([]symbolNo
 			if v.ID == resultID {
 				var nodes []symbolNode
 				for _, result := range v.Result {
-					if node := buildSymbolTree(elements, &result, documentURI, nil); node != nil {
+					if node := buildSymbolTree(elements, &result, nil); node != nil {
 						nodes = append(nodes, *node)
 					}
 				}
@@ -562,8 +583,51 @@ func findProjectSymbols(elements []interface{}, projectID uint64) []symbolNode {
 			continue
 		}
 
-		if node := buildSymbolTree(elements, nil, "", &symbol); node != nil {
+		if node := buildSymbolTree(elements, nil, &symbol); node != nil {
 			nodes = append(nodes, *node)
+		}
+	}
+
+	return nodes
+}
+
+func findMemberSymbolsOf(elements []interface{}, containerID uint64, skip map[uint64]struct{}) (nodes []symbolNode) {
+	memberIDs := map[uint64]struct{}{}
+	for _, elem := range elements {
+		switch v := elem.(type) {
+		case protocol.Member:
+			if v.OutV == containerID {
+				for _, id := range v.InVs {
+					memberIDs[id] = struct{}{}
+				}
+			}
+		}
+	}
+	valid := func(id uint64) bool {
+		_, isMember := memberIDs[id]
+		_, skip := skip[id]
+		return isMember && !skip
+	}
+
+	for _, elem := range elements {
+		switch v := elem.(type) {
+		case protocol.DocumentSymbolResult:
+			if !valid(v.ID) {
+				continue
+			}
+			for _, result := range v.Result {
+				if node := buildSymbolTree(elements, &result, nil); node != nil {
+					nodes = append(nodes, *node)
+				}
+			}
+
+		case protocol.Range:
+			if !valid(v.ID) {
+				continue
+			}
+			if node := buildSymbolTree(elements, &protocol.RangeBasedDocumentSymbol{ID: v.ID}, nil); node != nil {
+				nodes = append(nodes, *node)
+			}
 		}
 	}
 

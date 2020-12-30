@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -31,6 +32,10 @@ func TestIndexer(t *testing.T) {
 	t.Run("check Parallel function hover text", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
 		if !ok {
+			for _, e := range w.elements {
+				b, _ := json.Marshal(e)
+				t.Logf("%s", string(b))
+			}
 			t.Fatalf("could not find target range")
 		}
 
@@ -262,17 +267,6 @@ func TestIndexer(t *testing.T) {
 					},
 				},
 			}
-			testPackageSymbol = symbolNode{
-				SymbolData: protocol.SymbolData{
-					Text:   "testdata",
-					Detail: "github.com/sourcegraph/lsif-go/internal/testdata",
-					Kind:   4,
-				},
-				Children: []symbolNode{
-					testStructSymbol,
-					testInterfaceSymbol,
-				},
-			}
 		)
 
 		t.Run("document", func(t *testing.T) {
@@ -281,11 +275,7 @@ func TestIndexer(t *testing.T) {
 				t.Fatalf("could not find document symbols")
 			}
 
-			sort.Slice(symbols, func(i, j int) bool {
-				return symbols[i].Locations[0].Range.Start.Line < symbols[j].Locations[0].Range.Start.Line
-			})
-
-			expected := []symbolNode{testStructSymbol, testInterfaceSymbol}
+			expected := []symbolNode{testInterfaceSymbol, testStructSymbol}
 			if diff := cmp.Diff(expected, symbols); diff != "" {
 				t.Errorf("unexpected symbols (-want +got): %s", diff)
 			}
@@ -293,12 +283,32 @@ func TestIndexer(t *testing.T) {
 
 		t.Run("workspace", func(t *testing.T) {
 			symbols := findWorkspaceSymbols(w.elements)
+			symbols = filterSymbols(symbols, childSymbolsGoFilePath)
 
 			sort.Slice(symbols, func(i, j int) bool {
-				return symbols[i].Locations[0].Range.Start.Line < symbols[j].Locations[0].Range.Start.Line
+				return symbols[i].Detail < symbols[j].Detail
 			})
 
-			expected := []symbolNode{testPackageSymbol}
+			expected := []symbolNode{
+				{
+					SymbolData: protocol.SymbolData{
+						Text:   "testdata",
+						Detail: "github.com/sourcegraph/lsif-go/internal/testdata",
+						Kind:   4,
+					},
+					Children: []symbolNode{
+						testInterfaceSymbol,
+						testStructSymbol,
+					},
+				},
+				{
+					SymbolData: protocol.SymbolData{
+						Text:   "secret",
+						Detail: "github.com/sourcegraph/lsif-go/internal/testdata/internal/secret",
+						Kind:   4,
+					},
+				},
+			}
 			if diff := cmp.Diff(expected, symbols); diff != "" {
 				t.Errorf("unexpected symbols (-want +got): %s", diff)
 			}
