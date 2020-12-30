@@ -19,6 +19,7 @@ type PackageDataCacheStats struct {
 // a document and the ranges that it contains.
 type DocumentInfo struct {
 	DocumentID         uint64
+	SymbolRangeIDs     []uint64
 	DefinitionRangeIDs []uint64
 	ReferenceRangeIDs  []uint64
 	m                  sync.Mutex

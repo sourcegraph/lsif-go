@@ -421,8 +421,58 @@ func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packa
 	return packageInformation
 }
 
-func findDocumentSymbols(elements []interface{}, documentURI string) ([]protocol.Range, bool) {
-	// TODO(sqs): support range-based symbols
+// symbolNode is a node in a tree of symbols, generalized so that it can represent a document or
+// workspace symbol.
+type symbolNode struct {
+	protocol.SymbolData
+	Locations []protocol.SymbolLocation
+	Children  []symbolNode
+}
+
+func (n *symbolNode) setFromRange(rng protocol.Range, documentURI string) {
+	n.SymbolData = rng.Tag.SymbolData
+	n.Locations = []protocol.SymbolLocation{
+		{
+			URI:       documentURI,
+			Range:     &rng.RangeData,
+			FullRange: *rng.Tag.FullRange,
+		},
+	}
+}
+
+// buildSymbolTree returns a root node of a symbol tree from the given document symbol result (and
+// resultDocumentURI) or workspace symbol. Exactly 1 of (result, symbol) must be set.
+func buildSymbolTree(elements []interface{}, result *protocol.RangeBasedDocumentSymbol, resultDocumentURI string, symbol *protocol.Symbol) *symbolNode {
+	var root symbolNode
+
+	switch {
+	case (result == nil) == (symbol == nil):
+		panic("exactly 1 of result or symbol must be set")
+
+	case result != nil:
+		rng, ok := findRangeByID(elements, result.ID)
+		if !ok {
+			return nil
+		}
+		root.setFromRange(rng, resultDocumentURI)
+
+		for _, childResult := range result.Children {
+			if child := buildSymbolTree(elements, &childResult, resultDocumentURI, nil); child != nil {
+				root.Children = append(root.Children, *child)
+			}
+		}
+
+	case symbol != nil:
+		root.SymbolData = symbol.SymbolData
+		root.Locations = symbol.Locations
+
+		// TODO(sqs): recurse
+	}
+
+	return &root
+}
+
+func findDocumentSymbols(elements []interface{}, documentURI string) ([]symbolNode, bool) {
 	var docID uint64
 	for _, elem := range elements {
 		switch v := elem.(type) {
@@ -451,43 +501,71 @@ func findDocumentSymbols(elements []interface{}, documentURI string) ([]protocol
 		return nil, false
 	}
 
-	var symbolRangeIDs []uint64
 	for _, elem := range elements {
 		switch v := elem.(type) {
 		case protocol.DocumentSymbolResult:
 			if v.ID == resultID {
-				result := v.Result.([]protocol.RangeBasedDocumentSymbol)
-				// TODO(sqs): gather children too
-				for _, s := range result {
-					symbolRangeIDs = append(symbolRangeIDs, s.ID)
+				var nodes []symbolNode
+				for _, result := range v.Result {
+					if node := buildSymbolTree(elements, &result, documentURI, nil); node != nil {
+						nodes = append(nodes, *node)
+					}
 				}
+				return nodes, true
 			}
 		}
 	}
 
-	isSymbolRangeID := func(id uint64) bool {
-		for _, candidate := range symbolRangeIDs {
-			if id == candidate {
-				return true
-			}
-		}
-		return false
-	}
+	return nil, false
+}
 
-	var ranges []protocol.Range
+func findWorkspaceSymbols(elements []interface{}) (symbols []symbolNode) {
 	for _, elem := range elements {
 		switch v := elem.(type) {
-		case protocol.Range:
-			if isSymbolRangeID(v.ID) {
-				// Zero out irrelevant fields.
-				v.ID = 0
-				v.Type = ""
-				v.Label = ""
+		case protocol.Project:
+			symbols = append(symbols, findProjectSymbols(elements, v.ID)...)
+		}
+	}
 
-				ranges = append(ranges, v)
+	return symbols
+}
+
+func findSymbolByID(elements []interface{}, id uint64) (protocol.Symbol, bool) {
+	for _, elem := range elements {
+		switch v := elem.(type) {
+		case protocol.Symbol:
+			if v.ID == id {
+				return v, true
 			}
 		}
 	}
 
-	return ranges, len(ranges) > 0
+	return protocol.Symbol{}, false
+}
+
+func findProjectSymbols(elements []interface{}, projectID uint64) []symbolNode {
+	var symbolIDs []uint64
+	for _, elem := range elements {
+		switch v := elem.(type) {
+		case protocol.WorkspaceSymbol:
+			if v.OutV == projectID {
+				symbolIDs = append(symbolIDs, v.InVs...)
+				break
+			}
+		}
+	}
+
+	var nodes []symbolNode
+	for _, symbolID := range symbolIDs {
+		symbol, ok := findSymbolByID(elements, symbolID)
+		if !ok {
+			continue
+		}
+
+		if node := buildSymbolTree(elements, nil, "", &symbol); node != nil {
+			nodes = append(nodes, *node)
+		}
+	}
+
+	return nodes
 }

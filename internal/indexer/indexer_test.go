@@ -200,59 +200,98 @@ func TestIndexer(t *testing.T) {
 		}
 	})
 
-	t.Run("check document symbols", func(t *testing.T) {
-		symbols, ok := findDocumentSymbols(w.elements, "file://"+filepath.Join(projectRoot, "child_symbols.go"))
-		if !ok {
-			t.Fatalf("could not find document symbols")
-		}
-
-		sort.Slice(symbols, func(i, j int) bool { return symbols[i].Start.Line < symbols[j].Start.Line })
-
-		expected := []protocol.Range{
-			{
-				Tag: &protocol.RangeSymbolTag{
-					Text:      "Struct",
-					Kind:      11,
-					FullRange: &protocol.RangeData{Start: protocol.Pos{Line: 2}, End: protocol.Pos{Line: 4, Character: 1}},
-				},
-				RangeData: protocol.RangeData{
-					Start: protocol.Pos{Line: 2, Character: 5},
-					End:   protocol.Pos{Line: 2, Character: 11},
-				},
-			},
-			// TODO(sqs): omits children
-			// Children: []protocol.DocumentSymbol{
-			// 	{
-			// 		Name: "StructMethod",
-			// 		Kind: 6,
-			// 		Range: protocol.RangeData{
-			// 			Start: protocol.Pos{Line: 6, Character: 0},
-			// 			End:   protocol.Pos{Line: 6, Character: 34},
-			// 		},
-			// 		SelectionRange: protocol.RangeData{
-			// 			Start: protocol.Pos{Line: 6, Character: 17},
-			// 			End:   protocol.Pos{Line: 6, Character: 29},
-			// 		},
-			// 	},
-			// },
-			{
-				Tag: &protocol.RangeSymbolTag{
-					Text: "Interface",
+	t.Run("symbols", func(t *testing.T) {
+		var (
+			childSymbolsGoFilePath = "file://" + filepath.Join(projectRoot, "child_symbols.go")
+			testStructSymbol       = symbolNode{
+				SymbolData: protocol.SymbolData{
+					Text: "Struct",
 					Kind: 11,
-					FullRange: &protocol.RangeData{
-						Start: protocol.Pos{Line: 8},
-						End:   protocol.Pos{Line: 10, Character: 1},
+				},
+				Locations: []protocol.SymbolLocation{
+					{
+						URI: childSymbolsGoFilePath,
+						Range: &protocol.RangeData{
+							Start: protocol.Pos{Line: 2, Character: 5},
+							End:   protocol.Pos{Line: 2, Character: 11},
+						},
+						FullRange: protocol.RangeData{
+							Start: protocol.Pos{Line: 2, Character: 0},
+							End:   protocol.Pos{Line: 4, Character: 1},
+						},
 					},
 				},
-				RangeData: protocol.RangeData{
-					Start: protocol.Pos{Line: 8, Character: 5},
-					End:   protocol.Pos{Line: 8, Character: 14},
+				Children: []symbolNode{
+					{
+						SymbolData: protocol.SymbolData{
+							Text: "StructMethod",
+							Kind: 6,
+						},
+						Locations: []protocol.SymbolLocation{
+							{
+								URI: childSymbolsGoFilePath,
+								Range: &protocol.RangeData{
+									Start: protocol.Pos{Line: 6, Character: 17},
+									End:   protocol.Pos{Line: 6, Character: 29},
+								},
+								FullRange: protocol.RangeData{
+									Start: protocol.Pos{Line: 6, Character: 0},
+									End:   protocol.Pos{Line: 6, Character: 34},
+								},
+							},
+						},
+					},
 				},
-			},
-		}
-		if diff := cmp.Diff(expected, symbols); diff != "" {
-			t.Errorf("unexpected symbols (-want +got): %s", diff)
-		}
+			}
+			testInterfaceSymbol = symbolNode{
+				SymbolData: protocol.SymbolData{
+					Text: "Interface",
+					Kind: 11,
+				},
+				Locations: []protocol.SymbolLocation{
+					{
+						URI: childSymbolsGoFilePath,
+						Range: &protocol.RangeData{
+							Start: protocol.Pos{Line: 8, Character: 5},
+							End:   protocol.Pos{Line: 8, Character: 14},
+						},
+						FullRange: protocol.RangeData{
+							Start: protocol.Pos{Line: 8},
+							End:   protocol.Pos{Line: 10, Character: 1},
+						},
+					},
+				},
+			}
+		)
+
+		t.Run("document", func(t *testing.T) {
+			symbols, ok := findDocumentSymbols(w.elements, childSymbolsGoFilePath)
+			if !ok {
+				t.Fatalf("could not find document symbols")
+			}
+
+			sort.Slice(symbols, func(i, j int) bool {
+				return symbols[i].Locations[0].Range.Start.Line < symbols[j].Locations[0].Range.Start.Line
+			})
+
+			expected := []symbolNode{testStructSymbol, testInterfaceSymbol}
+			if diff := cmp.Diff(expected, symbols); diff != "" {
+				t.Errorf("unexpected symbols (-want +got): %s", diff)
+			}
+		})
+
+		t.Run("workspace", func(t *testing.T) {
+			symbols := findWorkspaceSymbols(w.elements)
+
+			sort.Slice(symbols, func(i, j int) bool {
+				return symbols[i].Locations[0].Range.Start.Line < symbols[j].Locations[0].Range.Start.Line
+			})
+
+			expected := []symbolNode{testStructSymbol, testInterfaceSymbol}
+			if diff := cmp.Diff(expected, symbols); diff != "" {
+				t.Errorf("unexpected symbols (-want +got): %s", diff)
+			}
+		})
 	})
 }
 
