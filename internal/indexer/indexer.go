@@ -309,15 +309,15 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 
 		pos, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok || !i.markRange(pos) {
+		if !ok /* TODO(sqs): bc symbols have previously emitted ranges:: || !i.markRange(pos)*/ {
 			continue
 		}
 
 		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader)
 
-		i.stripedMutex.LockKey(pos.Filename)
-		i.ranges[pos.Filename][pos.Offset] = rangeID
-		i.stripedMutex.UnlockKey(pos.Filename)
+		// i.stripedMutex.LockKey(pos.Filename)
+		// i.ranges[pos.Filename][pos.Offset] = rangeID
+		// i.stripedMutex.UnlockKey(pos.Filename)
 
 		d.m.Lock()
 		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
@@ -366,7 +366,8 @@ func (i *Indexer) markRange(pos token.Position) bool {
 
 // indexDefinition emits data for the given definition object.
 func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool) uint64 {
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
+	rangeID := i.ensureRangeFor(pos, obj)
+	// rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
