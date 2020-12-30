@@ -27,8 +27,20 @@ func getRepositoryRoot(t *testing.T) string {
 	return root
 }
 
+var (
+	cachedTestPackagesMu sync.Mutex
+	cachedTestPackages   []*packages.Package
+)
+
 // getTestPackages loads the testdata package (and subpackages).
 func getTestPackages(t *testing.T) []*packages.Package {
+	cachedTestPackagesMu.Lock()
+	defer cachedTestPackagesMu.Unlock()
+
+	if cachedTestPackages != nil {
+		return cachedTestPackages
+	}
+
 	packages, err := packages.Load(
 		&packages.Config{Mode: loadMode, Dir: getRepositoryRoot(t)},
 		"./...",
@@ -36,6 +48,10 @@ func getTestPackages(t *testing.T) []*packages.Package {
 	if err != nil {
 		t.Fatalf("unexpected error loading packages: %s", err)
 	}
+
+	// Cache the results because they take ~1s to compute and are used (but not modified) by many
+	// tests.
+	cachedTestPackages = packages
 
 	return packages
 }
