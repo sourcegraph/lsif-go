@@ -344,7 +344,6 @@ func TestIndexer(t *testing.T) {
 			if diff := cmp.Diff(expected, monikers); diff != "" {
 				t.Errorf("unexpected monikers (-want +got): %s", diff)
 			}
-
 			// TODO(sqs): emit package name moniker references
 		})
 	})
