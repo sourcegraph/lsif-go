@@ -212,6 +212,7 @@ func TestIndexer(t *testing.T) {
 				SymbolData: protocol.SymbolData{
 					Text: "Struct",
 					Kind: 11,
+					Tags: []protocol.SymbolTag{protocol.Exported},
 				},
 				Locations: []protocol.SymbolLocation{
 					{
@@ -231,6 +232,7 @@ func TestIndexer(t *testing.T) {
 						SymbolData: protocol.SymbolData{
 							Text: "StructMethod",
 							Kind: 6,
+							Tags: []protocol.SymbolTag{protocol.Exported},
 						},
 						Locations: []protocol.SymbolLocation{
 							{
@@ -252,6 +254,7 @@ func TestIndexer(t *testing.T) {
 				SymbolData: protocol.SymbolData{
 					Text: "Interface",
 					Kind: 11,
+					Tags: []protocol.SymbolTag{protocol.Exported},
 				},
 				Locations: []protocol.SymbolLocation{
 					{
@@ -296,6 +299,7 @@ func TestIndexer(t *testing.T) {
 						Text:   "testdata",
 						Detail: "github.com/sourcegraph/lsif-go/internal/testdata",
 						Kind:   4,
+						Tags:   []protocol.SymbolTag{protocol.Exported},
 					},
 					Children: []symbolNode{
 						testInterfaceSymbol,
@@ -362,7 +366,7 @@ func TestIndexer(t *testing.T) {
 			}
 
 			expected := []protocol.Moniker{
-				{Kind: "export", Scheme: "gomod", Identifier: pkgPath},
+				{Kind: "export", Scheme: "gomod", Identifier: pkgPath, Unique: protocol.UniqueInScheme},
 			}
 			if diff := cmp.Diff(expected, monikers); diff != "" {
 				t.Errorf("unexpected monikers (-want +got): %s", diff)

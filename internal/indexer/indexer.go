@@ -348,15 +348,23 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		}
 	}
 
+	isPackageExported := p.Types.Name() != "main" && !strings.HasSuffix(p.Types.Name(), "_test")
+	pkgSymbolData := protocol.SymbolData{
+		Text:   p.Name,
+		Detail: p.PkgPath,
+		Kind:   protocol.Package,
+	}
+	if isPackageExported {
+		pkgSymbolData.Tags = []protocol.SymbolTag{protocol.Exported}
+	} else {
+		pkgSymbolData.Tags = []protocol.SymbolTag{protocol.Unexported}
+	}
 	packageSymbolID := i.emitter.EmitSymbol(
-		protocol.SymbolData{
-			Text:   p.Name,
-			Detail: p.PkgPath,
-			Kind:   protocol.Package,
-		},
+		pkgSymbolData,
 		packageLocations,
 	)
-	if isPackageExported := p.Types.Name() != "main" && !strings.HasSuffix(p.Types.Name(), "_test"); isPackageExported {
+
+	if isPackageExported {
 		i.emitExportMoniker(packageSymbolID, p, types.NewPkgName(0, p.Types, p.PkgPath, p.Types))
 	}
 	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
@@ -410,6 +418,12 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		return rangeID
 	}
 
+	symbolTags := func(name string) []protocol.SymbolTag {
+		if isPackageExported && ast.IsExported(name) {
+			return []protocol.SymbolTag{protocol.Exported}
+		}
+		return []protocol.SymbolTag{protocol.Unexported}
+	}
 	newConstSymbol := func(o *doc.Value) (protocol.RangeSymbolTag, ast.Node) {
 		// TODO(sqs): narrow ranges in GenDecl (multi-const decl)
 		fullRange := rangeForNode(p.Fset, o.Decl)
@@ -418,6 +432,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			SymbolData: protocol.SymbolData{
 				Text: o.Names[0], // TODO(sqs): emit all names
 				Kind: protocol.Constant,
+				Tags: symbolTags(o.Names[0]),
 			},
 			FullRange: &fullRange,
 		}, o.Decl.Specs[0].(*ast.ValueSpec).Names[0]
@@ -435,6 +450,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			SymbolData: protocol.SymbolData{
 				Text: o.Name,
 				Kind: kind,
+				Tags: symbolTags(o.Name),
 			},
 			FullRange: &fullRange,
 		}, o.Decl.Name
@@ -447,6 +463,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			SymbolData: protocol.SymbolData{
 				Text: o.Name,
 				Kind: protocol.Interface, // TODO(sqs): differentiate between interface/struct/etc.
+				Tags: symbolTags(o.Name),
 			},
 			FullRange: &fullRange,
 		}, o.Decl.Specs[0].(*ast.TypeSpec).Name
@@ -459,6 +476,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			SymbolData: protocol.SymbolData{
 				Text: o.Names[0], // TODO(sqs): emit all names
 				Kind: protocol.Variable,
+				Tags: symbolTags(o.Names[0]),
 			},
 			FullRange: &fullRange,
 		}, o.Decl.Specs[0].(*ast.ValueSpec).Names[0]
@@ -621,7 +639,8 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	}
 
 	// TODO(sqs): updated to also check that package is exported
-	if obj.Exported() && p.Name != "main" && !strings.HasSuffix(p.Name, "_test") && !strings.HasSuffix(filename, "_test.go") {
+	isExported := obj.Exported() && p.Name != "main" && !strings.HasSuffix(p.Name, "_test") && !strings.HasSuffix(filename, "_test.go")
+	if isExported || true /* TODO(sqs): also emit monikers for nonexported, but should come up with a way to have a moniker even for unexported things */ {
 		i.emitExportMoniker(resultSetID, p, obj)
 	}
 
