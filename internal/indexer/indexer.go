@@ -373,14 +373,15 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		i.stripedMutex.LockKey(pos.Filename)
 		defer i.stripedMutex.UnlockKey(pos.Filename)
 
-		if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
-			panic(fmt.Sprintf("range already exists: %+v", symbol))
+		rangeID, ok := i.ranges[pos.Filename][pos.Offset]
+		if !ok {
+			rng := rangeForNode(p.Fset, nameNode)
+			rangeID = i.emitter.EmitRangeWithTag(rng.Start, rng.End, &symbol)
+
+			// TODO(sqs): this can happen when an exported type has an embedded unexported struct, and we emit symbols for the method 2 times.
+			// panic(fmt.Sprintf("range already exists: %+v %s:%d", symbol, pos.Filename, pos.Offset))
+			i.ranges[pos.Filename][pos.Offset] = rangeID
 		}
-
-		rng := rangeForNode(p.Fset, nameNode)
-		rangeID := i.emitter.EmitRangeWithTag(rng.Start, rng.End, &symbol)
-
-		i.ranges[pos.Filename][pos.Offset] = rangeID
 
 		d, ok := i.documents[pos.Filename]
 		if !ok {
