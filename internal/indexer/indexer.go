@@ -303,7 +303,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		eof := p.Fset.Position(f.Pos(f.Size()))
 
 		packageLocations[idx] = protocol.SymbolLocation{
-			URI:   pos.Filename,
+			URI:   "file://" + pos.Filename,
 			Range: &nameRange,
 			FullRange: protocol.RangeData{
 				Start: protocol.Pos{Line: 0, Character: 0},
@@ -480,6 +480,15 @@ func (i *Indexer) indexDefinitions() {
 
 // indexDefinitionsForPackage emits data for each definition within the given package.
 func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
+	// The definitions map contains nil objects for the package name in `package` clauses. To
+	// produce hover results for the package name, we synthesize an obj for each package name ident
+	// that will be used instead.
+	packageNames := map[token.Pos]types.Object{}
+	for _, file := range p.Syntax {
+		pos := file.Name.Pos()
+		packageNames[pos] = types.NewPkgName(pos, p.Types, p.Name, p.Types)
+	}
+
 	// Create a map of implicit case clause objects by their position. Note that there is an
 	// implicit object for each case clause of a type switch (including default), and they all
 	// share the same position. This creates a map with one arbitrarily chosen argument for
@@ -493,6 +502,13 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 
 	for ident, obj := range p.TypesInfo.Defs {
 		typeSwitchHeader := false
+
+		if obj == nil {
+			// If the ident is a package name, its obj will be nil. Use the synthesized obj that we
+			// created earlier.
+			obj = packageNames[ident.Pos()]
+		}
+
 		if obj == nil {
 			// The definitions map contains nil objects for symbolic variables t in t := x.(type)
 			// of type switch headers. In these cases we select an arbitrary case clause for the

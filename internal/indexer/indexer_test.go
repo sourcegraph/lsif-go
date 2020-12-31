@@ -301,12 +301,35 @@ func TestIndexer(t *testing.T) {
 						testInterfaceSymbol,
 						testStructSymbol,
 					},
-				},
-				{
-					SymbolData: protocol.SymbolData{
-						Text:   "secret",
-						Detail: "github.com/sourcegraph/lsif-go/internal/testdata/internal/secret",
-						Kind:   4,
+					Locations: []protocol.SymbolLocation{
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "child_symbols.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 10, Character: 2}},
+						},
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "data.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 53, Character: 2}},
+						},
+						{
+							URI: "file://" + filepath.Join(projectRoot, "main.go"),
+							Range: &protocol.RangeData{
+								Start: protocol.Pos{Line: 2, Character: 8},
+								End:   protocol.Pos{Line: 2, Character: 16},
+							},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 2, Character: 17}},
+						},
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "parallel.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 35, Character: 2}},
+						},
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "typeswitch.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 11, Character: 2}},
+						},
 					},
 				},
 			}
