@@ -292,13 +292,33 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		}
 	}
 
+	// A package symbol's locations span all of its files.
+	packageLocations := make([]protocol.SymbolLocation, len(files))
+	for idx, file := range files {
+		pos := p.Fset.Position(file.Name.Pos())
+
+		nameRange := rangeForNode(p.Fset, file.Name)
+
+		f := p.Fset.File(file.Name.Pos())
+		eof := p.Fset.Position(f.Pos(f.Size()))
+
+		packageLocations[idx] = protocol.SymbolLocation{
+			URI:   pos.Filename,
+			Range: &nameRange,
+			FullRange: protocol.RangeData{
+				Start: protocol.Pos{Line: 0, Character: 0},
+				End:   protocol.Pos{Line: eof.Line - 1, Character: eof.Column - 1},
+			},
+		}
+	}
+
 	packageSymbolID := i.emitter.EmitSymbol(
 		protocol.SymbolData{
 			Text:   p.Name,
 			Detail: p.PkgPath,
 			Kind:   protocol.Package,
 		},
-		nil, // TODO(sqs): include all package files?
+		packageLocations,
 	)
 	i.emitExportMoniker(packageSymbolID, p, types.NewPkgName(0, p.Types, p.PkgPath, p.Types))
 	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
