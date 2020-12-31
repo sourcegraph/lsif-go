@@ -145,6 +145,48 @@ func (i *Indexer) loadPackages() error {
 		i.packages = pkgs
 		i.packagesByFile = map[string][]*packages.Package{}
 
+		/////////////////// ONLY USE CORRECT PKGS
+
+		visitPackage := func(p *packages.Package) bool {
+			// TODO(sqs): HACK, the loader returns 4 packages because (loader.Config).Tests==true and we
+			// want to avoid duplication.
+			if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
+				return false // synthesized `go test` program
+			}
+			if strings.HasSuffix(p.Name, "_test") {
+				return true
+			}
+
+			// Index only the combined test package if it's present. If the package has no test files,
+			// it won't be present, and we need to just index the default package.
+			pkgHasTests := false
+			for _, op := range pkgs {
+				if op.ID == fmt.Sprintf("%s [%s.test]", p.PkgPath, p.PkgPath) {
+					pkgHasTests = true
+					break
+				}
+			}
+			if pkgHasTests && !strings.HasSuffix(p.ID, ".test]") {
+				return false
+			}
+
+			log.Printf("package %q %q %q %q", p.Name, p.ID, p.PkgPath, p.Types.Path())
+			for _, f := range p.Syntax {
+				log.Println(" - ", p.Fset.Position(f.Name.Pos()).Filename)
+			}
+			log.Println("@@@@@@@@@@@@@@@@@@@@@")
+
+			return true
+		}
+		keep := pkgs[:0]
+		for _, pkg := range i.packages {
+			if visitPackage(pkg) {
+				keep = append(keep, pkg)
+			}
+		}
+		i.packages = keep
+		/////////////////////////////////////////
+
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
 				filename := p.Fset.Position(f.Package).Filename
@@ -314,7 +356,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		},
 		packageLocations,
 	)
-	if isPackageExported := p.Types.Name() != "main" && !strings.HasSuffix(p.Types.Name(), "_test") && !strings.HasSuffix(p.PkgPath, ".test"); isPackageExported {
+	if isPackageExported := p.Types.Name() != "main" && !strings.HasSuffix(p.Types.Name(), "_test"); isPackageExported {
 		i.emitExportMoniker(packageSymbolID, p, types.NewPkgName(0, p.Types, p.PkgPath, p.Types))
 	}
 	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
