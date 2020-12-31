@@ -320,10 +320,12 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		},
 		packageLocations,
 	)
-	i.emitExportMoniker(packageSymbolID, p, types.NewPkgName(0, p.Types, p.PkgPath, p.Types))
+	if isPackageExported := p.Types.Name() != "main" && !strings.HasSuffix(p.Types.Name(), "_test"); isPackageExported {
+		i.emitExportMoniker(packageSymbolID, p, types.NewPkgName(0, p.Types, p.PkgPath, p.Types))
+	}
 	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
 
-	docpkg, err := doc.NewFromFiles(p.Fset, files, p.PkgPath /* TODO(sqs): doc.AllDecls|*/, doc.PreserveAST)
+	docpkg, err := doc.NewFromFiles(p.Fset, files, p.PkgPath, doc.AllDecls|doc.PreserveAST)
 	if err != nil {
 		panic(err)
 	}
