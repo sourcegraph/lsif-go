@@ -456,17 +456,38 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		}, o.Decl.Name
 	}
 	newTypeSymbol := func(o *doc.Type) (protocol.RangeSymbolTag, ast.Node) {
+		var kind protocol.SymbolKind
+		var nameNode, fullNode ast.Node
+		for _, spec := range o.Decl.Specs {
+			typeSpec := spec.(*ast.TypeSpec)
+			if typeSpec.Name.Name == o.Name {
+				nameNode = typeSpec.Name
+				fullNode = typeSpec
+
+				switch typeSpec.Type.(type) {
+				case *ast.StructType:
+					kind = protocol.Struct
+				case *ast.InterfaceType:
+					kind = protocol.Interface
+				default:
+					kind = protocol.Class
+				}
+
+				break
+			}
+		}
+
 		// TODO(sqs): narrow down type ranges
-		fullRange := rangeForNode(p.Fset, o.Decl)
+		fullRange := rangeForNode(p.Fset, fullNode)
 		return protocol.RangeSymbolTag{
 			Type: "definition",
 			SymbolData: protocol.SymbolData{
 				Text: o.Name,
-				Kind: protocol.Interface, // TODO(sqs): differentiate between interface/struct/etc.
+				Kind: kind,
 				Tags: symbolTags(o.Name),
 			},
 			FullRange: &fullRange,
-		}, o.Decl.Specs[0].(*ast.TypeSpec).Name
+		}, nameNode
 	}
 	newVarSymbol := func(o *doc.Value) (protocol.RangeSymbolTag, ast.Node) {
 		// TODO(sqs): narrow down ranges
