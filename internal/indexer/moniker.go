@@ -5,6 +5,7 @@ import (
 	"go/types"
 	"strings"
 
+	protocol "github.com/sourcegraph/lsif-protocol"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -86,7 +87,7 @@ func (i *Indexer) ensurePackageInformation(name, version string) uint64 {
 // to the given package information vertex identifier, and an edge from the given source
 // identifier to the moniker vertex identifier.
 func (i *Indexer) addMonikers(kind, identifier string, sourceID, packageID uint64) {
-	monikerID := i.emitter.EmitMoniker(kind, "gomod", identifier)
+	monikerID := i.emitter.EmitMoniker(kind, "gomod", identifier, protocol.UniqueInScheme)
 	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageID)
 	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
 }

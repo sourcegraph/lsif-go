@@ -1,10 +1,12 @@
 package indexer
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	protocol "github.com/sourcegraph/lsif-protocol"
 )
 
@@ -30,6 +32,10 @@ func TestIndexer(t *testing.T) {
 	t.Run("check Parallel function hover text", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
 		if !ok {
+			for _, e := range w.elements {
+				b, _ := json.Marshal(e)
+				t.Logf("%s", string(b))
+			}
 			t.Fatalf("could not find target range")
 		}
 
@@ -197,6 +203,176 @@ func TestIndexer(t *testing.T) {
 		if value := boolReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
+	})
+
+	t.Run("symbols", func(t *testing.T) {
+		var (
+			childSymbolsGoFilePath = "file://" + filepath.Join(projectRoot, "child_symbols.go")
+			testStructSymbol       = symbolNode{
+				SymbolData: protocol.SymbolData{
+					Text: "Struct",
+					Kind: 11,
+					Tags: []protocol.SymbolTag{protocol.Exported},
+				},
+				Locations: []protocol.SymbolLocation{
+					{
+						URI: childSymbolsGoFilePath,
+						Range: &protocol.RangeData{
+							Start: protocol.Pos{Line: 2, Character: 5},
+							End:   protocol.Pos{Line: 2, Character: 11},
+						},
+						FullRange: protocol.RangeData{
+							Start: protocol.Pos{Line: 2, Character: 0},
+							End:   protocol.Pos{Line: 4, Character: 1},
+						},
+					},
+				},
+				Children: []symbolNode{
+					{
+						SymbolData: protocol.SymbolData{
+							Text: "StructMethod",
+							Kind: 6,
+							Tags: []protocol.SymbolTag{protocol.Exported},
+						},
+						Locations: []protocol.SymbolLocation{
+							{
+								URI: childSymbolsGoFilePath,
+								Range: &protocol.RangeData{
+									Start: protocol.Pos{Line: 6, Character: 17},
+									End:   protocol.Pos{Line: 6, Character: 29},
+								},
+								FullRange: protocol.RangeData{
+									Start: protocol.Pos{Line: 6, Character: 0},
+									End:   protocol.Pos{Line: 6, Character: 34},
+								},
+							},
+						},
+					},
+				},
+			}
+			testInterfaceSymbol = symbolNode{
+				SymbolData: protocol.SymbolData{
+					Text: "Interface",
+					Kind: 11,
+					Tags: []protocol.SymbolTag{protocol.Exported},
+				},
+				Locations: []protocol.SymbolLocation{
+					{
+						URI: childSymbolsGoFilePath,
+						Range: &protocol.RangeData{
+							Start: protocol.Pos{Line: 8, Character: 5},
+							End:   protocol.Pos{Line: 8, Character: 14},
+						},
+						FullRange: protocol.RangeData{
+							Start: protocol.Pos{Line: 8},
+							End:   protocol.Pos{Line: 10, Character: 1},
+						},
+					},
+				},
+			}
+		)
+
+		t.Run("document", func(t *testing.T) {
+			symbols, ok := findDocumentSymbols(w.elements, childSymbolsGoFilePath)
+			if !ok {
+				t.Fatalf("could not find document symbols")
+			}
+			symbols = clearSymbolIDs(symbols)
+
+			expected := []symbolNode{testInterfaceSymbol, testStructSymbol}
+			if diff := cmp.Diff(expected, symbols); diff != "" {
+				t.Errorf("unexpected symbols (-want +got): %s", diff)
+			}
+		})
+
+		t.Run("workspace", func(t *testing.T) {
+			symbols := findWorkspaceSymbols(w.elements)
+			symbols = clearSymbolIDs(filterSymbols(symbols, childSymbolsGoFilePath))
+
+			sort.Slice(symbols, func(i, j int) bool {
+				return symbols[i].Detail < symbols[j].Detail
+			})
+
+			expected := []symbolNode{
+				{
+					SymbolData: protocol.SymbolData{
+						Text:   "testdata",
+						Detail: "github.com/sourcegraph/lsif-go/internal/testdata",
+						Kind:   4,
+						Tags:   []protocol.SymbolTag{protocol.Exported},
+					},
+					Children: []symbolNode{
+						testInterfaceSymbol,
+						testStructSymbol,
+					},
+					Locations: []protocol.SymbolLocation{
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "child_symbols.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 10, Character: 2}},
+						},
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "data.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 53, Character: 2}},
+						},
+						{
+							URI: "file://" + filepath.Join(projectRoot, "main.go"),
+							Range: &protocol.RangeData{
+								Start: protocol.Pos{Line: 2, Character: 8},
+								End:   protocol.Pos{Line: 2, Character: 16},
+							},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 2, Character: 17}},
+						},
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "parallel.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 35, Character: 2}},
+						},
+						{
+							URI:       "file://" + filepath.Join(projectRoot, "typeswitch.go"),
+							Range:     &protocol.RangeData{Start: protocol.Pos{Character: 8}, End: protocol.Pos{Character: 16}},
+							FullRange: protocol.RangeData{End: protocol.Pos{Line: 11, Character: 2}},
+						},
+					},
+				},
+			}
+			if diff := cmp.Diff(expected, symbols); diff != "" {
+				t.Errorf("unexpected symbols (-want +got): %s", diff)
+			}
+		})
+
+		t.Run("package export moniker", func(t *testing.T) {
+			allSymbols := findWorkspaceSymbols(w.elements)
+
+			// Test only a single package's moniker.
+			const pkgPath = "github.com/sourcegraph/lsif-go/internal/testdata"
+			var pkgSymbol *symbolNode
+			walkSymbolTree(&symbolNode{Children: allSymbols}, func(node *symbolNode) bool {
+				if node.Kind == protocol.Package && node.Detail == pkgPath {
+					pkgSymbol = node
+				}
+				return true
+			})
+			if pkgSymbol == nil {
+				t.Fatalf("no package symbol found with path %q", pkgPath)
+			}
+
+			monikers := findMonikersByRangeOrReferenceResultID(w.elements, pkgSymbol.ID)
+
+			// Clear monikers for comparison to expected value.
+			for i := range monikers {
+				monikers[i].Vertex = protocol.Vertex{}
+			}
+
+			expected := []protocol.Moniker{
+				{Kind: "export", Scheme: "gomod", Identifier: pkgPath, Unique: protocol.UniqueInScheme},
+			}
+			if diff := cmp.Diff(expected, monikers); diff != "" {
+				t.Errorf("unexpected monikers (-want +got): %s", diff)
+			}
+			// TODO(sqs): emit package name moniker references
+		})
 	})
 }
 
