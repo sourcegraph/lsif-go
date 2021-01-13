@@ -4,14 +4,14 @@ github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 h1:JYp7IbQjafo
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d h1:UQZhZ2O0vMHr2cI+DC1Mbh0TJxzA3RcLoMsFw+aXw7E=
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
+github.com/alidn/lsif-protocol v1.0.1-0.20210113015314-a4c552ebb760 h1:u7CNjLwKGSWHwP9F9Khbj0Oflu1QBmOUcK5PHq/O3w8=
+github.com/alidn/lsif-protocol v1.0.1-0.20210113015314-a4c552ebb760/go.mod h1:VEuG8FZ3ISQOAHbzdj+qwS9nUfFlMsP4rVRBnDLztkQ=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/efritz/pentimento v0.0.0-20190429011147-ade47d831101 h1:RylpU+KNJJNEJIk3o8gZ70uPTlutxaYnikKNPko39LA=
 github.com/efritz/pentimento v0.0.0-20190429011147-ade47d831101/go.mod h1:5ALWO82UZwfAtNRUtwzsWimcrcuYzyieTyyXOXrP6EQ=
-github.com/google/go-cmp v0.5.1 h1:JFrFEBb2xKufg6XkJsJr+WbKb4FQlURi5RUcBveYu9k=
-github.com/google/go-cmp v0.5.1/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.5.2 h1:X2ev0eStA3AbceY54o37/0PQ/UWqKEiiO2dKL5OPaFM=
 github.com/google/go-cmp v0.5.2/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
@@ -36,10 +36,6 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3 h1:sAARUcYbwxnebBeWHzKX2MeyXtzy25TEglCTz9BhueY=
 github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3/go.mod h1:AIBPxLCkKUFc2ZkjCXzs/Kk9OUhQLw/Zicdd0Rhqz2U=
-github.com/sourcegraph/lsif-protocol v0.0.0-20200827191700-d005ee28c8a1 h1:qzkEXQxHlmGpJrKo6mOe3Tq5zFKZd/+B3DnJlmmrsRA=
-github.com/sourcegraph/lsif-protocol v0.0.0-20200827191700-d005ee28c8a1/go.mod h1:VEuG8FZ3ISQOAHbzdj+qwS9nUfFlMsP4rVRBnDLztkQ=
-github.com/sourcegraph/lsif-protocol v1.0.0 h1:NLxbnHuN2o4fibjRUrXTwuojD4+kDFPXra9PA1V6tQM=
-github.com/sourcegraph/lsif-protocol v1.0.0/go.mod h1:VEuG8FZ3ISQOAHbzdj+qwS9nUfFlMsP4rVRBnDLztkQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
