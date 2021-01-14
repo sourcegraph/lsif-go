@@ -224,6 +224,26 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, typeDefRange, 4, 5, 4, 8)
 	})
 
+	t.Run("Check type definition of var defined in a different package", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "cross_package_types.go"), 6, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 2, 5, 2, 15)
+
+		docUri := findDocumentURIContaining(w.elements, typeDefRange.ID)
+		expectedDocUri := "file://" + filepath.Join(projectRoot, "internal/secret/secret_types.go")
+		if docUri != expectedDocUri {
+			t.Fatalf("Unexpected document uri, want=%v have=%v", expectedDocUri, docUri)
+		}
+	})
+
 	t.Run("check NestedB monikers", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
 		if !ok {
