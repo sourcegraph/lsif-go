@@ -102,6 +102,7 @@ func (i *Indexer) Index() error {
 	i.emitDocuments()
 	i.addImports()
 	i.indexDefinitions()
+	i.indexTypeDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
 	i.emitContains()
@@ -267,7 +268,7 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 }
 
 // indexDefinitions emits data for each definition in an index target package. This will emit
-// a result set, a definition result, a hover result, and export monikers attached to each range.
+// a result set, a definition result, a hover result, a type definition result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
 func (i *Indexer) indexDefinitions() {
 	i.visitEachPackage("Indexing definitions", i.indexDefinitionsForPackage)
@@ -319,6 +320,60 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	}
 }
 
+// indexTypeDefinitions emits type definition data for each definition and reference in an index target package.
+// This will emit an 'item' edge from type definition result to type definition range.
+func (i *Indexer) indexTypeDefinitions() {
+	i.visitEachPackage("Indexing type definitions", i.indexTypeDefinitionForPackage)
+}
+
+// indexDefinitionsForPackage emits data for each type definition definition within the given package.
+func (i *Indexer) indexTypeDefinitionForPackage(p *packages.Package) {
+	for _, obj := range p.TypesInfo.Defs {
+		if obj == nil {
+			continue
+		}
+
+		defInfo := i.getDefinitionInfo(obj)
+		if defInfo == nil {
+			continue
+		}
+
+		if typeRangeID, ok := i.getTypeDefRangeID(obj); ok {
+			i.emitter.EmitItem(defInfo.TypeDefResultID, []uint64{typeRangeID}, defInfo.DocumentID)
+		}
+	}
+}
+
+// getTypeDefResultID returns the range id of the type definition if it was emitted. The second result parameter
+// indicates whether or not such id is found.
+func (i *Indexer) getTypeDefRangeID(obj types.Object) (_ uint64, found bool) {
+	if namedType, ok := namedTypeFromObj(obj); ok {
+		if defInfo := i.getDefinitionInfo(namedType.Obj()); defInfo != nil {
+			return defInfo.RangeID, true
+		}
+	}
+	return 0, false
+}
+
+// namedTypeFromObj returns a named type if the given object is of type types.Named, types.Pointer or types.Slice. Otherwise,
+// it returns nil and false. If obj is a pointer, it returns the type that it is pointing to, and if it's a slice, it returns
+// the type of the slice elements.
+func namedTypeFromObj(obj types.Object) (_ *types.Named, ok bool) {
+	t := obj.Type()
+	switch t.(type) {
+	case *types.Named:
+		res, ok := t.(*types.Named)
+		return res, ok
+	case *types.Pointer:
+		res, ok := t.(*types.Pointer).Elem().(*types.Named)
+		return res, ok
+	case *types.Slice:
+		res, ok := t.(*types.Slice).Elem().(*types.Named)
+		return res, ok
+	}
+	return nil, false
+}
+
 // positionAndDocument returns the position of the given object and the document info object
 // that contains it. If the given package is not the canonical package for the containing file
 // in the packagesByFile map, this method returns false.
@@ -363,9 +418,11 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
+	typeDefResultID := i.emitter.EmitTypeDefinitionResult()
 
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
 	_ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
+	_ = i.emitter.EmitTextDocumentTypeDefinition(resultSetID, typeDefResultID)
 	_ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
 
 	if typeSwitchHeader {
@@ -393,6 +450,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		DocumentID:        document.DocumentID,
 		RangeID:           rangeID,
 		ResultSetID:       resultSetID,
+		TypeDefResultID:   typeDefResultID,
 		ReferenceRangeIDs: map[uint64][]uint64{},
 		TypeSwitchHeader:  typeSwitchHeader,
 	})

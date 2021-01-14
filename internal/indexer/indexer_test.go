@@ -114,6 +114,136 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, references[3], 26, 1, 26, 3) // wg.Wait()
 	})
 
+	t.Run("Check type definition struct field", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 5, 1)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 2, 5, 2, 15)
+	})
+
+	t.Run("Check type definition struct def field", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 8, 11)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 4, 5, 4, 8)
+	})
+
+	t.Run("Check type definition of reference field", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 9, 1)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 4, 5, 4, 8)
+	})
+
+	t.Run("Check type definition of reference struct", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 10, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 4, 5, 4, 8)
+	})
+
+	t.Run("Check type definition of reference field", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 10, 11)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 2, 5, 2, 15)
+	})
+
+	t.Run("Check type definition of basic type", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 13, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		_, ok = findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if ok {
+			t.Fatalf("Did not expect to find the type definition")
+		}
+	})
+
+	t.Run("Check type definition of pointer", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 16, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 4, 5, 4, 8)
+	})
+
+	t.Run("Check type definition of slice", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "types.go"), 19, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 4, 5, 4, 8)
+	})
+
+	t.Run("Check type definition of var defined in a different package", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "cross_package_types.go"), 6, 9)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		typeDefRange, ok := findTypeDefinitionRangeByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("expected to find the type definition")
+		}
+
+		compareRange(t, typeDefRange, 2, 5, 2, 15)
+
+		docUri := findDocumentURIContaining(w.elements, typeDefRange.ID)
+		expectedDocUri := "file://" + filepath.Join(projectRoot, "internal/secret/secret_types.go")
+		if docUri != expectedDocUri {
+			t.Fatalf("Unexpected document uri, want=%v have=%v", expectedDocUri, docUri)
+		}
+	})
+
 	t.Run("check NestedB monikers", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
 		if !ok {

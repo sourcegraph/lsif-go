@@ -222,6 +222,23 @@ func findDefintionRangesByDefinitionResultID(elements []interface{}, id uint64) 
 	return ranges
 }
 
+func findTypeDefinitionRangesByDefinitionResultID(elements []interface{}, id uint64) (_ protocol.Range, found bool) {
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.Item:
+			if e.OutV == id {
+				for _, inV := range e.InVs {
+					if r, ok := findRangeByID(elements, inV); ok {
+						return r, true
+					}
+				}
+			}
+		}
+	}
+
+	return protocol.Range{}, false
+}
+
 // findReferenceRangesByReferenceResultID returns the ranges attached to the reference result with the given
 // identifier.
 func findReferenceRangesByReferenceResultID(elements []interface{}, id uint64) (ranges []protocol.Range) {
@@ -325,6 +342,28 @@ func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id uint64)
 	}
 
 	return ranges
+}
+
+func findTypeDefinitionRangeByRangeOrResultSetID(elements []interface{}, id uint64) (_ protocol.Range, found bool) {
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.TextDocumentTypeDefinition:
+			if e.OutV == id {
+				return findTypeDefinitionRangesByDefinitionResultID(elements, e.InV)
+			}
+		}
+	}
+
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.Next:
+			if e.OutV == id {
+				return findTypeDefinitionRangeByRangeOrResultSetID(elements, e.InV)
+			}
+		}
+	}
+
+	return protocol.Range{}, false
 }
 
 // findReferenceRangesByRangeOrResultSetID returns the reference ranges attached to the range or result set with
