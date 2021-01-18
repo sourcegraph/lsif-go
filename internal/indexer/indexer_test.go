@@ -211,7 +211,7 @@ func TestIndexer(t *testing.T) {
 			testStructSymbol       = symbolNode{
 				SymbolData: protocol.SymbolData{
 					Text: "Struct",
-					Kind: 11,
+					Kind: 23,
 					Tags: []protocol.SymbolTag{protocol.Exported},
 				},
 				Locations: []protocol.SymbolLocation{
@@ -222,7 +222,7 @@ func TestIndexer(t *testing.T) {
 							End:   protocol.Pos{Line: 2, Character: 11},
 						},
 						FullRange: protocol.RangeData{
-							Start: protocol.Pos{Line: 2, Character: 0},
+							Start: protocol.Pos{Line: 2, Character: 5},
 							End:   protocol.Pos{Line: 4, Character: 1},
 						},
 					},
@@ -264,7 +264,7 @@ func TestIndexer(t *testing.T) {
 							End:   protocol.Pos{Line: 8, Character: 14},
 						},
 						FullRange: protocol.RangeData{
-							Start: protocol.Pos{Line: 8},
+							Start: protocol.Pos{Line: 8, Character: 5},
 							End:   protocol.Pos{Line: 10, Character: 1},
 						},
 					},
@@ -371,7 +371,6 @@ func TestIndexer(t *testing.T) {
 			if diff := cmp.Diff(expected, monikers); diff != "" {
 				t.Errorf("unexpected monikers (-want +got): %s", diff)
 			}
-			// TODO(sqs): emit package name moniker references
 		})
 	})
 }

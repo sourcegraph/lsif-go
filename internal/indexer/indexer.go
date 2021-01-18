@@ -168,11 +168,6 @@ func (i *Indexer) loadPackages() error {
 				return false
 			}
 
-			log.Printf("unexpected package %q %q %q %q", p.Name, p.ID, p.PkgPath, p.Types.Path())
-			for _, f := range p.Syntax {
-				log.Println(" - ", p.Fset.Position(f.Name.Pos()).Filename)
-			}
-			log.Println("@@@@@@@@@@@@@@@@@@@@@")
 			return true
 		}
 		keep := pkgs[:0]

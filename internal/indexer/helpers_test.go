@@ -369,7 +369,7 @@ func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id uint64) 
 	return ranges
 }
 
-// findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or  reference result
+// findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or reference result
 // with the given identifier.
 func findMonikersByRangeOrReferenceResultID(elements []interface{}, id uint64) (monikers []protocol.Moniker) {
 	for _, elem := range elements {
