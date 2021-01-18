@@ -145,10 +145,8 @@ func (i *Indexer) loadPackages() error {
 		i.packages = pkgs
 		i.packagesByFile = map[string][]*packages.Package{}
 
-		/////////////////// ONLY USE CORRECT PKGS
-
-		visitPackage := func(p *packages.Package) bool {
-			// TODO(sqs): HACK, the loader returns 4 packages because (loader.Config).Tests==true and we
+		shouldVisitPackage := func(p *packages.Package) bool {
+			// The loader returns 4 packages because (loader.Config).Tests==true and we
 			// want to avoid duplication.
 			if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
 				return false // synthesized `go test` program
@@ -170,22 +168,20 @@ func (i *Indexer) loadPackages() error {
 				return false
 			}
 
-			log.Printf("package %q %q %q %q", p.Name, p.ID, p.PkgPath, p.Types.Path())
+			log.Printf("unexpected package %q %q %q %q", p.Name, p.ID, p.PkgPath, p.Types.Path())
 			for _, f := range p.Syntax {
 				log.Println(" - ", p.Fset.Position(f.Name.Pos()).Filename)
 			}
 			log.Println("@@@@@@@@@@@@@@@@@@@@@")
-
 			return true
 		}
 		keep := pkgs[:0]
 		for _, pkg := range i.packages {
-			if visitPackage(pkg) {
+			if shouldVisitPackage(pkg) {
 				keep = append(keep, pkg)
 			}
 		}
 		i.packages = keep
-		/////////////////////////////////////////
 
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
@@ -369,14 +365,19 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 	}
 	_ = i.emitter.EmitWorkspaceSymbolEdge(i.projectID, []uint64{packageSymbolID})
 
+	// Protect with mutex, because multiple packages with the same package path can share files and
+	// doc.NewFromFiles will modify the elements of the file slice.
+	i.stripedMutex.LockKey(p.PkgPath)
 	docpkg, err := doc.NewFromFiles(p.Fset, files, p.PkgPath, doc.AllDecls|doc.PreserveAST)
 	if err != nil {
+		i.stripedMutex.UnlockKey(p.PkgPath)
 		panic(err)
 	}
+	i.stripedMutex.UnlockKey(p.PkgPath)
 
 	symbolsByDocument := make(map[*DocumentInfo][]protocol.RangeBasedDocumentSymbol, len(files))
 	emitAndRecordSymbol := func(symbol protocol.RangeSymbolTag, nameNode ast.Node, parent uint64, children []uint64) uint64 {
-		// TODO(sqs): can rearrange locks to spend less time holding lock
+		// Coarse-level mutex (could rearrange locks to spend less time holding lock)
 		pos := p.Fset.Position(nameNode.Pos())
 		i.stripedMutex.LockKey(pos.Filename)
 		defer i.stripedMutex.UnlockKey(pos.Filename)
