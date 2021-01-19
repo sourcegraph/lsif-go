@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"os"
 	"strings"
 	"sync"
 
@@ -103,7 +104,7 @@ func (i *Indexer) Index() error {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
-	i.indexSymbols() // first because symbol ranges need to be emitted w/"tag" properties
+	i.indexSymbols() // first because symbol ranges need to be emitted with "tag" properties
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
@@ -303,6 +304,8 @@ func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.P
 }
 
 // indexSymbols indexes data for each symbol in the project.
+//
+// emitDocuments must be invoked before this method or else it will fail.
 func (i *Indexer) indexSymbols() {
 	i.visitEachPackage("Indexing symbols", i.indexSymbolsForPackage)
 }
@@ -366,7 +369,8 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 	docpkg, err := doc.NewFromFiles(p.Fset, files, p.PkgPath, doc.AllDecls|doc.PreserveAST)
 	if err != nil {
 		i.stripedMutex.UnlockKey(p.PkgPath)
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Package %s aborted: doc.NewFromFiles failed with error: %s", p.PkgPath, err)
+		return
 	}
 	i.stripedMutex.UnlockKey(p.PkgPath)
 
@@ -382,14 +386,14 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			rng := rangeForNode(p.Fset, nameNode)
 			rangeID = i.emitter.EmitRangeWithTag(rng.Start, rng.End, &symbol)
 
-			// TODO(sqs): this can happen when an exported type has an embedded unexported struct, and we emit symbols for the method 2 times.
+			// TODO(beyang): this can happen when an exported type has an embedded unexported struct, and we emit symbols for the method 2 times.
 			// panic(fmt.Sprintf("range already exists: %+v %s:%d", symbol, pos.Filename, pos.Offset))
 			i.ranges[pos.Filename][pos.Offset] = rangeID
 		}
 
 		d, ok := i.documents[pos.Filename]
 		if !ok {
-			panic("filename not found: " + pos.Filename) // TODO(sqs)
+			panic(fmt.Sprintf("document for filename not found: %s", pos.Filename))
 		}
 
 		d.m.Lock()
@@ -421,12 +425,12 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		return []protocol.SymbolTag{protocol.Unexported}
 	}
 	newConstSymbol := func(o *doc.Value) (protocol.RangeSymbolTag, ast.Node) {
-		// TODO(sqs): narrow ranges in GenDecl (multi-const decl)
+		// TODO(beyang): narrow ranges in GenDecl (multi-const decl)
 		fullRange := rangeForNode(p.Fset, o.Decl)
 		return protocol.RangeSymbolTag{
 			Type: "definition",
 			SymbolData: protocol.SymbolData{
-				Text: o.Names[0], // TODO(sqs): emit all names
+				Text: o.Names[0], // TODO(beyang): emit all names
 				Kind: protocol.Constant,
 				Tags: symbolTags(o.Names[0]),
 			},
@@ -473,7 +477,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			}
 		}
 
-		// TODO(sqs): narrow down type ranges
+		// TODO(beyang): narrow down type ranges
 		fullRange := rangeForNode(p.Fset, fullNode)
 		return protocol.RangeSymbolTag{
 			Type: "definition",
@@ -486,12 +490,12 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		}, nameNode
 	}
 	newVarSymbol := func(o *doc.Value) (protocol.RangeSymbolTag, ast.Node) {
-		// TODO(sqs): narrow down ranges
+		// TODO(beyang): narrow down ranges
 		fullRange := rangeForNode(p.Fset, o.Decl)
 		return protocol.RangeSymbolTag{
 			Type: "definition",
 			SymbolData: protocol.SymbolData{
-				Text: o.Names[0], // TODO(sqs): emit all names
+				Text: o.Names[0], // TODO(beyang): emit all names
 				Kind: protocol.Variable,
 				Tags: symbolTags(o.Names[0]),
 			},
@@ -529,9 +533,7 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 			childSymbol, node := newVarSymbol(c)
 			children = append(children, emitAndRecordSymbol(childSymbol, node, 0, nil))
 		}
-
-		id := emitAndRecordSymbol(symbol, node, packageSymbolID, children)
-		_ = i.emitter.EmitMember(id, children)
+		i.emitter.EmitMember(emitAndRecordSymbol(symbol, node, packageSymbolID, children), children)
 	}
 
 	for _, o := range docpkg.Vars {
@@ -654,12 +656,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	if _, ok := obj.(*types.PkgName); ok {
 		i.emitImportMoniker(resultSetID, p, obj)
 	}
-
-	// TODO(sqs): updated to also check that package is exported
-	isExported := obj.Exported() && p.Name != "main" && !strings.HasSuffix(p.Name, "_test") && !strings.HasSuffix(filename, "_test.go")
-	if isExported || true /* TODO(sqs): also emit monikers for nonexported, but should come up with a way to have a moniker even for unexported things */ {
-		i.emitExportMoniker(resultSetID, p, obj)
-	}
+	i.emitExportMoniker(resultSetID, p, obj)
 
 	i.setDefinitionInfo(obj, &DefinitionInfo{
 		DocumentID:        document.DocumentID,
