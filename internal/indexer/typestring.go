@@ -35,6 +35,10 @@ func packageQualifier(*types.Package) string { return "" }
 
 // formatTypeSignature returns a brief description of the given struct or interface type.
 func formatTypeSignature(obj *types.TypeName) string {
+	if obj.IsAlias() {
+		// TODO
+		return "burger"
+	}
 	switch obj.Type().Underlying().(type) {
 	case *types.Struct:
 		return fmt.Sprintf("type %s struct", obj.Name())

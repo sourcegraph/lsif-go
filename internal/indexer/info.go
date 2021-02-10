@@ -28,10 +28,10 @@ type DocumentInfo struct {
 // of this shape is keyed by type and identifier in the indexer so that it can be
 // re-retrieved for a range that uses the definition.
 type DefinitionInfo struct {
+	ReferenceRangeIDs map[uint64][]uint64
 	DocumentID        uint64
 	RangeID           uint64
 	ResultSetID       uint64
-	ReferenceRangeIDs map[uint64][]uint64
-	TypeSwitchHeader  bool
 	m                 sync.Mutex
+	TypeSwitchHeader  bool
 }

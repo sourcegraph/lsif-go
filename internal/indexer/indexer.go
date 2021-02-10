@@ -3,6 +3,7 @@ package indexer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -27,6 +28,7 @@ type Indexer struct {
 	outputOptions  OutputOptions     // What to print to stdout/stderr
 
 	// Definition type cache
+	// these are map[interface]... because the method that
 	consts  map[interface{}]*DefinitionInfo // position -> info
 	funcs   map[interface{}]*DefinitionInfo // name -> info
 	imports map[interface{}]*DefinitionInfo // position -> info
@@ -426,6 +428,10 @@ func (i *Indexer) setDefinitionInfo(obj types.Object, d *DefinitionInfo) {
 		i.importsMutex.Unlock()
 
 	case *types.TypeName:
+		/* if v.IsAlias() {
+			fmt.Println("ALIAS INCOMING")
+		}
+		fmt.Println(obj.Type().String(), obj.Type().Underlying().String()) */
 		i.typesMutex.Lock()
 		i.types[obj.Type().String()] = d
 		i.typesMutex.Unlock()
@@ -452,7 +458,12 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 			continue
 		}
 
+		if t, ok := definitionObj.(*types.TypeName); ok && (t.Name() == "Burgers" || t.Name() == "Burger") {
+			fmt.Println(t.Name(), t.IsAlias())
+		}
+
 		pos, d, ok := i.positionAndDocument(p, ident.Pos())
+
 		if !ok {
 			continue
 		}
@@ -510,7 +521,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 	d.m.Unlock()
 
 	if d.TypeSwitchHeader {
-		// Attache a hover text result _directly_ to the given range so that it "overwrites" the
+		// Attach a hover text result _directly_ to the given range so that it "overwrites" the
 		// hover result of the type switch header for this use. Each reference of such a variable
 		// will need a more specific hover text, as the type of the variable is refined in the body
 		// of case clauses of the type switch.
