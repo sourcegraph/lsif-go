@@ -307,7 +307,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader)
+		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
 
 		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -359,7 +359,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
 	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
@@ -389,7 +389,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		i.emitExportMoniker(resultSetID, p, obj)
 	}
 
-	i.setDefinitionInfo(obj, &DefinitionInfo{
+	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
 		DocumentID:        document.DocumentID,
 		RangeID:           rangeID,
 		ResultSetID:       resultSetID,
@@ -403,7 +403,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 // setDefinitionInfo stashes the given definition info indexed by the given object type and name.
 // This definition info will be accessible by invoking getDefinitionInfo with the same type and
 // name values (but not necessarily the same object).
-func (i *Indexer) setDefinitionInfo(obj types.Object, d *DefinitionInfo) {
+func (i *Indexer) setDefinitionInfo(obj types.Object, ident *ast.Ident, d *DefinitionInfo) {
 	switch v := obj.(type) {
 	case *types.Const:
 		i.constsMutex.Lock()
@@ -427,7 +427,9 @@ func (i *Indexer) setDefinitionInfo(obj types.Object, d *DefinitionInfo) {
 
 	case *types.TypeName:
 		i.typesMutex.Lock()
-		i.types[obj.Type().String()] = d
+		// solves issue when in the case of a type alias, the obj.Type().String() of the type alias
+		// is == to the obj.Type().String() of the type it aliases.
+		i.types[ident.String()+"="+obj.Type().String()] = d
 		i.typesMutex.Unlock()
 
 	case *types.Var:
@@ -457,7 +459,7 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID, ok := i.indexReference(p, d, pos, definitionObj)
+		rangeID, ok := i.indexReference(p, d, pos, definitionObj, ident)
 		if !ok {
 			continue
 		}
@@ -469,8 +471,8 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object) (uint64, bool) {
-	if def := i.getDefinitionInfo(definitionObj); def != nil {
+func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, ident *ast.Ident) (uint64, bool) {
+	if def := i.getDefinitionInfo(definitionObj, ident); def != nil {
 		return i.indexReferenceToDefinition(p, document, pos, definitionObj, def)
 	}
 
@@ -480,7 +482,7 @@ func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, po
 // getDefinitionInfo returns the definition info object for the given object. This requires that
 // setDefinitionInfo was previously called an object that can be resolved in the same way. This
 // will only return definitions which are defined in an index target (not a dependency).
-func (i *Indexer) getDefinitionInfo(obj types.Object) *DefinitionInfo {
+func (i *Indexer) getDefinitionInfo(obj types.Object, ident *ast.Ident) *DefinitionInfo {
 	switch v := obj.(type) {
 	case *types.Const:
 		return i.consts[v.Pos()]
@@ -491,7 +493,7 @@ func (i *Indexer) getDefinitionInfo(obj types.Object) *DefinitionInfo {
 	case *types.PkgName:
 		return i.imports[v.Pos()]
 	case *types.TypeName:
-		return i.types[obj.Type().String()]
+		return i.types[ident.String()+"="+obj.Type().String()]
 	case *types.Var:
 		return i.vars[v.Pos()]
 	}
