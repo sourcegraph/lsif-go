@@ -37,6 +37,14 @@ func packageQualifier(*types.Package) string { return "" }
 func formatTypeSignature(obj *types.TypeName) string {
 	switch obj.Type().Underlying().(type) {
 	case *types.Struct:
+		if obj.IsAlias() {
+			original := obj.Type().(*types.Named).Obj()
+			var pkg string
+			if obj.Pkg().Name() != original.Pkg().Name() {
+				pkg = original.Pkg().Name() + "."
+			}
+			return fmt.Sprintf("type %s = %s%s", obj.Name(), pkg, original.Name())
+		}
 		return fmt.Sprintf("type %s struct", obj.Name())
 	case *types.Interface:
 		return fmt.Sprintf("type %s interface", obj.Name())
