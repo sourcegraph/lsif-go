@@ -13,6 +13,16 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.3.0
+
+### Changed
+
+- Type alias hovers now name the aliased type e.g. `type Alias = pkg.Original`. [#131](https://github.com/sourcegraph/lsif-go/pull/131)
+
+### Fixed 
+
+- Definition of the RHS type symbol in a type alias is no longer the type alias itself but the type being aliased. [#131](https://github.com/sourcegraph/lsif-go/pull/131)
+
 ## v1.2.0
 
 ### Changed
