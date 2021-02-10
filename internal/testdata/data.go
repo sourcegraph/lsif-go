@@ -42,7 +42,7 @@ const secretScore = secret.SecretScore
 
 // Doer is similar to the test interface (but not the same).
 func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) {
-	return Score, nil
+	return int(Score), nil
 }
 
 // StructTagRegression is a struct that caused panic in the wild. Added here to

@@ -198,6 +198,72 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 	})
+
+	t.Run("check type alias", func(t *testing.T) {
+		structDefinition, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typealias.go"), 5, 17)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		aliasDefinition, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typealias.go"), 5, 5)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		//
+		// Check definition links
+
+		structDefinitions := findDefinitionRangesByRangeOrResultSetID(w.elements, structDefinition.ID)
+		if len(structDefinitions) != 1 {
+			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(structDefinitions))
+		}
+		// TODO - check filename as well
+		compareRange(t, structDefinitions[0], 6, 5, 6, 10)
+
+		asliasDefinitions := findDefinitionRangesByRangeOrResultSetID(w.elements, aliasDefinition.ID)
+		if len(asliasDefinitions) != 1 {
+			t.Fatalf("incorrect alias definition count. want=%d have=%d", 1, len(asliasDefinitions))
+		}
+		compareRange(t, asliasDefinitions[0], 5, 5, 5, 7)
+
+		// //
+		// // Check reference links
+
+		// references := findReferenceRangesByRangeOrResultSetID(w.elements, definition.ID)
+		// if len(references) != 3 {
+		// 	t.Fatalf("incorrect reference count. want=%d have=%d", 2, len(references))
+		// }
+
+		// sort.Slice(references, func(i, j int) bool { return references[i].Start.Line < references[j].Start.Line })
+		// compareRange(t, references[0], 3, 8, 3, 21)
+		// compareRange(t, references[1], 5, 9, 5, 22)
+		// compareRange(t, references[2], 7, 10, 7, 23)
+
+		// //
+		// // Check hover texts
+
+		// // TODO(efritz) - update test here if we emit hover text for the header
+
+		// intReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, intReference.ID)
+		// if !ok || len(intReferenceHoverResult.Result.Contents) < 1 {
+		// 	t.Fatalf("could not find hover text")
+		// }
+
+		// expectedType := `var concreteValue int`
+		// if value := intReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
+		// 	t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
+		// }
+
+		// boolReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, boolReference.ID)
+		// if !ok || len(boolReferenceHoverResult.Result.Contents) < 1 {
+		// 	t.Fatalf("could not find hover text")
+		// }
+
+		// expectedType = `var concreteValue bool`
+		// if value := boolReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
+		// 	t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
+		// }
+	})
 }
 
 func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
