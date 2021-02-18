@@ -15,3 +15,5 @@ require (
 	github.com/sourcegraph/lsif-protocol v1.0.0
 	golang.org/x/tools v0.1.0
 )
+
+replace github.com/sourcegraph/lsif-protocol v1.0.0 => ../lsif-protocol

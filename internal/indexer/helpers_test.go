@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"fmt"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -403,4 +404,86 @@ func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packa
 	}
 
 	return packageInformation
+}
+
+type symbolAndRangeData struct {
+	RangeData protocol.RangeData
+	Tag       *protocol.RangeTag
+	Children  []*symbolAndRangeData
+}
+
+func findSymbolsByDocumentURI(t *testing.T, elements []interface{}, docURI string) []*symbolAndRangeData {
+	ranges := make(map[uint64]protocol.Range)
+	var doc protocol.Document
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.Range:
+			ranges[e.ID] = e
+		case protocol.Document:
+			if e.URI == docURI {
+				doc = e
+			}
+		}
+	}
+
+	if doc.ID == 0 {
+		t.Errorf("Doc not found: %v", docURI)
+		return nil
+	}
+	var edge protocol.DocumentSymbolEdge
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.DocumentSymbolEdge:
+			if e.OutV == doc.ID {
+				edge = e
+			}
+		}
+	}
+
+	var result protocol.DocumentSymbolResult
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.DocumentSymbolResult:
+			if e.ID == edge.InV {
+				result = e
+			}
+		}
+	}
+
+	if result.Result == nil {
+		return nil
+	}
+	data := make([]*symbolAndRangeData, len(result.Result))
+	for i, res := range result.Result {
+		datum, err := rangeBasedDocumentSymbolToSymbolAndRangeData(res, ranges)
+		if err != nil {
+			t.Errorf("Error converting RangeBasedDocumentSymbol instances: %s", err)
+			return nil
+		}
+		data[i] = datum
+	}
+	return data
+}
+
+func rangeBasedDocumentSymbolToSymbolAndRangeData(s *protocol.RangeBasedDocumentSymbol, ranges map[uint64]protocol.Range) (*symbolAndRangeData, error) {
+	rng, ok := ranges[s.ID]
+	if !ok {
+		return nil, fmt.Errorf("Range not found: %v", s.ID)
+	}
+	var children []*symbolAndRangeData
+	if s.Children != nil {
+		children = make([]*symbolAndRangeData, len(s.Children))
+		for i, schild := range s.Children {
+			child, err := rangeBasedDocumentSymbolToSymbolAndRangeData(schild, ranges)
+			if err != nil {
+				return nil, err
+			}
+			children[i] = child
+		}
+	}
+	return &symbolAndRangeData{
+		RangeData: rng.RangeData,
+		Tag:       rng.Tag,
+		Children:  children,
+	}, nil
 }

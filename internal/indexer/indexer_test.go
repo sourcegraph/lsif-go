@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	protocol "github.com/sourcegraph/lsif-protocol"
 )
 
@@ -285,6 +286,76 @@ func TestIndexer(t *testing.T) {
 				}
 			}
 		}
+	})
+
+	t.Run("symbols", func(t *testing.T) {
+		var (
+			childSymbolsGoFilePath = "file://" + filepath.Join(projectRoot, "child_symbols.go")
+			expSymbols             = []*symbolAndRangeData{{
+				RangeData: protocol.RangeData{
+					Start: protocol.Pos{Line: 1, Character: 8},
+					End:   protocol.Pos{Line: 1, Character: 16},
+				},
+				Tag: &protocol.RangeTag{
+					Type: "definition",
+					SymbolData: protocol.SymbolData{
+						Text:   "github.com/sourcegraph/lsif-go/internal/testdata",
+						Detail: "Package testdata\n",
+						Kind:   protocol.Package,
+						Tags:   []protocol.SymbolTag{protocol.Exported},
+					},
+				},
+				Children: []*symbolAndRangeData{
+					{
+						RangeData: protocol.RangeData{
+							Start: protocol.Pos{Line: 9, Character: 5},
+							End:   protocol.Pos{Line: 9, Character: 14},
+						},
+						Tag: &protocol.RangeTag{
+							Type: "definition",
+							SymbolData: protocol.SymbolData{
+								Text: "Interface",
+								Kind: protocol.Interface,
+							},
+						},
+					},
+					{
+						RangeData: protocol.RangeData{
+							Start: protocol.Pos{Line: 3, Character: 5},
+							End:   protocol.Pos{Line: 3, Character: 11},
+						},
+						Tag: &protocol.RangeTag{
+							Type: "definition",
+							SymbolData: protocol.SymbolData{
+								Text: "Struct",
+								Kind: protocol.Struct,
+							},
+						},
+						Children: []*symbolAndRangeData{
+							{
+								RangeData: protocol.RangeData{
+									Start: protocol.Pos{Line: 7, Character: 17},
+									End:   protocol.Pos{Line: 7, Character: 29},
+								},
+								Tag: &protocol.RangeTag{
+									Type: "definition",
+									SymbolData: protocol.SymbolData{
+										Text: "StructMethod",
+										Kind: protocol.Method,
+									},
+								},
+							},
+						},
+					},
+				},
+			}}
+		)
+		t.Run("document", func(t *testing.T) {
+			symbols := findSymbolsByDocumentURI(t, w.elements, childSymbolsGoFilePath)
+			if diff := cmp.Diff(expSymbols, symbols); diff != "" {
+				t.Errorf("unexpected symbols (-want +got): %s", diff)
+			}
+		})
 	})
 }
 

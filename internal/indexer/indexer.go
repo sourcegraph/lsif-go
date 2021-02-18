@@ -3,6 +3,7 @@ package indexer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -100,6 +101,7 @@ func (i *Indexer) Index() error {
 
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
+	i.indexSymbols() // must come after emitDocuments, before any other ranges are emitted
 	i.addImports()
 	i.indexDefinitions()
 	i.indexReferences()
@@ -141,6 +143,39 @@ func (i *Indexer) loadPackages() error {
 
 		i.packages = pkgs
 		i.packagesByFile = map[string][]*packages.Package{}
+
+		shouldVisitPackage := func(p *packages.Package) bool {
+			// The loader returns 4 packages because (loader.Config).Tests==true and we
+			// want to avoid duplication.
+			if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
+				return false // synthesized `go test` program
+			}
+			if strings.HasSuffix(p.Name, "_test") {
+				return true
+			}
+
+			// Index only the combined test package if it's present. If the package has no test files,
+			// it won't be present, and we need to just index the default package.
+			pkgHasTests := false
+			for _, op := range pkgs {
+				if op.ID == fmt.Sprintf("%s [%s.test]", p.PkgPath, p.PkgPath) {
+					pkgHasTests = true
+					break
+				}
+			}
+			if pkgHasTests && !strings.HasSuffix(p.ID, ".test]") {
+				return false
+			}
+
+			return true
+		}
+		keep := pkgs[:0]
+		for _, pkg := range i.packages {
+			if shouldVisitPackage(pkg) {
+				keep = append(keep, pkg)
+			}
+		}
+		i.packages = keep
 
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
@@ -303,7 +338,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 
 		pos, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok || !i.markRange(pos) {
+		if !ok {
 			continue
 		}
 
@@ -337,30 +372,9 @@ func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token
 	return position, d, true
 }
 
-// markRange sets an empty range identifier in the ranges map for the given position.
-// If a  range for this identifier has already been marked, this method returns false.
-func (i *Indexer) markRange(pos token.Position) bool {
-	i.stripedMutex.RLockKey(pos.Filename)
-	_, ok := i.ranges[pos.Filename][pos.Offset]
-	i.stripedMutex.RUnlockKey(pos.Filename)
-	if ok {
-		return false
-	}
-
-	i.stripedMutex.LockKey(pos.Filename)
-	defer i.stripedMutex.UnlockKey(pos.Filename)
-
-	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
-		return false
-	}
-
-	i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
-	return true
-}
-
 // indexDefinition emits data for the given definition object.
 func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
+	rangeID := i.ensureRangeFor(pos, obj)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
@@ -574,8 +588,34 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
 		return rangeID
 	}
 
-	rangeID = i.emitter.EmitRange(start, end)
+	rangeID = i.emitter.EmitRange(start, end, nil)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
+	return rangeID
+}
+
+func (i *Indexer) emitRangeForSymbol(pos token.Position, length int, tag *protocol.RangeTag) uint64 {
+	i.stripedMutex.LockKey(pos.Filename)
+	defer i.stripedMutex.UnlockKey(pos.Filename)
+
+	line := pos.Line - 1
+	column := pos.Column - 1
+
+	start := protocol.Pos{Line: line, Character: column}
+	end := protocol.Pos{Line: line, Character: column + length}
+
+	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+		log.Printf("Duplicate range already exists at %s:%d, tag may be absent", pos.Filename, pos.Offset)
+		return rangeID
+	}
+
+	rangeID := i.emitter.EmitRange(start, end, tag)
+	i.ranges[pos.Filename][pos.Offset] = rangeID
+
+	document := i.documents[pos.Filename]
+	document.m.Lock()
+	document.SymbolRangeIDs = append(document.SymbolRangeIDs, rangeID)
+	document.m.Unlock()
+
 	return rangeID
 }
 
@@ -606,8 +646,8 @@ func (i *Indexer) emitContains() {
 
 // emitContainsForProject emits a contains edge between a document and its ranges.
 func (i *Indexer) emitContainsForDocument(d *DocumentInfo) {
-	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
-		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
+	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 || len(d.SymbolRangeIDs) > 0 {
+		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs, d.SymbolRangeIDs))
 	}
 }
 
