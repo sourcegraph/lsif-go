@@ -588,7 +588,7 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
 		return rangeID
 	}
 
-	rangeID = i.emitter.EmitRange(start, end, nil)
+	rangeID = i.emitter.EmitRange(start, end)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 	return rangeID
 }
@@ -608,7 +608,7 @@ func (i *Indexer) emitRangeForSymbol(pos token.Position, length int, tag *protoc
 		return rangeID
 	}
 
-	rangeID := i.emitter.EmitRange(start, end, tag)
+	rangeID := i.emitter.EmitRangeWithTag(start, end, tag)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 
 	document := i.documents[pos.Filename]
