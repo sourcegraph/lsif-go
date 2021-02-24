@@ -56,3 +56,12 @@ type StructTagRegression struct {
 type TestEqualsStruct = struct {
 	Value int
 }
+
+type ShellStruct struct {
+	// Ensure this field comes before the definition
+	// so that we grab the correct one in our unit
+	// tests.
+	InnerStruct
+}
+
+type InnerStruct struct{}

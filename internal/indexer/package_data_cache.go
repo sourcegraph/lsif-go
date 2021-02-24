@@ -169,10 +169,15 @@ func visit(
 func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 	switch q := node.(type) {
 	case *ast.Field:
+		// Handle field name/names
 		if len(q.Names) > 0 {
-			// Add names of distinct fields whose type is an anonymous struct type
-			// containing the target field (e.g. `X struct { target string }`).
+			// Handles things like `a, b, c T`
 			return addString(monikerPath, q.Names[0].String())
+		}
+
+		// Handle embedded types
+		if name, ok := q.Type.(*ast.Ident); ok {
+			return addString(monikerPath, name.Name)
 		}
 
 	case *ast.TypeSpec:

@@ -156,3 +156,12 @@ func TestMonikerIdentifierField(t *testing.T) {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
 	}
 }
+
+func TestMonikerEmbeddedField(t *testing.T) {
+	packages := getTestPackages(t)
+	p, obj := findDefinitionByName(t, packages, "InnerStruct")
+
+	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "ShellStruct.InnerStruct" {
+		t.Errorf("unexpected moniker identifier. want=%q have=%q", "ShellStruct.InnerStruct", identifier)
+	}
+}
