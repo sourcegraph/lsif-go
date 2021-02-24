@@ -38,13 +38,19 @@ func formatTypeSignature(obj *types.TypeName) string {
 	switch obj.Type().Underlying().(type) {
 	case *types.Struct:
 		if obj.IsAlias() {
-			original := obj.Type().(*types.Named).Obj()
-			var pkg string
-			if obj.Pkg().Name() != original.Pkg().Name() {
-				pkg = original.Pkg().Name() + "."
+			switch obj.Type().(type) {
+			case *types.Named:
+				original := obj.Type().(*types.Named).Obj()
+				var pkg string
+				if obj.Pkg().Name() != original.Pkg().Name() {
+					pkg = original.Pkg().Name() + "."
+				}
+				return fmt.Sprintf("type %s = %s%s", obj.Name(), pkg, original.Name())
+			case *types.Struct:
+				return fmt.Sprintf("type %s = struct", obj.Name())
 			}
-			return fmt.Sprintf("type %s = %s%s", obj.Name(), pkg, original.Name())
 		}
+
 		return fmt.Sprintf("type %s struct", obj.Name())
 	case *types.Interface:
 		return fmt.Sprintf("type %s interface", obj.Name())

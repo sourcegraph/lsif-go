@@ -240,49 +240,86 @@ func TestIndexer(t *testing.T) {
 			if value := strings.ReplaceAll(hover.Result.Contents[2].Value, "  ", "\t"); value != expectedUnderlyingType {
 				t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
 			}
+		}
 
-			{
-				r, ok := findRange(w.elements, typealiasFile, 7, 27)
-				if !ok {
-					t.Fatalf("could not find target range")
-				}
+		{
+			r, ok := findRange(w.elements, typealiasFile, 7, 27)
+			if !ok {
+				t.Fatalf("could not find target range")
+			}
 
-				definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
-				if len(definitions) != 1 {
-					t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-				}
+			definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+			if len(definitions) != 1 {
+				t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
+			}
 
-				p, _ := findDefinitionByName(t, indexer.packages, "Burger")
-				if p.Name != "secret" {
-					t.Fatalf("incorrect definition source package. want=%s have=%s", "secret", p.Name)
-				}
+			p, _ := findDefinitionByName(t, indexer.packages, "Burger")
+			if p.Name != "secret" {
+				t.Fatalf("incorrect definition source package. want=%s have=%s", "secret", p.Name)
+			}
 
-				compareRange(t, definitions[0], 6, 5, 6, 11)
+			compareRange(t, definitions[0], 6, 5, 6, 11)
 
-				hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-				if !ok || len(hover.Result.Contents) < 3 {
-					t.Fatalf("incorrect hover text count. want=%d have=%d", 3, len(hover.Result.Contents))
-				}
+			hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+			if !ok || len(hover.Result.Contents) < 3 {
+				t.Fatalf("incorrect hover text count. want=%d have=%d", 3, len(hover.Result.Contents))
+			}
 
-				expectedType := `type Burger struct`
-				if value := hover.Result.Contents[0].Value; value != expectedType {
-					t.Errorf("incorrect hover text type. want=%s have=%s", expectedType, value)
-				}
+			expectedType := `type Burger struct`
+			if value := hover.Result.Contents[0].Value; value != expectedType {
+				t.Errorf("incorrect hover text type. want=%s have=%s", expectedType, value)
+			}
 
-				expectedDocumentation := normalizeDocstring(`
-					Original doc
-				`)
-				if value := normalizeDocstring(hover.Result.Contents[1].Value); value != expectedDocumentation {
-					t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
-				}
+			expectedDocumentation := normalizeDocstring(`
+				Original doc
+			`)
+			if value := normalizeDocstring(hover.Result.Contents[1].Value); value != expectedDocumentation {
+				t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
+			}
 
-				expectedUnderlyingType := stripIndent(`
-				struct {
-						Field int
-				}`)
-				if value := strings.ReplaceAll(hover.Result.Contents[2].Value, "  ", "\t"); value != expectedUnderlyingType {
-					t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
-				}
+			expectedUnderlyingType := stripIndent(`
+			struct {
+					Field int
+			}`)
+			if value := strings.ReplaceAll(hover.Result.Contents[2].Value, "  ", "\t"); value != expectedUnderlyingType {
+				t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
+			}
+		}
+
+		{
+			r, ok := findRange(w.elements, typealiasFile, 9, 5)
+			if !ok {
+				t.Fatalf("could not find target range")
+			}
+
+			definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+			if len(definitions) != 1 {
+				t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
+			}
+
+			compareRange(t, definitions[0], 9, 5, 9, 14)
+
+			hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+			if !ok || len(hover.Result.Contents) < 2 {
+				t.Fatalf("incorrect hover text count. want=%d have=%d", 2, len(hover.Result.Contents))
+			}
+
+			expectedType := `type BadBurger = struct`
+			if value := hover.Result.Contents[0].Value; value != expectedType {
+				t.Errorf("incorrect hover text type. want=%s have=%s", expectedType, value)
+			}
+
+			expectedUnderlyingType := stripIndent(`
+			struct {
+					Field string
+			}`)
+			if value := strings.ReplaceAll(hover.Result.Contents[1].Value, "  ", "\t"); value != expectedUnderlyingType {
+				t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
+			}
+
+			r, ok = findRange(w.elements, typealiasFile, 9, 17)
+			if ok {
+				t.Fatalf("found range for anonymous struct when not expected")
 			}
 		}
 	})
