@@ -95,7 +95,7 @@ func TestTypeStringNameEqualsAnonymousStruct(t *testing.T) {
 	_, f := findDefinitionByName(t, getTestPackages(t), "TestEqualsStruct")
 
 	signature, extra := typeString(f)
-	if signature != "type TestEqualsStruct struct" {
+	if signature != "type TestEqualsStruct = struct" {
 		t.Errorf("unexpected type string. want=%q have=%q", "type TestEqualsStruct struct", signature)
 	}
 

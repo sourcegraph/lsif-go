@@ -6,3 +6,7 @@ import (
 
 // Type aliased doc
 type SecretBurger = secret.Burger
+
+type BadBurger = struct {
+	Field string
+}
