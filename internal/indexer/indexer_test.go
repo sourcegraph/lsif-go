@@ -297,13 +297,11 @@ func TestIndexer(t *testing.T) {
 					End:   protocol.Pos{Line: 1, Character: 16},
 				},
 				Tag: &protocol.RangeTag{
-					Type: "definition",
-					SymbolData: protocol.SymbolData{
-						Text:   "github.com/sourcegraph/lsif-go/internal/testdata",
-						Detail: "Package testdata\n",
-						Kind:   protocol.Package,
-						Tags:   []protocol.SymbolTag{protocol.Exported},
-					},
+					Type:   "definition",
+					Text:   "github.com/sourcegraph/lsif-go/internal/testdata",
+					Detail: "Package testdata\n",
+					Kind:   protocol.Package,
+					Tags:   []protocol.SymbolTag{protocol.Exported},
 				},
 				Children: []*symbolAndRangeData{
 					{
@@ -313,10 +311,8 @@ func TestIndexer(t *testing.T) {
 						},
 						Tag: &protocol.RangeTag{
 							Type: "definition",
-							SymbolData: protocol.SymbolData{
-								Text: "Interface",
-								Kind: protocol.Interface,
-							},
+							Text: "Interface",
+							Kind: protocol.Interface,
 						},
 					},
 					{
@@ -326,10 +322,8 @@ func TestIndexer(t *testing.T) {
 						},
 						Tag: &protocol.RangeTag{
 							Type: "definition",
-							SymbolData: protocol.SymbolData{
-								Text: "Struct",
-								Kind: protocol.Struct,
-							},
+							Text: "Struct",
+							Kind: protocol.Struct,
 						},
 						Children: []*symbolAndRangeData{
 							{
@@ -339,10 +333,8 @@ func TestIndexer(t *testing.T) {
 								},
 								Tag: &protocol.RangeTag{
 									Type: "definition",
-									SymbolData: protocol.SymbolData{
-										Text: "StructMethod",
-										Kind: protocol.Method,
-									},
+									Text: "StructMethod",
+									Kind: protocol.Method,
 								},
 							},
 						},

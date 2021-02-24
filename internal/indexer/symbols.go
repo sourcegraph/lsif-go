@@ -61,13 +61,11 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		}
 		pos := p.Fset.Position(file.Name.Pos())
 		rangeID := i.emitRangeForSymbol(pos, len(file.Name.Name), &protocol.RangeTag{
-			Type: "definition",
-			SymbolData: protocol.SymbolData{
-				Text:   p.PkgPath,
-				Detail: file.Doc.Text(),
-				Kind:   protocol.Package,
-				Tags:   []protocol.SymbolTag{protocol.Exported},
-			},
+			Type:   "definition",
+			Text:   p.PkgPath,
+			Detail: file.Doc.Text(),
+			Kind:   protocol.Package,
+			Tags:   []protocol.SymbolTag{protocol.Exported},
 		})
 		documentSymbols[pos.Filename] = &symbolData{
 			rangeID: rangeID,
@@ -91,20 +89,16 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 	for _, c := range docpkg.Consts {
 		visitSymbol(p.Fset.Position(c.Decl.Pos()), len(c.Decl.Tok.String()), &protocol.RangeTag{
 			Type: "definition",
-			SymbolData: protocol.SymbolData{
-				Text: c.Decl.Tok.String(),
-				Kind: protocol.Constant,
-			},
+			Text: c.Decl.Tok.String(),
+			Kind: protocol.Constant,
 		}, nil)
 	}
 
 	for _, f := range docpkg.Funcs {
 		visitSymbol(p.Fset.Position(f.Decl.Name.Pos()), len(f.Decl.Name.String()), &protocol.RangeTag{
 			Type: "definition",
-			SymbolData: protocol.SymbolData{
-				Text: f.Decl.Name.String(),
-				Kind: protocol.Function,
-			},
+			Text: f.Decl.Name.String(),
+			Kind: protocol.Function,
 		}, nil)
 	}
 
@@ -127,18 +121,14 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		}
 		typeSymbol := visitSymbol(p.Fset.Position(t.Decl.TokPos+5), len(t.Name), &protocol.RangeTag{
 			Type: "definition",
-			SymbolData: protocol.SymbolData{
-				Text: t.Name,
-				Kind: kind,
-			},
+			Text: t.Name,
+			Kind: kind,
 		}, nil)
 		for _, m := range t.Methods {
 			visitSymbol(p.Fset.Position(m.Decl.Name.NamePos), len(m.Name), &protocol.RangeTag{
 				Type: "definition",
-				SymbolData: protocol.SymbolData{
-					Text: m.Name,
-					Kind: protocol.Method,
-				},
+				Text: m.Name,
+				Kind: protocol.Method,
 			}, typeSymbol)
 		}
 	}
@@ -147,10 +137,8 @@ func (i *Indexer) indexSymbolsForPackage(p *packages.Package) {
 		for i, spec := range v.Decl.Specs {
 			visitSymbol(p.Fset.Position(spec.Pos()), len(v.Names[i]), &protocol.RangeTag{
 				Type: "definition",
-				SymbolData: protocol.SymbolData{
-					Text: v.Names[i],
-					Kind: protocol.Variable,
-				},
+				Text: v.Names[i],
+				Kind: protocol.Variable,
 			}, nil)
 		}
 	}
