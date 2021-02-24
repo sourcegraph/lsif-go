@@ -46,6 +46,7 @@ func formatTypeSignature(obj *types.TypeName) string {
 					pkg = original.Pkg().Name() + "."
 				}
 				return fmt.Sprintf("type %s = %s%s", obj.Name(), pkg, original.Name())
+
 			case *types.Struct:
 				return fmt.Sprintf("type %s = struct", obj.Name())
 			}

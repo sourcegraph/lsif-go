@@ -96,7 +96,7 @@ func TestTypeStringNameEqualsAnonymousStruct(t *testing.T) {
 
 	signature, extra := typeString(f)
 	if signature != "type TestEqualsStruct = struct" {
-		t.Errorf("unexpected type string. want=%q have=%q", "type TestEqualsStruct struct", signature)
+		t.Errorf("unexpected type string. want=%q have=%q", "type TestEqualsStruct = struct", signature)
 	}
 
 	expectedExtra := strings.TrimSpace(stripIndent(`
