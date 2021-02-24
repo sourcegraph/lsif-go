@@ -13,6 +13,12 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.3.1
+
+### Fixed
+
+- Fixed type assertion panic with aliases to anonymous structs. [#134](https://github.com/sourcegraph/lsif-go/pull/134)
+
 ## v1.3.0
 
 ### Changed
