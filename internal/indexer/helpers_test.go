@@ -1,9 +1,11 @@
 package indexer
 
 import (
+	"go/ast"
 	"go/types"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -44,7 +46,16 @@ func getTestPackages(t *testing.T) []*packages.Package {
 // the the object with the matching name and the package that contains it.
 func findDefinitionByName(t *testing.T, packages []*packages.Package, name string) (*packages.Package, types.Object) {
 	for _, p := range packages {
-		for _, def := range p.TypesInfo.Defs {
+		idents := make([]*ast.Ident, 0, len(p.TypesInfo.Defs))
+		for ident := range p.TypesInfo.Defs {
+			idents = append(idents, ident)
+		}
+		sort.Slice(idents, func(i, j int) bool {
+			return idents[i].Pos() < idents[j].Pos()
+		})
+
+		for _, ident := range idents {
+			def := p.TypesInfo.Defs[ident]
 			if def != nil && def.Name() == name {
 				return p, def
 			}
