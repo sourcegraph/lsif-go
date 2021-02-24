@@ -52,3 +52,7 @@ func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err err
 type StructTagRegression struct {
 	Value int `key:",range=[:}"`
 }
+
+type TestEqualsStruct = struct {
+	Value int
+}
