@@ -46,9 +46,9 @@ func mainErr() error {
 	}
 
 	var fileSet map[string]struct{}
-	if filesToIndex != nil {
+	if len(filesToIndex) > 0 {
 		fileSet = make(map[string]struct{})
-		for _, file := range *filesToIndex {
+		for _, file := range filesToIndex {
 			fileSet[file] = struct{}{}
 		}
 	}

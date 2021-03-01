@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,15 +19,16 @@ var app = kingpin.New(
 ).Version(version + ", protocol version " + protocol.Version)
 
 var (
-	outFile        string
-	moduleVersion  string
-	repositoryRoot string
-	moduleRoot     string
-	projectRoot    string
-	noProgress     bool
-	noOutput       bool
-	verboseOutput  bool
-	filesToIndex   *[]string
+	outFile          string
+	moduleVersion    string
+	repositoryRoot   string
+	moduleRoot       string
+	projectRoot      string
+	noProgress       bool
+	noOutput         bool
+	verboseOutput    bool
+	filesToIndexFile string
+	filesToIndex     []string
 )
 
 func init() {
@@ -40,7 +43,7 @@ func init() {
 	app.Flag("noProgress", "Do not output verbose progress.").Default("false").BoolVar(&noProgress)
 	app.Flag("noOutput", "Do not output progress.").Default("false").BoolVar(&noOutput)
 	app.Flag("verbose", "Display timings and stats.").Default("false").BoolVar(&verboseOutput)
-	filesToIndex = app.Flag("file", "Repeatable flag for specific files to index. The resulting LSIF dump will contain only information necessary to resolve definition, reference, and hover requests for within these files.").Strings()
+	app.Flag("filesToIndex", "File containing specific files to index.").StringVar(&filesToIndexFile)
 }
 
 func parseArgs(args []string) (err error) {
@@ -72,17 +75,24 @@ func parseArgs(args []string) (err error) {
 		return errors.New("module root is outside the repository")
 	}
 
-	if len(*filesToIndex) == 0 {
-		filesToIndex = nil
-	} else {
-		for idx := range *filesToIndex {
-			(*filesToIndex)[idx], err = filepath.Abs((*filesToIndex)[idx])
+	if filesToIndexFile != "" {
+		file, err := os.Open(filesToIndexFile)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			absPath, err := filepath.Abs(scanner.Text())
 			if err != nil {
-				return fmt.Errorf("get abspath of manually specified file to index: %v", err)
+				return fmt.Errorf("failed to get abspath of manually specified file to index: %v", err)
 			}
-			if !strings.HasPrefix((*filesToIndex)[idx], repositoryRoot) {
+			if !strings.HasPrefix(absPath, repositoryRoot) {
 				return errors.New("manually specified file to index is outside the repository")
 			}
+			filesToIndex = append(filesToIndex, absPath)
 		}
 	}
 

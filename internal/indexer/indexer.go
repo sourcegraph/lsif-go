@@ -1,11 +1,13 @@
 package indexer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/protocol"
@@ -100,9 +102,11 @@ func New(
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
+	start := time.Now()
 	if err := i.loadPackages(); err != nil {
 		return errors.Wrap(err, "loadPackages")
 	}
+	packages := time.Now()
 
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
@@ -112,9 +116,13 @@ func (i *Indexer) Index() error {
 	i.linkReferenceResultsToRanges()
 	i.emitContains()
 
+	lsif := time.Now()
+
 	if err := i.emitter.Flush(); err != nil {
 		return errors.Wrap(err, "emitter.Flush")
 	}
+
+	fmt.Printf("%.2f seconds in packages, %.2f seconds in lsif\n", packages.Sub(start).Seconds(), lsif.Sub(packages).Seconds())
 
 	return nil
 }
@@ -137,7 +145,8 @@ func (i *Indexer) loadPackages() error {
 		if i.filesToIndex != nil {
 			patterns = nil
 			for file := range i.filesToIndex {
-				patterns = append(patterns, "file=" + file)
+				lastIdx := strings.LastIndex(file, "/")
+				patterns = append(patterns, file[:lastIdx])
 			}
 		}
 
@@ -148,6 +157,7 @@ func (i *Indexer) loadPackages() error {
 		}
 
 		i.packages = pkgs
+		fmt.Printf("%v\n", len(pkgs))
 		i.packagesByFile = map[string][]*packages.Package{}
 
 		for _, p := range i.packages {
@@ -208,7 +218,9 @@ func (i *Indexer) ensureDocument(filename string) (*DocumentInfo, bool) {
 	}
 
 	i.documentsMutex.Lock()
+	i.stripedMutex.LockKey(filename)
 	defer i.documentsMutex.Unlock()
+	defer i.stripedMutex.UnlockKey(filename)
 	if d, exists := i.documents[filename]; exists {
 		return d, exists
 	}
@@ -325,15 +337,15 @@ func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token
 // markRange sets an empty range identifier in the ranges map for the given position.
 // If a range for this identifier has already been marked, this method returns false.
 func (i *Indexer) markRange(pos token.Position) bool {
-	i.stripedMutex.RLockKey(pos.Filename)
+	i.documentsMutex.RLock()
 	_, ok := i.ranges[pos.Filename][pos.Offset]
-	i.stripedMutex.RUnlockKey(pos.Filename)
+	i.documentsMutex.RUnlock()
 	if ok {
 		return false
 	}
 
-	i.stripedMutex.LockKey(pos.Filename)
-	defer i.stripedMutex.UnlockKey(pos.Filename)
+	i.documentsMutex.Lock()
+	defer i.documentsMutex.Unlock()
 
 	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
 		return false
@@ -383,9 +395,9 @@ func (i *Indexer) ensureDefinition(p *packages.Package, document *DocumentInfo, 
 
 	i.setDefinitionInfo(obj, &defInfo)
 
-	i.stripedMutex.LockKey(pos.Filename)
+	i.documentsMutex.Lock()
 	i.ranges[pos.Filename][pos.Offset] = rangeID
-	i.stripedMutex.UnlockKey(pos.Filename)
+	i.documentsMutex.Unlock()
 
 	document.m.Lock()
 	document.DefinitionRangeIDs = append(document.DefinitionRangeIDs, rangeID)
@@ -563,9 +575,9 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
 func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
-	i.stripedMutex.RLockKey(pos.Filename)
+	i.documentsMutex.RLock()
 	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
-	i.stripedMutex.RUnlockKey(pos.Filename)
+	i.documentsMutex.RUnlock()
 	if ok {
 		return rangeID
 	}
@@ -573,8 +585,8 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
 	// Note: we calculate this outside of the critical section
 	start, end := rangeForObject(obj, pos)
 
-	i.stripedMutex.LockKey(pos.Filename)
-	defer i.stripedMutex.UnlockKey(pos.Filename)
+	i.documentsMutex.Lock()
+	defer i.documentsMutex.Unlock()
 
 	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
 		return rangeID
