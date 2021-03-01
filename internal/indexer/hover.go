@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/types"
 
-	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"golang.org/x/tools/go/packages"
 )
 

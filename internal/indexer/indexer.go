@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 	"golang.org/x/tools/go/packages"
 )
