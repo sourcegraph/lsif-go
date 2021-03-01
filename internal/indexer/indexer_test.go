@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	protocol "github.com/sourcegraph/lsif-protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 func TestIndexer(t *testing.T) {
