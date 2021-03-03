@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	doc "github.com/slimsag/godocmd"
-	protocol "github.com/sourcegraph/lsif-protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 const languageGo = "go"

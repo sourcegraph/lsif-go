@@ -8,7 +8,7 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	"github.com/sourcegraph/lsif-go/internal/git"
-	protocol "github.com/sourcegraph/lsif-protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 var app = kingpin.New(
