@@ -29,7 +29,7 @@ func TestIndexer(t *testing.T) {
 	}
 
 	t.Run("check Parallel function hover text", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 14, 5)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
@@ -83,7 +83,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check errs definition", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 21, 3)
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 22, 3)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
@@ -93,11 +93,11 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
 		}
 
-		compareRange(t, definitions[0], 15, 1, 15, 5)
+		compareRange(t, definitions[0], 16, 1, 16, 5)
 	})
 
 	t.Run("check wg references", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 26, 1)
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 27, 1)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
@@ -109,10 +109,10 @@ func TestIndexer(t *testing.T) {
 
 		sort.Slice(references, func(i, j int) bool { return references[i].Start.Line < references[j].Start.Line })
 
-		compareRange(t, references[0], 14, 5, 14, 7) // var wg sync.WaitGroup
-		compareRange(t, references[1], 18, 2, 18, 4) // wg.Add(1)
-		compareRange(t, references[2], 22, 3, 22, 5) // wg.Done()
-		compareRange(t, references[3], 26, 1, 26, 3) // wg.Wait()
+		compareRange(t, references[0], 15, 5, 15, 7) // var wg sync.WaitGroup
+		compareRange(t, references[1], 19, 2, 19, 4) // wg.Add(1)
+		compareRange(t, references[2], 23, 3, 23, 5) // wg.Done()
+		compareRange(t, references[3], 27, 1, 27, 3) // wg.Wait()
 	})
 
 	t.Run("check NestedB monikers", func(t *testing.T) {

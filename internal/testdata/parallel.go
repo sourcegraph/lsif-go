@@ -11,6 +11,7 @@ type ParallelizableFunc func(ctx context.Context) error
 
 // Parallel invokes each of the given parallelizable functions in their own goroutines and
 // returns the first error to occur. This method will block until all goroutines have returned.
+//go:noescape
 func Parallel(ctx context.Context, fns ...ParallelizableFunc) error {
 	var wg sync.WaitGroup
 	errs := make(chan error, len(fns))
