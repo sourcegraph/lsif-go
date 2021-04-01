@@ -140,7 +140,14 @@ func (i *Indexer) loadPackages() error {
 			return
 		}
 
-		i.packages = pkgs
+		keep := make([]*packages.Package, 0, len(pkgs))
+		for _, pkg := range pkgs {
+			if i.shouldVisitPackage(pkg, pkgs) {
+				keep = append(keep, pkg)
+			}
+		}
+		i.packages = keep
+
 		i.packagesByFile = map[string][]*packages.Package{}
 
 		for _, p := range i.packages {
@@ -168,7 +175,7 @@ func (i *Indexer) loadPackages() error {
 //
 // This function handles deduplication, returning true ("should visit") if it makes sense
 // to index the input package (or false if doing so would be duplicative.)
-func (i *Indexer) shouldVisitPackage(p *packages.Package) bool {
+func (i *Indexer) shouldVisitPackage(p *packages.Package, allPackages []*packages.Package) bool {
 	// The loader returns 4 packages because (loader.Config).Tests==true and we
 	// want to avoid duplication.
 	if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
@@ -181,7 +188,7 @@ func (i *Indexer) shouldVisitPackage(p *packages.Package) bool {
 	// Index only the combined test package if it's present. If the package has no test files,
 	// it won't be present, and we need to just index the default package.
 	pkgHasTests := false
-	for _, op := range i.packages {
+	for _, op := range allPackages {
 		if op.ID == fmt.Sprintf("%s [%s.test]", p.PkgPath, p.PkgPath) {
 			pkgHasTests = true
 			break
