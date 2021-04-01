@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hexops/autogold"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
@@ -335,4 +336,45 @@ func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, end
 			r.Start.Line, r.Start.Character, r.End.Line, r.End.Character,
 		)
 	}
+}
+
+func TestIndexer_shouldVisitPackage(t *testing.T) {
+	w := &capturingWriter{}
+	projectRoot := getRepositoryRoot(t)
+	indexer := New(
+		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+		projectRoot,
+		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
+		"testdata",
+		"0.0.1",
+		nil,
+		w,
+		NewPackageDataCache(),
+		OutputOptions{},
+	)
+
+	if err := indexer.loadPackages(); err != nil {
+		t.Fatal(err)
+	}
+
+	visited := map[string]bool{}
+	for _, pkg := range indexer.packages {
+		shortID := strings.Replace(pkg.ID, "github.com/sourcegraph/lsif-go/internal/testdata/internal", "…", -1)
+		if indexer.shouldVisitPackage(pkg) {
+			visited[shortID] = true
+		} else {
+			visited[shortID] = false
+		}
+	}
+	autogold.Want("visited", map[string]bool{
+		"github.com/sourcegraph/lsif-go/internal/testdata": true,
+		"…/secret":              true,
+		"…/shouldvisit/notests": true,
+		"…/shouldvisit/tests":   false,
+		"…/shouldvisit/tests […/shouldvisit/tests.test]":                        true,
+		"…/shouldvisit/tests.test":                                              false,
+		"…/shouldvisit/tests_separate":                                          true,
+		"…/shouldvisit/tests_separate.test":                                     false,
+		"…/shouldvisit/tests_separate_test […/shouldvisit/tests_separate.test]": true,
+	}).Equal(t, visited)
 }
