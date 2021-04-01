@@ -3,6 +3,7 @@ package indexer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -94,7 +95,7 @@ func New(
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
-	if err := i.loadPackages(); err != nil {
+	if err := i.loadPackages(true); err != nil {
 		return errors.Wrap(err, "loadPackages")
 	}
 
@@ -117,7 +118,9 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
-func (i *Indexer) loadPackages() error {
+//
+// deduplicate should be true in all cases except TestIndexer_shouldVisitPackage.
+func (i *Indexer) loadPackages(deduplicate bool) error {
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -139,7 +142,18 @@ func (i *Indexer) loadPackages() error {
 			return
 		}
 
-		i.packages = pkgs
+		if deduplicate {
+			keep := make([]*packages.Package, 0, len(pkgs))
+			for _, pkg := range pkgs {
+				if i.shouldVisitPackage(pkg, pkgs) {
+					keep = append(keep, pkg)
+				}
+			}
+			i.packages = keep
+		} else {
+			i.packages = pkgs
+		}
+
 		i.packagesByFile = map[string][]*packages.Package{}
 
 		for _, p := range i.packages {
@@ -152,6 +166,44 @@ func (i *Indexer) loadPackages() error {
 
 	withProgress(&wg, "Loading packages", i.outputOptions, nil, 0)
 	return <-errs
+}
+
+// shouldVisitPackage tells if the package p should be visited.
+//
+// According to the `Tests` field in https://pkg.go.dev/golang.org/x/tools/go/packages#Config
+// the loader may produce up to four packages for a single Go package directory:
+//
+// 	// For example, when using the go command, loading "fmt" with Tests=true
+// 	// returns four packages, with IDs "fmt" (the standard package),
+// 	// "fmt [fmt.test]" (the package as compiled for the test),
+// 	// "fmt_test" (the test functions from source files in package fmt_test),
+// 	// and "fmt.test" (the test binary).
+//
+// This function handles deduplication, returning true ("should visit") if it makes sense
+// to index the input package (or false if doing so would be duplicative.)
+func (i *Indexer) shouldVisitPackage(p *packages.Package, allPackages []*packages.Package) bool {
+	// The loader returns 4 packages because (loader.Config).Tests==true and we
+	// want to avoid duplication.
+	if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
+		return false // synthesized `go test` program
+	}
+	if strings.HasSuffix(p.Name, "_test") {
+		return true
+	}
+
+	// Index only the combined test package if it's present. If the package has no test files,
+	// it won't be present, and we need to just index the default package.
+	pkgHasTests := false
+	for _, op := range allPackages {
+		if op.ID == fmt.Sprintf("%s [%s.test]", p.PkgPath, p.PkgPath) {
+			pkgHasTests = true
+			break
+		}
+	}
+	if pkgHasTests && !strings.HasSuffix(p.ID, ".test]") {
+		return false
+	}
+	return true
 }
 
 // packagesLoadLogger logs the debug messages from the packages.Load function.
