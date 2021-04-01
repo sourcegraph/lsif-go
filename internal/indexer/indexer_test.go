@@ -353,14 +353,14 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		OutputOptions{},
 	)
 
-	if err := indexer.loadPackages(); err != nil {
+	if err := indexer.loadPackages(false); err != nil {
 		t.Fatal(err)
 	}
 
 	visited := map[string]bool{}
 	for _, pkg := range indexer.packages {
 		shortID := strings.Replace(pkg.ID, "github.com/sourcegraph/lsif-go/internal/testdata/internal", "…", -1)
-		if indexer.shouldVisitPackage(pkg) {
+		if indexer.shouldVisitPackage(pkg, indexer.packages) {
 			visited[shortID] = true
 		} else {
 			visited[shortID] = false

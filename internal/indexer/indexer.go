@@ -95,7 +95,7 @@ func New(
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
-	if err := i.loadPackages(); err != nil {
+	if err := i.loadPackages(true); err != nil {
 		return errors.Wrap(err, "loadPackages")
 	}
 
@@ -118,7 +118,9 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
-func (i *Indexer) loadPackages() error {
+//
+// deduplicate should be true in all cases except TestIndexer_shouldVisitPackage.
+func (i *Indexer) loadPackages(deduplicate bool) error {
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -140,13 +142,17 @@ func (i *Indexer) loadPackages() error {
 			return
 		}
 
-		keep := make([]*packages.Package, 0, len(pkgs))
-		for _, pkg := range pkgs {
-			if i.shouldVisitPackage(pkg, pkgs) {
-				keep = append(keep, pkg)
+		if deduplicate {
+			keep := make([]*packages.Package, 0, len(pkgs))
+			for _, pkg := range pkgs {
+				if i.shouldVisitPackage(pkg, pkgs) {
+					keep = append(keep, pkg)
+				}
 			}
+			i.packages = keep
+		} else {
+			i.packages = pkgs
 		}
-		i.packages = keep
 
 		i.packagesByFile = map[string][]*packages.Package{}
 
