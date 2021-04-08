@@ -21,6 +21,7 @@ type DocumentInfo struct {
 	DocumentID         uint64
 	DefinitionRangeIDs []uint64
 	ReferenceRangeIDs  []uint64
+	SymbolRangeIDs     []uint64
 	m                  sync.Mutex
 }
 

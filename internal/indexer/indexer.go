@@ -101,6 +101,10 @@ func (i *Indexer) Index() error {
 
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
+	// indexSymbols must come after emitDocuments, before any other ranges are emitted
+	if err := i.indexSymbols(); err != nil {
+		return errors.Wrap(err, "indexSymbols")
+	}
 	i.addImports()
 	i.indexDefinitions()
 	i.indexReferences()
@@ -116,8 +120,8 @@ func (i *Indexer) Index() error {
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
 
-// packages populates the packages field containing an AST for each package within the configured
-// project root.
+// loadPackages populates the packages field containing an AST for each package within the
+// configured project root.
 //
 // deduplicate should be true in all cases except TestIndexer_shouldVisitPackage.
 func (i *Indexer) loadPackages(deduplicate bool) error {
@@ -612,6 +616,32 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
 	return rangeID
 }
 
+func (i *Indexer) emitRangeForSymbol(pos token.Position, length int, tag *protocol.RangeTag) uint64 {
+	i.stripedMutex.LockKey(pos.Filename)
+	defer i.stripedMutex.UnlockKey(pos.Filename)
+
+	line := pos.Line - 1
+	column := pos.Column - 1
+
+	start := protocol.Pos{Line: line, Character: column}
+	end := protocol.Pos{Line: line, Character: column + length}
+
+	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+		log.Printf("Duplicate range already exists at %s:%d, tag may be absent", pos.Filename, pos.Offset)
+		return rangeID
+	}
+
+	rangeID := i.emitter.EmitRangeWithTag(start, end, tag)
+	i.ranges[pos.Filename][pos.Offset] = rangeID
+
+	document := i.documents[pos.Filename]
+	document.m.Lock()
+	document.SymbolRangeIDs = append(document.SymbolRangeIDs, rangeID)
+	document.m.Unlock()
+
+	return rangeID
+}
+
 // linkReferenceResultsToRanges emits item relations for each indexed definition result value.
 func (i *Indexer) linkReferenceResultsToRanges() {
 	i.visitEachDefinitionInfo("Linking items to definitions", i.linkItemsToDefinitions)
@@ -639,8 +669,8 @@ func (i *Indexer) emitContains() {
 
 // emitContainsForProject emits a contains edge between a document and its ranges.
 func (i *Indexer) emitContainsForDocument(d *DocumentInfo) {
-	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
-		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
+	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 || len(d.SymbolRangeIDs) > 0 {
+		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs, d.SymbolRangeIDs))
 	}
 }
 
