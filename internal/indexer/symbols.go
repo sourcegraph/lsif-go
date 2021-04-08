@@ -130,8 +130,6 @@ func (s *symbolIndexer) indexFile(p *packages.Package, f *ast.File) error {
 	return nil
 }
 
-var n = 0
-
 // indexSymbol emits the `RangeBasedDocumentSymbol` corresponding to the given singular symbol.
 // e.g., a variable, constant, function, method, type, field, etc.
 //
@@ -147,19 +145,6 @@ func (s *symbolIndexer) indexSymbol(
 	pos token.Pos,
 ) (*protocol.RangeBasedDocumentSymbol, error) {
 	sym := &protocol.RangeBasedDocumentSymbol{}
-	// If the below is changed to 2, all tests pass. If it's 3, then:
-	//
-	// --- FAIL: TestIndexer (1.21s)
-	//     --- FAIL: TestIndexer/check_wg_references (0.00s)
-	//         indexer_test.go:108: incorrect reference count. want=4 have=1
-	// FAIL
-	// FAIL	github.com/sourcegraph/lsif-go/internal/indexer	18.149s
-	// FAIL
-	//
-	if n > 3 {
-		return nil, nil
-	}
-	n++
 	sym.ID = s.i.emitRangeForSymbol(p.Fset.Position(pos), len(name), &protocol.RangeTag{
 		Type: "definition",
 		Text: name,

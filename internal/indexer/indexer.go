@@ -101,7 +101,9 @@ func (i *Indexer) Index() error {
 
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
-	// indexSymbols must come after emitDocuments, before any other ranges are emitted
+	// indexSymbols must come after emitDocuments, before any other ranges are emitted. This is
+	// because indexSymbols emits ranges that indexDefinitions will reuse (the inverse is not
+	// true.)
 	if err := i.indexSymbols(); err != nil {
 		return errors.Wrap(err, "indexSymbols")
 	}
@@ -627,6 +629,7 @@ func (i *Indexer) emitRangeForSymbol(pos token.Position, length int, tag *protoc
 	end := protocol.Pos{Line: line, Character: column + length}
 
 	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+		// TODO(slimsag): should be a hard error (indicates bug)
 		log.Printf("Duplicate range already exists at %s:%d, tag may be absent", pos.Filename, pos.Offset)
 		return rangeID
 	}
