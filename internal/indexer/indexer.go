@@ -338,6 +338,16 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 	}
 
+	// Put together maps of ASTs and corresponding comments for each file in the
+	// package so we can pass them to the definition index function.
+	astFiles := make(map[string]*ast.File)
+	commentMaps := make(map[string]ast.CommentMap)
+	for index, filename := range p.GoFiles {
+		file := p.Syntax[index]
+		astFiles[filename] = file
+		commentMaps[filename] = ast.NewCommentMap(p.Fset, file, file.Comments)
+	}
+
 	for ident, obj := range p.TypesInfo.Defs {
 		typeSwitchHeader := false
 		if obj == nil {
@@ -359,7 +369,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
+		rangeID := i.indexDefinition(p, d, pos, obj, typeSwitchHeader, ident, astFiles[pos.Filename], commentMaps[pos.Filename])
 
 		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -411,8 +421,22 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
+func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident, file *ast.File, commentMap ast.CommentMap) uint64 {
+	var rangeTag *protocol.RangeTag
+
+	start, end := rangeForObject(obj, pos)
+
+	// Look up the AST object representing the definition. If it's not found,
+	// the definition isn't top-level and we're not worried about it being
+	// deprecated since it's not accessible outside of its scope. We could still
+	// emit tags for those definitions, but I'm not sure how to access the AST
+	// for them.
+	astObj := file.Scope.Lookup(ident.Name)
+	if astObj != nil {
+		rangeTag = tagForObject(p, astObj, "definition", commentMap, start, end)
+	}
+
+	rangeID := i.emitter.EmitRangeWithTag(start, end, rangeTag)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
