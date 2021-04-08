@@ -355,7 +355,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 
 		pos, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok || !i.markRange(pos) {
+		if !ok {
 			continue
 		}
 
@@ -387,27 +387,6 @@ func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token
 	}
 
 	return position, d, true
-}
-
-// markRange sets an empty range identifier in the ranges map for the given position.
-// If a  range for this identifier has already been marked, this method returns false.
-func (i *Indexer) markRange(pos token.Position) bool {
-	i.stripedMutex.RLockKey(pos.Filename)
-	_, ok := i.ranges[pos.Filename][pos.Offset]
-	i.stripedMutex.RUnlockKey(pos.Filename)
-	if ok {
-		return false
-	}
-
-	i.stripedMutex.LockKey(pos.Filename)
-	defer i.stripedMutex.UnlockKey(pos.Filename)
-
-	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
-		return false
-	}
-
-	i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
-	return true
 }
 
 // indexDefinition emits data for the given definition object.
