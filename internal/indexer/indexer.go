@@ -412,7 +412,9 @@ func (i *Indexer) markRange(pos token.Position) bool {
 
 // indexDefinition emits data for the given definition object.
 func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
+	// Ensure the range exists, but don't emit a new one as it might already exist due to another
+	// phase of indexing (such as symbols) having emitted the range.
+	rangeID := i.ensureRangeFor(pos, obj)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
