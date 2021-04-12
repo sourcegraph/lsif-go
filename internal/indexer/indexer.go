@@ -36,13 +36,14 @@ type Indexer struct {
 	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
-	documents             map[string]*DocumentInfo  // filename -> info
-	ranges                map[string]map[int]uint64 // filename -> offset -> rangeID
-	hoverResultCache      map[string]uint64         // cache key -> hoverResultID
-	packageInformationIDs map[string]uint64         // name -> packageInformationID
-	packageDataCache      *PackageDataCache         // hover text and moniker path cache
-	packages              []*packages.Package       // index target packages
-	projectID             uint64                    // project vertex identifier
+	documents             map[string]*DocumentInfo    // filename -> info
+	ranges                map[string]map[int]uint64   // filename -> offset -> rangeID
+	defined               map[string]map[int]struct{} // set of defined ranges (filename, offset)
+	hoverResultCache      map[string]uint64           // cache key -> hoverResultID
+	packageInformationIDs map[string]uint64           // name -> packageInformationID
+	packageDataCache      *PackageDataCache           // hover text and moniker path cache
+	packages              []*packages.Package         // index target packages
+	projectID             uint64                      // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
 
 	constsMutex                sync.Mutex
@@ -84,6 +85,7 @@ func New(
 		vars:                  map[interface{}]*DefinitionInfo{},
 		documents:             map[string]*DocumentInfo{},
 		ranges:                map[string]map[int]uint64{},
+		defined:               map[string]map[int]struct{}{},
 		hoverResultCache:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		packageDataCache:      packageDataCache,
@@ -264,6 +266,7 @@ func (i *Indexer) emitDocument(filename string) {
 	documentID := i.emitter.EmitDocument(languageGo, filename)
 	i.documents[filename] = &DocumentInfo{DocumentID: documentID}
 	i.ranges[filename] = map[int]uint64{}
+	i.defined[filename] = map[int]struct{}{}
 }
 
 // addImports modifies the definitions map of each file to include entries for import statements so
@@ -355,7 +358,14 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 
 		pos, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok || !i.markRange(pos) {
+		if !ok {
+			continue
+		}
+		if !i.markRange(pos) {
+			// This performs a quick assignment to a map that will ensure that
+			// we don't race against another routine indexing the same definition
+			// reachable from another dataflow path through the indexer. If we
+			// lose a race, we'll just bail out and look at the next definition.
 			continue
 		}
 
@@ -389,11 +399,11 @@ func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token
 	return position, d, true
 }
 
-// markRange sets an empty range identifier in the ranges map for the given position.
-// If a  range for this identifier has already been marked, this method returns false.
+// markRange sets a zero-size struct into a map for the given position. If this position
+// has already been marked, this method returns false.
 func (i *Indexer) markRange(pos token.Position) bool {
 	i.stripedMutex.RLockKey(pos.Filename)
-	_, ok := i.ranges[pos.Filename][pos.Offset]
+	_, ok := i.defined[pos.Filename][pos.Offset]
 	i.stripedMutex.RUnlockKey(pos.Filename)
 	if ok {
 		return false
@@ -402,17 +412,19 @@ func (i *Indexer) markRange(pos token.Position) bool {
 	i.stripedMutex.LockKey(pos.Filename)
 	defer i.stripedMutex.UnlockKey(pos.Filename)
 
-	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+	if _, ok := i.defined[pos.Filename][pos.Offset]; ok {
 		return false
 	}
 
-	i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
+	i.defined[pos.Filename][pos.Offset] = struct{}{}
 	return true
 }
 
 // indexDefinition emits data for the given definition object.
 func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
+	// Ensure the range exists, but don't emit a new one as it might already exist due to another
+	// phase of indexing (such as symbols) having emitted the range.
+	rangeID := i.ensureRangeFor(pos, obj)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
