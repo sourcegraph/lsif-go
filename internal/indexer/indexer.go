@@ -444,7 +444,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		// Create a hover result vertex and cache the result identifier keyed by the definition location.
 		// Caching this gives us a big win for package documentation, which is likely to be large and is
 		// repeated at each import and selector within referenced files.
-		_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
+		_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
 			return findHoverContents(i.packageDataCache, i.packages, p, obj)
 		}))
 	}
@@ -584,7 +584,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 		// hover result of the type switch header for this use. Each reference of such a variable
 		// will need a more specific hover text, as the type of the variable is refined in the body
 		// of case clauses of the type switch.
-		_ = i.emitter.EmitTextDocumentHover(rangeID, i.makeCachedHoverResult(nil, definitionObj, func() []protocol.MarkedString {
+		_ = i.emitter.EmitTextDocumentHover(rangeID, i.makeCachedHoverResult(nil, definitionObj, func() protocol.MarkupContent {
 			return findHoverContents(i.packageDataCache, i.packages, p, definitionObj)
 		}))
 	}
@@ -605,7 +605,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	// (scoped ot the object's package name). Caching this gives us another big win as some
 	// methods imported from other packages are likely to be used many times in a dependent
 	// project (e.g., context.Context, http.Request, etc).
-	hoverResultID := i.makeCachedHoverResult(definitionPkg, definitionObj, func() []protocol.MarkedString {
+	hoverResultID := i.makeCachedHoverResult(definitionPkg, definitionObj, func() protocol.MarkupContent {
 		return findExternalHoverContents(i.packageDataCache, i.packages, p, definitionObj)
 	})
 
