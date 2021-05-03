@@ -24,6 +24,9 @@ func typeString(obj types.Object) (signature string, extra string) {
 			// TODO(efritz) - make this be "(T).F" instead of "struct field F string"
 			return fmt.Sprintf("struct %s", obj.String()), ""
 		}
+
+	case *types.Const:
+		return fmt.Sprintf("%s = %s", types.ObjectString(obj, packageQualifier), v.Val()), ""
 	}
 
 	return types.ObjectString(obj, packageQualifier), ""
