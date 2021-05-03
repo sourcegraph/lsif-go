@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/sourcegraph/lsif-go/internal/indexer"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
 
