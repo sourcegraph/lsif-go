@@ -41,23 +41,21 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 
 	for _, moduleName := range packagePrefixes(pkg) {
 		version, ok := i.dependencies[moduleName]
-		if !ok {
-			continue
+		if ok {
+			// If this is a package reference, remove the trailing `:`
+			monikerIdentifier := fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.packageDataCache, p, obj))
+			monikerIdentifier = strings.Trim(monikerIdentifier, ":")
+
+			// Lazily emit package information and moniker vertices
+			packageInformationID := i.ensurePackageInformation(moduleName, version)
+			monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
+
+			// Attach moniker to source element
+			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+
+			// Stop after first match
+			break
 		}
-
-		// If this is a package reference, remove the trailing `:`
-		monikerIdentifier := fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.packageDataCache, p, obj))
-		monikerIdentifier = strings.Trim(monikerIdentifier, ":")
-
-		// Lazily emit package information and moniker vertices
-		packageInformationID := i.ensurePackageInformation(moduleName, version)
-		monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
-
-		// Attach moniker to source element
-		_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-
-		// Stop after first match
-		break
 	}
 }
 
