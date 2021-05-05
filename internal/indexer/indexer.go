@@ -40,6 +40,7 @@ type Indexer struct {
 	ranges                map[string]map[int]uint64   // filename -> offset -> rangeID
 	defined               map[string]map[int]struct{} // set of defined ranges (filename, offset)
 	hoverResultCache      map[string]uint64           // cache key -> hoverResultID
+	importMonikerIDs      map[string]uint64           // identifier:packageInformationID -> monikerID
 	packageInformationIDs map[string]uint64           // name -> packageInformationID
 	packageDataCache      *PackageDataCache           // hover text and moniker path cache
 	packages              []*packages.Package         // index target packages
@@ -54,6 +55,7 @@ type Indexer struct {
 	varsMutex                  sync.Mutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
+	importMonikerIDsMutex      sync.RWMutex
 	packageInformationIDsMutex sync.RWMutex
 }
 
@@ -87,6 +89,7 @@ func New(
 		ranges:                map[string]map[int]uint64{},
 		defined:               map[string]map[int]struct{}{},
 		hoverResultCache:      map[string]uint64{},
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		packageDataCache:      packageDataCache,
 		stripedMutex:          newStripedMutex(),

@@ -17,12 +17,30 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ty
 		return
 	}
 
-	i.addMonikers(
-		"export",
-		strings.Trim(fmt.Sprintf("%s:%s", monikerPackage(obj), monikerIdentifier(i.packageDataCache, p, obj)), ":"),
-		sourceID,
-		i.ensurePackageInformation(i.moduleName, i.moduleVersion),
-	)
+	// Emit export moniker (uncached as these are on unique definitions)
+	monikerID := i.emitter.EmitMoniker("export", "gomod", joinMonikerParts(
+		monikerPackage(obj),
+		monikerIdentifier(i.packageDataCache, p, obj),
+	))
+
+	// Lazily emit package information vertex and attach it to moniker
+	packageInformationID := i.ensurePackageInformation(i.moduleName, i.moduleVersion)
+	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageInformationID)
+
+	// Attach moniker to source element
+	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+}
+
+// joinMonikerParts joins the non-empty strings in the given list by a colon.
+func joinMonikerParts(parts ...string) string {
+	nonEmpty := parts[:0]
+	for _, s := range parts {
+		if s != "" {
+			nonEmpty = append(nonEmpty, s)
+		}
+	}
+
+	return strings.Join(nonEmpty, ":")
 }
 
 // emitImportMoniker emits an import moniker for the given object linked to the given source
@@ -33,14 +51,16 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 	pkg := monikerPackage(obj)
 
 	for _, moduleName := range packagePrefixes(pkg) {
-		if moduleVersion, ok := i.dependencies[moduleName]; ok {
-			i.addMonikers(
-				"import",
-				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.packageDataCache, p, obj)), ":"),
-				sourceID,
-				i.ensurePackageInformation(moduleName, moduleVersion),
-			)
+		if version, ok := i.dependencies[moduleName]; ok {
+			// Lazily emit package information vertex
+			packageInformationID := i.ensurePackageInformation(moduleName, version)
 
+			// Lazily emit moniker vertex
+			monikerIdentifier := joinMonikerParts(pkg, monikerIdentifier(i.packageDataCache, p, obj))
+			monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
+
+			// Attach moniker to source element and stop after first match
+			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
 			break
 		}
 	}
@@ -60,8 +80,8 @@ func packagePrefixes(packageName string) []string {
 }
 
 // ensurePackageInformation returns the identifier of a package information vertex with the
-// give name and version. A vertex will be emitted only if one with the same name not yet
-// been emitted.
+// give name and version. A vertex will be emitted only if one with the same name has not
+// yet been emitted.
 func (i *Indexer) ensurePackageInformation(name, version string) uint64 {
 	i.packageInformationIDsMutex.RLock()
 	packageInformationID, ok := i.packageInformationIDs[name]
@@ -82,13 +102,30 @@ func (i *Indexer) ensurePackageInformation(name, version string) uint64 {
 	return packageInformationID
 }
 
-// addMonikers emits a moniker vertex with the given identifier, an edge from the moniker
-// to the given package information vertex identifier, and an edge from the given source
-// identifier to the moniker vertex identifier.
-func (i *Indexer) addMonikers(kind, identifier string, sourceID, packageID uint64) {
-	monikerID := i.emitter.EmitMoniker(kind, "gomod", identifier)
-	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageID)
-	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+// ensureImportMoniker returns the identifier of a moniker vertex with the give identifier
+// attached to teh given package information identifier. A vertex will be emitted only if
+// one with the same key has not yet been emitted.
+func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID uint64) uint64 {
+	key := fmt.Sprintf("%s:%d", identifier, packageInformationID)
+
+	i.importMonikerIDsMutex.RLock()
+	monikerID, ok := i.importMonikerIDs[key]
+	i.importMonikerIDsMutex.RUnlock()
+	if ok {
+		return monikerID
+	}
+
+	i.importMonikerIDsMutex.Lock()
+	defer i.importMonikerIDsMutex.Unlock()
+
+	if monikerID, ok := i.importMonikerIDs[key]; ok {
+		return monikerID
+	}
+
+	monikerID = i.emitter.EmitMoniker("import", "gomod", identifier)
+	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageInformationID)
+	i.importMonikerIDs[key] = monikerID
+	return monikerID
 }
 
 // monikerPackage returns the package prefix used to construct a unique moniker for the given object.

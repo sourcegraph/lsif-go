@@ -17,6 +17,7 @@ func TestEmitExportMoniker(t *testing.T) {
 		moduleName:            "github.com/sourcegraph/lsif-go",
 		moduleVersion:         "3.14.159",
 		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
@@ -65,6 +66,7 @@ func TestEmitImportMoniker(t *testing.T) {
 			"github.com/test/pkg/sub1": "1.2.3-deadbeef",
 		},
 		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
@@ -154,5 +156,23 @@ func TestMonikerIdentifierField(t *testing.T) {
 
 	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
+	}
+}
+
+func TestJoinMonikerParts(t *testing.T) {
+	testCases := []struct {
+		input    []string
+		expected string
+	}{
+		{input: []string{}, expected: ""},
+		{input: []string{"a"}, expected: "a"},
+		{input: []string{"a", "", "c"}, expected: "a:c"},
+		{input: []string{"a", "b", "c"}, expected: "a:b:c"},
+	}
+
+	for _, testCase := range testCases {
+		if actual := joinMonikerParts(testCase.input...); actual != testCase.expected {
+			t.Errorf("unexpected moniker identifier. want=%q have=%q", testCase.expected, actual)
+		}
 	}
 }
