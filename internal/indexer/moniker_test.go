@@ -158,3 +158,21 @@ func TestMonikerIdentifierField(t *testing.T) {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
 	}
 }
+
+func TestJoinMonikerParts(t *testing.T) {
+	testCases := []struct {
+		input    []string
+		expected string
+	}{
+		{input: []string{}, expected: ""},
+		{input: []string{"a"}, expected: "a"},
+		{input: []string{"a", "", "c"}, expected: "a:c"},
+		{input: []string{"a", "b", "c"}, expected: "a:b:c"},
+	}
+
+	for _, testCase := range testCases {
+		if actual := joinMonikerParts(testCase.input...); actual != testCase.expected {
+			t.Errorf("unexpected moniker identifier. want=%q have=%q", testCase.expected, actual)
+		}
+	}
+}

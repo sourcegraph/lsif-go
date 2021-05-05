@@ -17,19 +17,30 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ty
 		return
 	}
 
-	// If this is a package reference, remove the trailing `:`
-	monikerIdentifier := fmt.Sprintf("%s:%s", monikerPackage(obj), monikerIdentifier(i.packageDataCache, p, obj))
-	monikerIdentifier = strings.Trim(monikerIdentifier, ":")
+	// Emit export moniker (uncached as these are on unique definitions)
+	monikerID := i.emitter.EmitMoniker("export", "gomod", joinMonikerParts(
+		monikerPackage(obj),
+		monikerIdentifier(i.packageDataCache, p, obj),
+	))
 
-	// Lazily emit package information vertex
+	// Lazily emit package information vertex and attach it to moniker
 	packageInformationID := i.ensurePackageInformation(i.moduleName, i.moduleVersion)
-
-	// Emit moniker
-	monikerID := i.emitter.EmitMoniker("export", "gomod", monikerIdentifier)
-
-	// Attach package information to moniker, and moniker to source element
 	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageInformationID)
+
+	// Attach moniker to source element
 	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+}
+
+// joinMonikerParts joins the non-empty strings in the given list by a colon.
+func joinMonikerParts(parts ...string) string {
+	nonEmpty := parts[:0]
+	for _, s := range parts {
+		if s != "" {
+			nonEmpty = append(nonEmpty, s)
+		}
+	}
+
+	return strings.Join(nonEmpty, ":")
 }
 
 // emitImportMoniker emits an import moniker for the given object linked to the given source
@@ -40,20 +51,16 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 	pkg := monikerPackage(obj)
 
 	for _, moduleName := range packagePrefixes(pkg) {
-		version, ok := i.dependencies[moduleName]
-		if ok {
-			// If this is a package reference, remove the trailing `:`
-			monikerIdentifier := fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.packageDataCache, p, obj))
-			monikerIdentifier = strings.Trim(monikerIdentifier, ":")
-
-			// Lazily emit package information and moniker vertices
+		if version, ok := i.dependencies[moduleName]; ok {
+			// Lazily emit package information vertex
 			packageInformationID := i.ensurePackageInformation(moduleName, version)
+
+			// Lazily emit moniker vertex
+			monikerIdentifier := joinMonikerParts(pkg, monikerIdentifier(i.packageDataCache, p, obj))
 			monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
 
-			// Attach moniker to source element
+			// Attach moniker to source element and stop after first match
 			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-
-			// Stop after first match
 			break
 		}
 	}
