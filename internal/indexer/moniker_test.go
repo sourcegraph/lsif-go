@@ -17,6 +17,7 @@ func TestEmitExportMoniker(t *testing.T) {
 		moduleName:            "github.com/sourcegraph/lsif-go",
 		moduleVersion:         "3.14.159",
 		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
@@ -65,6 +66,7 @@ func TestEmitImportMoniker(t *testing.T) {
 			"github.com/test/pkg/sub1": "1.2.3-deadbeef",
 		},
 		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
