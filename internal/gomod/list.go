@@ -9,9 +9,15 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/command"
 )
 
-// ListModules returns the name of the module and a map from dependency names to their
-// versions as declared by the go.mod file in the current directory.
-func ListModules(dir string) (module string, dependencies map[string]string, err error) {
+type Module struct {
+	Name    string
+	Version string
+}
+
+// ListModules returns the name of the module and a map from dependency import paths to a
+// the imported module's name and version as declared by the go.mod file in the current
+// directory.
+func ListModules(dir string) (module string, dependencies map[string]Module, err error) {
 	if !isModule(dir) {
 		log.Println("WARNING: No go.mod file found in current directory.")
 		return "", nil, nil
@@ -29,18 +35,20 @@ func ListModules(dir string) (module string, dependencies map[string]string, err
 // parseGoListOutput parses the output from the `go list -m all` command. The first line
 // is the versionless module name (as supplied by go.mod). The remaining lines consist of
 // a dependency name and its version (separated by a space).
-func parseGoListOutput(output string) (module string, dependencies map[string]string) {
+func parseGoListOutput(output string) (module string, dependencies map[string]Module) {
 	lines := strings.Split(output, "\n")
 
-	dependencies = map[string]string{}
+	dependencies = make(map[string]Module, len(lines))
 	for _, line := range lines {
 		if parts := strings.Split(line, " "); len(parts) == 2 {
-			dependencies[parts[0]] = cleanVersion(parts[1])
+			dependencies[parts[0]] = Module{
+				Name:    parts[0],
+				Version: cleanVersion(parts[1]),
+			}
 		}
 	}
 
 	return lines[0], dependencies
-
 }
 
 // versionPattern matches the form vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef

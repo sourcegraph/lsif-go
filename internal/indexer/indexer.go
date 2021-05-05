@@ -12,20 +12,21 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 	"golang.org/x/tools/go/packages"
 )
 
 type Indexer struct {
-	repositoryRoot string            // path to repository
-	projectRoot    string            // path to package
-	toolInfo       protocol.ToolInfo // metadata vertex payload
-	moduleName     string            // name of this module
-	moduleVersion  string            // version of this module
-	dependencies   map[string]string // parsed module data
-	emitter        *writer.Emitter   // LSIF data emitter
-	outputOptions  OutputOptions     // What to print to stdout/stderr
+	repositoryRoot string                  // path to repository
+	projectRoot    string                  // path to package
+	toolInfo       protocol.ToolInfo       // metadata vertex payload
+	moduleName     string                  // name of this module
+	moduleVersion  string                  // version of this module
+	dependencies   map[string]gomod.Module // parsed module data
+	emitter        *writer.Emitter         // LSIF data emitter
+	outputOptions  OutputOptions           // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -63,7 +64,7 @@ func New(
 	toolInfo protocol.ToolInfo,
 	moduleName string,
 	moduleVersion string,
-	dependencies map[string]string,
+	dependencies map[string]gomod.Module,
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions OutputOptions,

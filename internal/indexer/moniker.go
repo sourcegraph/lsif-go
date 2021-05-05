@@ -33,12 +33,12 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 	pkg := monikerPackage(obj)
 
 	for _, moduleName := range packagePrefixes(pkg) {
-		if moduleVersion, ok := i.dependencies[moduleName]; ok {
+		if module, ok := i.dependencies[moduleName]; ok {
 			i.addMonikers(
 				"import",
 				strings.Trim(fmt.Sprintf("%s:%s", pkg, monikerIdentifier(i.packageDataCache, p, obj)), ":"),
 				sourceID,
-				i.ensurePackageInformation(moduleName, moduleVersion),
+				i.ensurePackageInformation(module.Name, module.Version),
 			)
 
 			break

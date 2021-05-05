@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
 
@@ -61,8 +62,8 @@ func TestEmitImportMoniker(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		dependencies: map[string]string{
-			"github.com/test/pkg/sub1": "1.2.3-deadbeef",
+		dependencies: map[string]gomod.Module{
+			"github.com/test/pkg/sub1": {Name: "github.com/test/pkg/sub1", Version: "1.2.3-deadbeef"},
 		},
 		emitter:               writer.NewEmitter(w),
 		packageInformationIDs: map[string]uint64{},
