@@ -5,12 +5,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/indexer"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
 
-func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, dependencies map[string]string, outFile string) error {
+func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string) error {
 	start := time.Now()
 
 	out, err := os.Create(outFile)

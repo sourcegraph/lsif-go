@@ -51,9 +51,9 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 	pkg := monikerPackage(obj)
 
 	for _, moduleName := range packagePrefixes(pkg) {
-		if version, ok := i.dependencies[moduleName]; ok {
+		if module, ok := i.dependencies[moduleName]; ok {
 			// Lazily emit package information vertex
-			packageInformationID := i.ensurePackageInformation(moduleName, version)
+			packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
 
 			// Lazily emit moniker vertex
 			monikerIdentifier := joinMonikerParts(pkg, monikerIdentifier(i.packageDataCache, p, obj))
