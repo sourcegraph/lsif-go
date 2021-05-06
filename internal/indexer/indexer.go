@@ -108,6 +108,7 @@ func (i *Indexer) Index() error {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
+	i.indexDocumentation()
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
