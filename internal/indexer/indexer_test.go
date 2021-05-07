@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -353,18 +352,6 @@ func TestIndexer_documentation(t *testing.T) {
 			repositoryRoot: "/dev/github.com/sourcegraph/lsif-go/internal/testdata",
 			projectRoot:    projectRoot,
 			short:          true,
-		},
-		{
-			name:           "regexp",
-			repositoryRoot: filepath.Join(runtime.GOROOT(), "src/regexp"),
-			projectRoot:    filepath.Join(runtime.GOROOT(), "src/regexp"),
-			short:          false,
-		},
-		{
-			name:           "net_http",
-			repositoryRoot: filepath.Join(runtime.GOROOT(), "src/net/http"),
-			projectRoot:    filepath.Join(runtime.GOROOT(), "src/net/http"),
-			short:          false,
 		},
 	} {
 		t.Run(tst.name, func(t *testing.T) {
