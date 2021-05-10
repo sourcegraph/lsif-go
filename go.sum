@@ -51,10 +51,6 @@ github.com/shurcooL/go-goon v0.0.0-20210110234559-7585751d9a17 h1:lRAUE0dIvigSSF
 github.com/shurcooL/go-goon v0.0.0-20210110234559-7585751d9a17/go.mod h1:N5mDOmsrJOB+vfqUK+7DmDyjhSLIIBnXo9lvZJj3MWQ=
 github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3 h1:sAARUcYbwxnebBeWHzKX2MeyXtzy25TEglCTz9BhueY=
 github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3/go.mod h1:AIBPxLCkKUFc2ZkjCXzs/Kk9OUhQLw/Zicdd0Rhqz2U=
-github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210301210707-8f7f90511f7c h1:cpxnWM5yRAhmGRA/MtAege7yImMNUe5KeUSajSSkIjQ=
-github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210301210707-8f7f90511f7c/go.mod h1:mnzFbRAJBmbqZI5jxzyI3EwI3jifO4L2+5BmCf0dviU=
-github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210503215150-f8fe5c122b5a h1:jfWBdVamt2Pon2n9mWUtYP+pEJvyUMuzbv2z1JQ2BDo=
-github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210503215150-f8fe5c122b5a/go.mod h1:fv7wOneyhrikDo2Thr4c1Cil9djiq3R8KxHCPwfjvYM=
 github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210510223937-fa85dfb33caa h1:hJM++qgmpmO2HCVAZZTiKzL0YzRxFKSQ30sCVTk/91c=
 github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210510223937-fa85dfb33caa/go.mod h1:fv7wOneyhrikDo2Thr4c1Cil9djiq3R8KxHCPwfjvYM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
