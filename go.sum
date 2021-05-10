@@ -55,6 +55,8 @@ github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210301210707-8f7f9051
 github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210301210707-8f7f90511f7c/go.mod h1:mnzFbRAJBmbqZI5jxzyI3EwI3jifO4L2+5BmCf0dviU=
 github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210503215150-f8fe5c122b5a h1:jfWBdVamt2Pon2n9mWUtYP+pEJvyUMuzbv2z1JQ2BDo=
 github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210503215150-f8fe5c122b5a/go.mod h1:fv7wOneyhrikDo2Thr4c1Cil9djiq3R8KxHCPwfjvYM=
+github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210510223937-fa85dfb33caa h1:hJM++qgmpmO2HCVAZZTiKzL0YzRxFKSQ30sCVTk/91c=
+github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210510223937-fa85dfb33caa/go.mod h1:fv7wOneyhrikDo2Thr4c1Cil9djiq3R8KxHCPwfjvYM=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
