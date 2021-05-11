@@ -19,6 +19,9 @@ var Var Interface = &Struct{Field: "bar!"}
 // unexportedVar is an unexported variable interface.
 var unexportedVar Interface = &Struct{Field: "bar!"}
 
+// x has a builtin error type
+var x error
+
 var BigVar Interface = &Struct{
 	Field: "bar!",
 	Anonymous: struct {

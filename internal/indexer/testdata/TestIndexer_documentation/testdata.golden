@@ -30,6 +30,7 @@ testdata is a small package containing sample Go source code used for testing th
 - [Variables](#github.com-sourcegraph-lsif-go-internal-testdata-var)
   - [var Var](#github.com-sourcegraph-lsif-go-internal-testdata-var-Var)
   - [var unexportedVar](#github.com-sourcegraph-lsif-go-internal-testdata-var-unexportedVar)
+  - [var x](#github.com-sourcegraph-lsif-go-internal-testdata-var-x)
   - [var BigVar](#github.com-sourcegraph-lsif-go-internal-testdata-var-BigVar)
   - [var VarBlock1](#github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock1)
   - [var VarBlock2](#github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock2)
@@ -141,6 +142,14 @@ var unexportedVar Interface = ...
 ```
 
 unexportedVar is an unexported variable interface. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-x">var x</a>
+
+```Go
+var x error
+```
+
+x has a builtin error type 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-BigVar">var BigVar <small>(exported)</small></a>
 

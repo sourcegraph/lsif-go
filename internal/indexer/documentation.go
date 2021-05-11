@@ -665,6 +665,10 @@ func formatTypeLabel(t types.Type) string {
 		return "struct"
 	case *types.Named:
 		typeName := v.Obj()
+		if typeName.Pkg() == nil {
+			// e.g. builtin `error` interface.
+			return typeName.Name()
+		}
 		return fmt.Sprintf("%s.%s", typeName.Pkg().Name(), typeName.Name())
 	case *types.Basic, *types.Signature, *types.Tuple:
 		return v.String()
