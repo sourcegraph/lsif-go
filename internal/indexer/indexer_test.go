@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/hexops/autogold"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 func TestIndexer(t *testing.T) {
@@ -36,12 +36,14 @@ func TestIndexer(t *testing.T) {
 		}
 
 		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if !ok || len(hoverResult.Result.Contents) < 2 {
+		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
+
+		if !ok || len(markupContentSegments) < 2 {
 			t.Fatalf("could not find hover text")
 		}
 
 		expectedType := `func Parallel(ctx Context, fns ...ParallelizableFunc) error`
-		if value := hoverResult.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 
@@ -49,7 +51,7 @@ func TestIndexer(t *testing.T) {
 			Parallel invokes each of the given parallelizable functions in their own goroutines and
 			returns the first error to occur. This method will block until all goroutines have returned.
 		`)
-		if value := normalizeDocstring(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
+		if value := normalizeDocstring(markupContentSegments[1]); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 	})
@@ -63,12 +65,13 @@ func TestIndexer(t *testing.T) {
 		}
 
 		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if !ok || len(hoverResult.Result.Contents) < 2 {
+		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
+		if !ok || len(markupContentSegments) < 2 {
 			t.Fatalf("could not find hover text")
 		}
 
 		expectedType := `package "sync"`
-		if value := hoverResult.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 
@@ -78,7 +81,7 @@ func TestIndexer(t *testing.T) {
 			Higher-level synchronization is better done via channels and communication.
 			Values containing the types defined in this package should not be copied.
 		`)
-		if value := normalizeDocstring(hoverResult.Result.Contents[1].Value); value != expectedDocumentation {
+		if value := normalizeDocstring(markupContentSegments[1]); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 	})
@@ -181,22 +184,24 @@ func TestIndexer(t *testing.T) {
 		// TODO(efritz) - update test here if we emit hover text for the header
 
 		intReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, intReference.ID)
-		if !ok || len(intReferenceHoverResult.Result.Contents) < 1 {
+		markupContentSegments := splitMarkupContent(intReferenceHoverResult.Result.Contents.(protocol.MarkupContent).Value)
+		if !ok || len(markupContentSegments) < 1 {
 			t.Fatalf("could not find hover text")
 		}
 
 		expectedType := `var concreteValue int`
-		if value := intReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 
 		boolReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, boolReference.ID)
-		if !ok || len(boolReferenceHoverResult.Result.Contents) < 1 {
+		markupContentSegments = splitMarkupContent(boolReferenceHoverResult.Result.Contents.(protocol.MarkupContent).Value)
+		if !ok || len(markupContentSegments) < 1 {
 			t.Fatalf("could not find hover text")
 		}
 
 		expectedType = `var concreteValue bool`
-		if value := boolReferenceHoverResult.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 	})
@@ -217,19 +222,20 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, definitions[0], 7, 5, 7, 17)
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if !ok || len(hover.Result.Contents) < 3 {
-			t.Fatalf("incorrect hover text count. want=%d have=%d", 3, len(hover.Result.Contents))
+		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
+		if !ok || len(markupContentSegments) < 3 {
+			t.Fatalf("incorrect hover text count. want=%d have=%d: %v", 3, len(markupContentSegments), markupContentSegments)
 		}
 
 		expectedType := `type SecretBurger = secret.Burger`
-		if value := hover.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%s have=%s", expectedType, value)
 		}
 
 		expectedDocumentation := normalizeDocstring(`
 				Type aliased doc
 			`)
-		if value := normalizeDocstring(hover.Result.Contents[1].Value); value != expectedDocumentation {
+		if value := normalizeDocstring(markupContentSegments[1]); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 
@@ -237,7 +243,7 @@ func TestIndexer(t *testing.T) {
 			struct {
 					Field int
 			}`)
-		if value := strings.ReplaceAll(hover.Result.Contents[2].Value, "  ", "\t"); value != expectedUnderlyingType {
+		if value := strings.ReplaceAll(unCodeFence(markupContentSegments[2]), "  ", "\t"); value != expectedUnderlyingType {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
 		}
 	})
@@ -263,19 +269,20 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, definitions[0], 6, 5, 6, 11)
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if !ok || len(hover.Result.Contents) < 3 {
-			t.Fatalf("incorrect hover text count. want=%d have=%d", 3, len(hover.Result.Contents))
+		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
+		if !ok || len(markupContentSegments) < 3 {
+			t.Fatalf("incorrect hover text count. want=%d have=%d: %v", 3, len(markupContentSegments), markupContentSegments)
 		}
 
 		expectedType := `type Burger struct`
-		if value := hover.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%s have=%s", expectedType, value)
 		}
 
 		expectedDocumentation := normalizeDocstring(`
 				Original doc
 			`)
-		if value := normalizeDocstring(hover.Result.Contents[1].Value); value != expectedDocumentation {
+		if value := normalizeDocstring(markupContentSegments[1]); value != expectedDocumentation {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 
@@ -283,7 +290,7 @@ func TestIndexer(t *testing.T) {
 			struct {
 					Field int
 			}`)
-		if value := strings.ReplaceAll(hover.Result.Contents[2].Value, "  ", "\t"); value != expectedUnderlyingType {
+		if value := strings.ReplaceAll(unCodeFence(markupContentSegments[2]), "  ", "\t"); value != expectedUnderlyingType {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
 		}
 	})
@@ -304,12 +311,13 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, definitions[0], 9, 5, 9, 14)
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if !ok || len(hover.Result.Contents) < 2 {
-			t.Fatalf("incorrect hover text count. want=%d have=%d", 2, len(hover.Result.Contents))
+		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
+		if !ok || len(markupContentSegments) < 2 {
+			t.Fatalf("incorrect hover text count. want=%d have=%d: %v", 2, len(markupContentSegments), markupContentSegments)
 		}
 
 		expectedType := `type BadBurger = struct`
-		if value := hover.Result.Contents[0].Value; value != expectedType {
+		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
 			t.Errorf("incorrect hover text type. want=%s have=%s", expectedType, value)
 		}
 
@@ -317,7 +325,7 @@ func TestIndexer(t *testing.T) {
 			struct {
 					Field string
 			}`)
-		if value := strings.ReplaceAll(hover.Result.Contents[1].Value, "  ", "\t"); value != expectedUnderlyingType {
+		if value := strings.ReplaceAll(unCodeFence(markupContentSegments[1]), "  ", "\t"); value != expectedUnderlyingType {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
 		}
 
