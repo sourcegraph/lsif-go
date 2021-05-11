@@ -46,7 +46,7 @@ func toMarkupContent(signature, docstring, extra string) (mss protocol.MarkupCon
 }
 
 // formatMarkdown creates a string containing a markdown-formatted version
-// of the given string. If the given string is empty, nil is returned.
+// of the given string.
 func formatMarkdown(v string) string {
 	if v == "" {
 		return ""
@@ -58,7 +58,7 @@ func formatMarkdown(v string) string {
 }
 
 // formatCode creates a string containing a code fence-formatted version
-// of the given string. If the given string is empty, nil is returned.
+// of the given string.
 func formatCode(v string) string {
 	if v == "" {
 		return ""
