@@ -148,6 +148,10 @@ func monikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, 
 	}
 
 	if v, ok := obj.(*types.Var); ok && v.IsField() {
+		if target := p.Imports[obj.Pkg().Path()]; target != nil {
+			p = target
+		}
+
 		// Qualifiers for fields were populated as pre-load step so we do not need to traverse
 		// the AST path back up to the root to find the enclosing type specs and fields with an
 		// anonymous struct type.
