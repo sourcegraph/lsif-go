@@ -15,7 +15,7 @@ import (
 func ModuleName(dir, repo string) (string, error) {
 	if !isModule(dir) {
 		log.Println("WARNING: No go.mod file found in current directory.")
-		return "", nil
+		return resolveModuleName(repo, repo)
 	}
 
 	// Determine the declared name of the module
