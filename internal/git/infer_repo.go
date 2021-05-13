@@ -8,7 +8,7 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/command"
 )
 
-// InferRepo gets a Sourcegraph-friendly repo name from the git clone enclosing
+// InferRepo gets a human-readable repository name from the git clone enclosing
 // the given directory.
 func InferRepo(dir string) (string, error) {
 	remoteURL, err := command.Run(dir, "git", "remote", "get-url", "origin")
