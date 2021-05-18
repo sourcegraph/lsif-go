@@ -15,6 +15,7 @@ func TestIndexer(t *testing.T) {
 	projectRoot := getRepositoryRoot(t)
 	indexer := New(
 		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+		"github.com/sourcegraph/lsif-go",
 		projectRoot,
 		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 		"testdata",
@@ -351,6 +352,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 	projectRoot := getRepositoryRoot(t)
 	indexer := New(
 		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+		"github.com/sourcegraph/lsif-go",
 		projectRoot,
 		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 		"testdata",
