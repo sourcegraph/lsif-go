@@ -527,11 +527,13 @@ func (f funcDocs) result() *documentationResult {
 	}
 
 	// Include the full type signature
-	var detail bytes.Buffer
-	fmt.Fprintf(&detail, "```Go\n")
-	fmt.Fprintf(&detail, "%s\n", f.signature)
-	fmt.Fprintf(&detail, "```\n\n")
-	fmt.Fprintf(&detail, "%s", f.docsMarkdown)
+	var detail strings.Builder
+	detail.Grow(6 + len(f.signature) + len(f.docsMarkdown) + 6)
+	detail.WriteString("```Go\n")
+	detail.WriteString(f.signature)
+	detail.WriteRune('\n')
+	detail.WriteString("```\n\n")
+	detail.WriteString(f.docsMarkdown)
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
