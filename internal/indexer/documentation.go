@@ -684,14 +684,8 @@ func formatTypeLabel(t types.Type) string {
 // "Deprecated", or "DEPRECATED".
 func isDeprecated(docstring string) bool {
 	for _, line := range strings.Split(docstring, "\n") {
-		for _, deprecated := range []string{
-			"deprecated",
-			"Deprecated",
-			"DEPRECATED",
-		} {
-			if strings.HasPrefix(line, deprecated) {
-				return true
-			}
+		if strings.HasPrefix(strings.ToLower(line), "deprecated") {
+			return true
 		}
 	}
 	return false
