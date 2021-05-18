@@ -43,6 +43,7 @@ func (i *Indexer) indexDocumentation() error {
 		docsPkg, err := d.indexPackage(p)
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "package "+p.Name))
+			return
 		}
 		docsPackages = append(docsPackages, docsPkg)
 	})
