@@ -98,16 +98,16 @@ func parseGoListOutput(output, rootVersion string) (map[string]Module, error) {
 	return dependencies, nil
 }
 
-// versionPattern matches the form vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
-var versionPattern = regexp.MustCompile(`^(.*)-(\d{14})-([a-f0-9]{12})$`)
+// versionPattern matches a versioning ending in a 12-digit sha, e.g., vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
+var versionPattern = regexp.MustCompile(`^.*-([a-f0-9]{12})$`)
 
-// cleanVersion removes the date segment and any `+incompatible` suffix from a module
-// version string.
+// cleanVersion normalizes a module version string.
 func cleanVersion(version string) string {
-	version = strings.TrimSuffix(version, "+incompatible")
+	version = strings.TrimSpace(strings.TrimSuffix(version, "// indirect"))
+	version = strings.TrimSpace(strings.TrimSuffix(version, "+incompatible"))
 
 	if matches := versionPattern.FindStringSubmatch(version); len(matches) > 0 {
-		return fmt.Sprintf("%s-%s", matches[1], matches[3])
+		return matches[1]
 	}
 
 	return version
