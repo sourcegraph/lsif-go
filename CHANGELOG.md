@@ -11,7 +11,9 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
-Nothing yet.
+### Changed
+
+- Improve moniker identifiers for exported identifiers in projects with no go.mod file. [#153](https://github.com/sourcegraph/lsif-go/pull/153)
 
 ## v1.4.0
 
