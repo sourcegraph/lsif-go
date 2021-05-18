@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/hexops/autogold"
-	"github.com/sourcegraph/lsif-go/internal/doctomarkdown"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
@@ -378,7 +377,7 @@ func TestIndexer_documentation(t *testing.T) {
 
 			// Convert documentation to Markdown format.
 			matchingTags := []protocol.DocumentationTag{}
-			converted, err := doctomarkdown.Convert(context.Background(), &buf, matchingTags)
+			converted, err := doctomarkdown(context.Background(), &buf, matchingTags)
 			if err != nil {
 				t.Fatalf("failed to convert documentation to Markdown: %s", err.Error())
 			}

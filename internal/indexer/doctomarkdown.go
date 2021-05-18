@@ -1,6 +1,4 @@
-// Package doctomarkdown converts data in the Sourcegraph LSIF documentation extension format into
-// Markdown format.
-package doctomarkdown
+package indexer
 
 import (
 	"bytes"
@@ -13,9 +11,9 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/reader"
 )
 
-// Convert converts the LSIF data in r to Markdown by scanning for data in the Sourcegraph LSIF
+// doctomarkdown converts the LSIF data in r to Markdown by scanning for data in the Sourcegraph LSIF
 // documentation extension format.
-func Convert(ctx context.Context, r io.Reader, matchingTags []protocol.DocumentationTag) (string, error) {
+func doctomarkdown(ctx context.Context, r io.Reader, matchingTags []protocol.DocumentationTag) (string, error) {
 	stream := reader.Read(ctx, r)
 	var buf bytes.Buffer
 	conv := &converter{
