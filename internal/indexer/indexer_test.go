@@ -1,13 +1,16 @@
 package indexer
 
 import (
+	"bytes"
+	"context"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/hexops/autogold"
-	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
 
 func TestIndexer(t *testing.T) {
@@ -334,6 +337,53 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("found range for anonymous struct when not expected")
 		}
 	})
+}
+
+func TestIndexer_documentation(t *testing.T) {
+	projectRoot := getRepositoryRoot(t)
+	for _, tst := range []struct {
+		name                        string
+		repositoryRoot, projectRoot string
+		short                       bool
+	}{
+		{
+			name:           "testdata",
+			repositoryRoot: "/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+			projectRoot:    projectRoot,
+			short:          true,
+		},
+	} {
+		t.Run(tst.name, func(t *testing.T) {
+			if !tst.short && testing.Short() {
+				t.SkipNow()
+				return
+			}
+			// Perform LSIF indexing.
+			var buf bytes.Buffer
+			indexer := New(
+				tst.repositoryRoot,
+				tst.projectRoot,
+				protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
+				"testdata",
+				"0.0.1",
+				nil,
+				writer.NewJSONWriter(&buf),
+				NewPackageDataCache(),
+				OutputOptions{},
+			)
+			if err := indexer.Index(); err != nil {
+				t.Fatalf("unexpected error indexing testdata: %s", err.Error())
+			}
+
+			// Convert documentation to Markdown format.
+			matchingTags := []protocol.DocumentationTag{}
+			converted, err := doctomarkdown(context.Background(), &buf, matchingTags)
+			if err != nil {
+				t.Fatalf("failed to convert documentation to Markdown: %s", err.Error())
+			}
+			autogold.Equal(t, autogold.Raw(converted))
+		})
+	}
 }
 
 func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
