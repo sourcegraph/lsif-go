@@ -11,6 +11,10 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased (v1.5.0) changes
 
+### Added
+
+- API documentation is now emitted as [an extension to LSIF](https://github.com/sourcegraph/sourcegraph/pull/20108) in order to support documentation generation in the form of e.g. https://pkg.go.dev and https://godocs.io. [#150](https://github.com/sourcegraph/lsif-go/pull/150)
+
 ### Changed
 
 - :rotating_light: Changed package module version generation to make cross-index queries accurate. Cross-linking may not work with indexes created before v1.5.0. [#152](https://github.com/sourcegraph/lsif-go/pull/152)
