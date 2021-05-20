@@ -9,7 +9,11 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
-## Unreleased (v1.5.0) changes
+## Unreleased changes
+
+Nothing yet.
+
+## v1.5.0
 
 ### Added
 
