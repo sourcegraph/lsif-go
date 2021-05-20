@@ -67,8 +67,8 @@ func TestParseGoListOutput(t *testing.T) {
 	expected := map[string]Module{
 		"github.com/gavv/httpexpect":                        {Name: "github.com/gavv/httpexpect", Version: "v2.0.0"},
 		"github.com/getsentry/raven-go":                     {Name: "github.com/getsentry/raven-go", Version: "v0.2.0"},
-		"github.com/gfleury/go-bitbucket-v1":                {Name: "github.com/gfleury/go-bitbucket-v1", Version: "v0.0.0-e5170e3280fb"},
-		"github.com/ghodss/yaml":                            {Name: "github.com/sourcegraph/yaml", Version: "v1.0.1-0.20200714132230-56936252f152"},
+		"github.com/gfleury/go-bitbucket-v1":                {Name: "github.com/gfleury/go-bitbucket-v1", Version: "e5170e3280fb"},
+		"github.com/ghodss/yaml":                            {Name: "github.com/sourcegraph/yaml", Version: "56936252f152"},
 		"github.com/sourcegraph/sourcegraph/enterprise/lib": {Name: "./enterprise/lib", Version: "v1.2.3"},
 	}
 	if diff := cmp.Diff(expected, modules); diff != "" {
@@ -83,7 +83,7 @@ func TestCleanVersion(t *testing.T) {
 	}{
 		{input: "v2.25.0", expected: "v2.25.0"},
 		{input: "v2.25.0+incompatible", expected: "v2.25.0"},
-		{input: "v0.0.0-20190905194746-02993c407bfb", expected: "v0.0.0-02993c407bfb"},
+		{input: "v0.0.0-20190905194746-02993c407bfb", expected: "02993c407bfb"},
 	}
 
 	for _, testCase := range testCases {
