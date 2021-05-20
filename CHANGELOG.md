@@ -18,7 +18,7 @@ All notable changes to `lsif-go` are documented in this file.
 
 ### Fixed
 
-- Fixed definition relationship with nested structs and interfaces. [#156](https://github.com/sourcegraph/lsif-go/pull/156)
+- Fixed definition relationship with composite structs and interfaces. [#156](https://github.com/sourcegraph/lsif-go/pull/156)
 
 ## v1.4.0
 
