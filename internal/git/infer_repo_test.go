@@ -18,8 +18,9 @@ func TestInferRepo(t *testing.T) {
 
 func TestParseRemote(t *testing.T) {
 	testCases := map[string]string{
-		"git@github.com:sourcegraph/lsif-go.git": "github.com/sourcegraph/lsif-go",
-		"https://github.com/sourcegraph/lsif-go": "github.com/sourcegraph/lsif-go",
+		"git@github.com:sourcegraph/lsif-go.git":                                "github.com/sourcegraph/lsif-go",
+		"https://github.com/sourcegraph/lsif-go":                                "github.com/sourcegraph/lsif-go",
+		"ssh://git@phabricator.company.com:2222/diffusion/COMPANY/companay.git": "phabricator.company.com/diffusion/COMPANY/companay",
 	}
 
 	for input, expectedOutput := range testCases {
