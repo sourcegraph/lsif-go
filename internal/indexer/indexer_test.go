@@ -338,6 +338,21 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("found range for anonymous struct when not expected")
 		}
 	})
+
+	t.Run("check nested struct definition", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		if len(definitions) != 2 {
+			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
+		}
+
+		compareRange(t, definitions[0], 4, 5, 4, 10)
+		compareRange(t, definitions[1], 11, 1, 11, 6)
+	})
 }
 
 func TestIndexer_documentation(t *testing.T) {
