@@ -26,13 +26,19 @@ func mainErr() error {
 		return err
 	}
 
-	moduleName, dependencies, err := gomod.ListModules(moduleRoot)
+	moduleName, err := gomod.ModuleName(moduleRoot, repositoryRemote)
+	if err != nil {
+		return err
+	}
+
+	dependencies, err := gomod.ListDependencies(moduleRoot, moduleName, moduleVersion)
 	if err != nil {
 		return err
 	}
 
 	return writeIndex(
 		repositoryRoot,
+		repositoryRemote,
 		projectRoot,
 		moduleName,
 		moduleVersion,

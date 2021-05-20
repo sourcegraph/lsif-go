@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	protocol "github.com/sourcegraph/lsif-protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -414,4 +414,12 @@ func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packa
 	}
 
 	return packageInformation
+}
+
+func splitMarkupContent(value string) []string {
+	return strings.Split(value, "\n\n---\n\n")
+}
+
+func unCodeFence(value string) string {
+	return strings.Replace(strings.Replace(value, "```go\n", "", -1), "\n```", "", -1)
 }

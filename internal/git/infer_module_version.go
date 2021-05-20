@@ -23,13 +23,5 @@ func InferModuleVersion(dir string) (string, error) {
 		return "", fmt.Errorf("failed to get current commit: %v\n%s", err, commit)
 	}
 
-	tag, err := command.Run(dir, "git", "describe", "--tags", "--abbrev=0", "--always")
-	if err != nil {
-		return "", fmt.Errorf("failed to describe tags: %v\n%s", err, commit)
-	}
-	if tag == commit {
-		tag = "v0.0.0"
-	}
-
-	return fmt.Sprintf("%s-%s", tag, commit[:12]), nil
+	return commit[:12], nil
 }

@@ -1,0 +1,510 @@
+# <a name="">Index <small>(new page,exported)</small></a>
+
+# Index
+
+- [Package testdata](#github.com-sourcegraph-lsif-go-internal-testdata)
+- [Package secret](#internal-secret)
+- [Package notests](#internal-shouldvisit-notests)
+- [Package tests](#internal-shouldvisit-tests)
+- [Package pkg](#internal-shouldvisit-tests_separate)
+- [Package pkg_test](#internal-shouldvisit-tests_separate_test)
+
+## <a name="github.com-sourcegraph-lsif-go-internal-testdata">Package testdata <small>(new page)</small></a>
+
+Package testdata 
+
+testdata is a small package containing sample Go source code used for testing the indexing routines of github.com/sourcegraph/lsif-go. 
+
+## Index
+
+- [Constants](#github.com-sourcegraph-lsif-go-internal-testdata-const)
+  - [const Const](#github.com-sourcegraph-lsif-go-internal-testdata-const-Const)
+  - [const ConstBlock1](#github.com-sourcegraph-lsif-go-internal-testdata-const-ConstBlock1)
+  - [const ConstBlock2](#github.com-sourcegraph-lsif-go-internal-testdata-const-ConstBlock2)
+  - [const Score](#github.com-sourcegraph-lsif-go-internal-testdata-const-Score)
+  - [const secretScore](#github.com-sourcegraph-lsif-go-internal-testdata-const-secretScore)
+  - [const SomeString](#github.com-sourcegraph-lsif-go-internal-testdata-const-SomeString)
+  - [const LongString](#github.com-sourcegraph-lsif-go-internal-testdata-const-LongString)
+  - [const ConstMath](#github.com-sourcegraph-lsif-go-internal-testdata-const-ConstMath)
+  - [const AliasedString](#github.com-sourcegraph-lsif-go-internal-testdata-const-AliasedString)
+- [Variables](#github.com-sourcegraph-lsif-go-internal-testdata-var)
+  - [var Var](#github.com-sourcegraph-lsif-go-internal-testdata-var-Var)
+  - [var unexportedVar](#github.com-sourcegraph-lsif-go-internal-testdata-var-unexportedVar)
+  - [var x](#github.com-sourcegraph-lsif-go-internal-testdata-var-x)
+  - [var BigVar](#github.com-sourcegraph-lsif-go-internal-testdata-var-BigVar)
+  - [var VarBlock1](#github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock1)
+  - [var VarBlock2](#github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock2)
+  - [var _](#github.com-sourcegraph-lsif-go-internal-testdata-var-_)
+  - [var wg](#github.com-sourcegraph-lsif-go-internal-testdata-var-wg)
+- [Types](#github.com-sourcegraph-lsif-go-internal-testdata-type)
+  - [type Embedded struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-Embedded)
+  - [type Struct struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-Struct)
+  - [type Interface interface](#github.com-sourcegraph-lsif-go-internal-testdata-type-Interface)
+    - [func NewInterface() Interface](#github.com-sourcegraph-lsif-go-internal-testdata-type-Interface-NewInterface)
+  - [type X struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-X)
+  - [type Y struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-Y)
+  - [type TestInterface interface](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestInterface)
+  - [type TestStruct struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct)
+    - [func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct-Doer)
+  - [type TestEmptyStruct struct{}](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestEmptyStruct)
+  - [type StringAlias string](#github.com-sourcegraph-lsif-go-internal-testdata-type-StringAlias)
+  - [type StructTagRegression struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-StructTagRegression)
+  - [type TestEqualsStruct struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestEqualsStruct)
+  - [type ParallelizableFunc func(ctx context.Context) error](#github.com-sourcegraph-lsif-go-internal-testdata-type-ParallelizableFunc)
+  - [type SecretBurger secret.Burger](#github.com-sourcegraph-lsif-go-internal-testdata-type-SecretBurger)
+  - [type BadBurger struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-BadBurger)
+- [Functions](#github.com-sourcegraph-lsif-go-internal-testdata-func)
+  - [func Parallel(ctx context.Context, fns ...ParallelizableFunc) error](#github.com-sourcegraph-lsif-go-internal-testdata-func-Parallel)
+  - [func Switch(interfaceValue interface{}) bool](#github.com-sourcegraph-lsif-go-internal-testdata-func-Switch)
+
+### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const">Constants</a>
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-Const">const Const <small>(exported)</small></a>
+
+```Go
+const Const = 5
+```
+
+Const is a constant equal to 5. It's the best constant I've ever written. 😹 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-ConstBlock1">const ConstBlock1 <small>(exported)</small></a>
+
+```Go
+const ConstBlock1 = 1
+```
+
+Docs for the const block itself. 
+
+ConstBlock1 is a constant in a block. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-ConstBlock2">const ConstBlock2 <small>(exported)</small></a>
+
+```Go
+const ConstBlock2 = 2
+```
+
+Docs for the const block itself. 
+
+ConstBlock2 is a constant in a block. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-Score">const Score <small>(exported)</small></a>
+
+```Go
+const Score = uint64(42)
+```
+
+Score is just a hardcoded number. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-secretScore">const secretScore</a>
+
+```Go
+const secretScore = secret.SecretScore
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-SomeString">const SomeString <small>(exported)</small></a>
+
+```Go
+const SomeString = "foobar"
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-LongString">const LongString <small>(exported)</small></a>
+
+```Go
+const LongString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt viverra aliquam. Phasellus finibus, arcu eu commodo porta, dui quam dictum ante, nec porta enim leo quis felis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Curabitur luctus orci tortor, non condimentum arcu bibendum ut. Proin sit amet vulputate lorem, ut egestas arcu. Curabitur quis sagittis mi. Aenean elit sem, imperdiet ut risus eget, varius varius erat.\nNullam lobortis tortor sed sodales consectetur. Aenean condimentum vehicula elit, eget interdum ante finibus nec. Mauris mollis, nulla eu vehicula rhoncus, eros lectus viverra tellus, ac hendrerit quam massa et felis. Nunc vestibulum diam a facilisis sollicitudin. Aenean nec varius metus. Sed nec diam nibh. Ut erat erat, suscipit et ante eget, tincidunt condimentum orci. Aenean nec facilisis augue, ac sodales ex. Nulla dictum hendrerit tempus. Aliquam fringilla tortor in massa molestie, quis bibendum nulla ullamcorper. Suspendisse congue laoreet elit, vitae consectetur orci facilisis non. Aliquam tempus ultricies sapien, rhoncus tincidunt nisl tincidunt eget. Aliquam nisi ante, rutrum eget viverra imperdiet, congue ut nunc. Donec mollis sed tellus vel placerat. Sed mi ex, fringilla a fermentum a, tincidunt eget lectus.\nPellentesque lacus nibh, accumsan eget feugiat nec, gravida eget urna. Donec quam velit, imperdiet in consequat eget, ultricies eget nunc. Curabitur interdum vel sem et euismod. Donec sed vulputate odio, sit amet bibendum tellus. Integer pellentesque nunc eu turpis cursus, vestibulum sodales ipsum posuere. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Ut at vestibulum sapien. In hac habitasse platea dictumst. Nullam sed lobortis urna, non bibendum ipsum. Sed in sapien quis purus semper fringilla. Integer ut egestas nulla, eu ornare lectus. Maecenas quis sapien condimentum, dignissim urna quis, hendrerit neque. Donec cursus sit amet metus eu mollis.\nSed scelerisque vitae odio non egestas. Cras hendrerit tortor mauris. Aenean quis imperdiet nulla, a viverra purus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Praesent finibus faucibus orci, sed ultrices justo iaculis ut. Ut libero massa, condimentum at elit non, fringilla iaculis quam. Sed sit amet ipsum placerat, tincidunt sem in, efficitur lacus. Curabitur ligula orci, tempus ut magna eget, sodales tristique odio.\nPellentesque in libero ac risus pretium ultrices. In hac habitasse platea dictumst. Curabitur a quam sed orci tempus luctus. Integer commodo nec odio quis consequat. Aenean vitae dapibus augue, nec dictum lectus. Etiam sit amet leo diam. Duis eu ligula venenatis, fermentum lacus vel, interdum odio. Vivamus sit amet libero vitae elit interdum cursus et eu erat. Cras interdum augue sit amet ex aliquet tempor. Praesent dolor nisl, convallis bibendum mauris a, euismod commodo ante. Phasellus non ipsum condimentum, molestie dolor quis, pretium nisi. Mauris augue urna, fermentum ut lacinia a, efficitur vitae odio. Praesent finibus nisl et dolor luctus faucibus. Donec eget lectus sed mi porttitor placerat ac eu odio."
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-ConstMath">const ConstMath <small>(exported)</small></a>
+
+```Go
+const ConstMath = 1 + (2+3)*5
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-AliasedString">const AliasedString <small>(exported)</small></a>
+
+```Go
+const AliasedString StringAlias = "foobar"
+```
+
+### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var">Variables</a>
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-Var">var Var <small>(exported)</small></a>
+
+```Go
+var Var Interface = ...
+```
+
+Var is a variable interface. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-unexportedVar">var unexportedVar</a>
+
+```Go
+var unexportedVar Interface = ...
+```
+
+unexportedVar is an unexported variable interface. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-x">var x</a>
+
+```Go
+var x error
+```
+
+x has a builtin error type 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-BigVar">var BigVar <small>(exported)</small></a>
+
+```Go
+var BigVar Interface = ...
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock1">var VarBlock1 <small>(exported)</small></a>
+
+```Go
+var VarBlock1 = "if you're reading this"
+```
+
+What are docs, really? I can't say for sure, I don't write any. But look, a CAT! 
+
+```
+      |\      _,,,---,,_
+ZZZzz /,`.-'`'    -.  ;-;;,_
+     |,4-  ) )-,_. ,\ (  `'-'
+    '---''(_/--'  `-'\_)
+
+```
+It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
+
+This has some docs 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock2">var VarBlock2 <small>(exported)</small></a>
+
+```Go
+var VarBlock2 = "hi"
+```
+
+What are docs, really? I can't say for sure, I don't write any. But look, a CAT! 
+
+```
+      |\      _,,,---,,_
+ZZZzz /,`.-'`'    -.  ;-;;,_
+     |,4-  ) )-,_. ,\ (  `'-'
+    '---''(_/--'  `-'\_)
+
+```
+It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-_">var _</a>
+
+```Go
+var _ = Interface(&Struct{})
+```
+
+Yeah this is some Go magic incantation which is common. 
+
+```
+ ,_     _
+ |\\_,-~/
+ / _  _ |    ,--.
+(  @  @ )   / ,-'
+ \  _T_/-._( (
+/         `. \
+|         _  \ |
+\ \ ,  /      |
+ || |-_\__   /
+((_/`(____,-'
+
+```
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-wg">var wg</a>
+
+```Go
+var wg sync.WaitGroup
+```
+
+### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type">Types</a>
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Embedded">type Embedded struct <small>(exported)</small></a>
+
+```Go
+type Embedded struct {
+	// EmbeddedField has some docs!
+	EmbeddedField string
+	Field         string // conflicts with parent "Field"
+}
+```
+
+Embedded is a struct, to be embedded in another struct. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Struct">type Struct struct <small>(exported)</small></a>
+
+```Go
+type Struct struct {
+	*Embedded
+	Field     string
+	Anonymous struct {
+		FieldA int
+		FieldB int
+		FieldC int
+	}
+}
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Interface">type Interface interface <small>(exported)</small></a>
+
+```Go
+type Interface interface {
+	ImplementsInterface() string
+}
+```
+
+Interface has docs too 
+
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Interface-NewInterface">func NewInterface() Interface <small>(exported)</small></a>
+
+```Go
+func NewInterface() Interface
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-X">type X struct <small>(exported)</small></a>
+
+```Go
+type X struct {
+	bar string
+}
+```
+
+Go can be fun 
+
+And confusing 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Y">type Y struct <small>(exported)</small></a>
+
+```Go
+type Y struct {
+	baz float
+}
+```
+
+Go can be fun 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestInterface">type TestInterface interface <small>(exported)</small></a>
+
+```Go
+type TestInterface interface {
+	// Do does a test thing.
+	Do(ctx context.Context, data string) (score int, _ error)
+}
+```
+
+TestInterface is an interface used for testing. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct">type TestStruct struct <small>(exported)</small></a>
+
+```Go
+type TestStruct struct {
+	// SimpleA docs
+	SimpleA int
+	// SimpleB docs
+	SimpleB int
+	// SimpleC docs
+	SimpleC int
+
+	FieldWithTag           string `json:"tag"`
+	FieldWithAnonymousType struct {
+		NestedA string
+		NestedB string
+		// NestedC docs
+		NestedC string
+	}
+
+	EmptyStructField struct{}
+}
+```
+
+TestStruct is a struct used for testing. 
+
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct-Doer">func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) <small>(exported)</small></a>
+
+```Go
+func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)
+```
+
+Doer is similar to the test interface (but not the same). 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestEmptyStruct">type TestEmptyStruct struct{} <small>(exported)</small></a>
+
+```Go
+type TestEmptyStruct struct{}
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-StringAlias">type StringAlias string <small>(exported)</small></a>
+
+```Go
+type StringAlias string
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-StructTagRegression">type StructTagRegression struct <small>(exported)</small></a>
+
+```Go
+type StructTagRegression struct {
+	Value int `key:",range=[:}"`
+}
+```
+
+StructTagRegression is a struct that caused panic in the wild. Added here to support a regression test. 
+
+See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestEqualsStruct">type TestEqualsStruct struct <small>(exported)</small></a>
+
+```Go
+type TestEqualsStruct = struct {
+	Value int
+}
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error <small>(exported)</small></a>
+
+```Go
+type ParallelizableFunc func(ctx context.Context) error
+```
+
+ParallelizableFunc is a function that can be called concurrently with other instances of this function type. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-SecretBurger">type SecretBurger secret.Burger <small>(exported)</small></a>
+
+```Go
+type SecretBurger = secret.Burger
+```
+
+Type aliased doc 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-BadBurger">type BadBurger struct <small>(exported)</small></a>
+
+```Go
+type BadBurger = struct {
+	Field string
+}
+```
+
+### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func">Functions</a>
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error <small>(exported)</small></a>
+
+```Go
+func Parallel(ctx context.Context, fns ...ParallelizableFunc) error
+```
+
+Parallel invokes each of the given parallelizable functions in their own goroutines and returns the first error to occur. This method will block until all goroutines have returned. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-Switch">func Switch(interfaceValue interface{}) bool <small>(exported)</small></a>
+
+```Go
+func Switch(interfaceValue interface{}) bool
+```
+
+## <a name="internal-secret">Package secret <small>(new page)</small></a>
+
+secret is a package that holds secrets. 
+
+## Index
+
+- [Constants](#internal-secret-const)
+  - [const SecretScore](#internal-secret-const-SecretScore)
+- [Types](#internal-secret-type)
+  - [type Burger struct](#internal-secret-type-Burger)
+
+### <a name="internal-secret-const">Constants</a>
+
+#### <a name="internal-secret-const-SecretScore">const SecretScore <small>(exported)</small></a>
+
+```Go
+const SecretScore = uint64(43)
+```
+
+SecretScore is like score but _secret_. 
+
+### <a name="internal-secret-type">Types</a>
+
+#### <a name="internal-secret-type-Burger">type Burger struct <small>(exported)</small></a>
+
+```Go
+type Burger struct {
+	Field int
+}
+```
+
+Original doc 
+
+## <a name="internal-shouldvisit-notests">Package notests <small>(new page)</small></a>
+
+This package has no tests. 
+
+## Index
+
+- [Functions](#internal-shouldvisit-notests-func)
+  - [func foo() bool](#internal-shouldvisit-notests-func-foo)
+
+### <a name="internal-shouldvisit-notests-func">Functions</a>
+
+#### <a name="internal-shouldvisit-notests-func-foo">func foo() bool</a>
+
+```Go
+func foo() bool
+```
+
+## <a name="internal-shouldvisit-tests">Package tests <small>(new page)</small></a>
+
+This package has tests. 
+
+## Index
+
+- [Functions](#internal-shouldvisit-tests-func)
+  - [func foo() bool](#internal-shouldvisit-tests-func-foo)
+  - [func TestFoo(t *testing.T)](#internal-shouldvisit-tests-func-TestFoo)
+
+### <a name="internal-shouldvisit-tests-func">Functions</a>
+
+#### <a name="internal-shouldvisit-tests-func-foo">func foo() bool</a>
+
+```Go
+func foo() bool
+```
+
+#### <a name="internal-shouldvisit-tests-func-TestFoo">func TestFoo(t *testing.T)</a>
+
+```Go
+func TestFoo(t *testing.T)
+```
+
+## <a name="internal-shouldvisit-tests_separate">Package pkg <small>(new page)</small></a>
+
+This package has tests, but in a separate _test package. 
+
+## Index
+
+- [Functions](#internal-shouldvisit-tests_separate-func)
+  - [func foo() bool](#internal-shouldvisit-tests_separate-func-foo)
+
+### <a name="internal-shouldvisit-tests_separate-func">Functions</a>
+
+#### <a name="internal-shouldvisit-tests_separate-func-foo">func foo() bool</a>
+
+```Go
+func foo() bool
+```
+
+## <a name="internal-shouldvisit-tests_separate_test">Package pkg_test <small>(new page)</small></a>
+
+## Index
+
+- [Functions](#internal-shouldvisit-tests_separate_test-func)
+  - [func TestFoo(t *testing.T)](#internal-shouldvisit-tests_separate_test-func-TestFoo)
+
+### <a name="internal-shouldvisit-tests_separate_test-func">Functions</a>
+
+#### <a name="internal-shouldvisit-tests_separate_test-func-TestFoo">func TestFoo(t *testing.T)</a>
+
+```Go
+func TestFoo(t *testing.T)
+```
+

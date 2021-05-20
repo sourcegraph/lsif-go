@@ -4,30 +4,30 @@ import (
 	"fmt"
 	"go/types"
 
-	protocol "github.com/sourcegraph/lsif-protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 	"golang.org/x/tools/go/packages"
 )
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj types.Object) []protocol.MarkedString {
+func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj types.Object) protocol.MarkupContent {
 	signature, extra := typeString(obj)
 	docstring := findDocstring(packageDataCache, pkgs, p, obj)
-	return toMarkedString(signature, docstring, extra)
+	return toMarkupContent(signature, docstring, extra)
 }
 
 // findExternalHoverContents returns the hover contents of the given object defined in the given
 // package. This method is not cached and should only be called wrapped in a call to makeCachedHoverResult.
-func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj types.Object) []protocol.MarkedString {
+func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj types.Object) protocol.MarkupContent {
 	signature, extra := typeString(obj)
 	docstring := findExternalDocstring(packageDataCache, pkgs, p, obj)
-	return toMarkedString(signature, docstring, extra)
+	return toMarkupContent(signature, docstring, extra)
 }
 
 // makeCachedHoverResult returns a hover result vertex identifier. If hover text for the given
 // identifier has not already been emitted, a new vertex is created. Identifiers will share the
 // same hover result if they refer to the same identifier in the same target package.
-func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() []protocol.MarkedString) uint64 {
+func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj types.Object, fn func() protocol.MarkupContent) uint64 {
 	key := makeCacheKey(pkg, obj)
 	if key == "" {
 		// Do not store empty cache keys

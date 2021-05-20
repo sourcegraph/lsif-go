@@ -8,7 +8,7 @@ import (
 
 	"github.com/alecthomas/kingpin"
 	"github.com/sourcegraph/lsif-go/internal/git"
-	protocol "github.com/sourcegraph/lsif-protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 var app = kingpin.New(
@@ -17,14 +17,15 @@ var app = kingpin.New(
 ).Version(version + ", protocol version " + protocol.Version)
 
 var (
-	outFile        string
-	projectRoot    string
-	moduleRoot     string
-	repositoryRoot string
-	moduleVersion  string
-	verbosity      int
-	noOutput       bool
-	noAnimation    bool
+	outFile          string
+	projectRoot      string
+	moduleRoot       string
+	repositoryRoot   string
+	repositoryRemote string
+	moduleVersion    string
+	verbosity        int
+	noOutput         bool
+	noAnimation      bool
 )
 
 func init() {
@@ -39,7 +40,8 @@ func init() {
 	app.Flag("module-root", "Specifies the directory containing the go.mod file.").Default(defaultModuleRoot.Value()).StringVar(&moduleRoot)
 	app.Flag("repository-root", "Specifies the top-level directory of the git repository.").Default(defaultRepositoryRoot.Value()).StringVar(&repositoryRoot)
 
-	// Module version options (inferred by git)
+	// Repository remote and tag options (inferred by git)
+	app.Flag("repository-remote", "Specifies the canonical name of the repository remote.").Default(defaultRepositoryRemote.Value()).StringVar(&repositoryRemote)
 	app.Flag("module-version", "Specifies the version of the module defined by module-root.").Default(defaultModuleVersion.Value()).StringVar(&moduleVersion)
 
 	// Verbosity options
@@ -123,6 +125,14 @@ var defaultModuleRoot = newCachedString(func() string {
 
 var defaultRepositoryRoot = newCachedString(func() string {
 	return rel(toplevel.Value())
+})
+
+var defaultRepositoryRemote = newCachedString(func() string {
+	if repo, err := git.InferRepo(defaultModuleRoot.Value()); err == nil {
+		return repo
+	}
+
+	return ""
 })
 
 var defaultModuleVersion = newCachedString(func() string {

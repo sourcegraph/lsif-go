@@ -7,16 +7,21 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/sourcegraph/lsif-protocol/writer"
+	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
 
 func TestEmitExportMoniker(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		moduleName:            "github.com/sourcegraph/lsif-go",
+		repositoryRemote:      "github.com/sourcegraph/lsif-go",
+		repositoryRoot:        "/users/efritz/dev/sourcegraph/lsif-go",
+		projectRoot:           "/users/efritz/dev/sourcegraph/lsif-go",
+		moduleName:            "https://github.com/sourcegraph/lsif-go",
 		moduleVersion:         "3.14.159",
 		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
@@ -49,8 +54,59 @@ func TestEmitExportMoniker(t *testing.T) {
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find package information")
 	}
-	if packageInformation[0].Name != "github.com/sourcegraph/lsif-go" {
-		t.Errorf("incorrect moniker kind. want=%q have=%q", "github.com/sourcegraph/lsif-go", monikers[0].Kind)
+	if packageInformation[0].Name != "https://github.com/sourcegraph/lsif-go" {
+		t.Errorf("incorrect moniker name. want=%q have=%q", "https://github.com/sourcegraph/lsif-go", monikers[0].Kind)
+	}
+	if packageInformation[0].Version != "3.14.159" {
+		t.Errorf("incorrect moniker scheme want=%q have=%q", "3.14.159", monikers[0].Scheme)
+	}
+}
+
+func TestEmitExportMonikerPreGoMod(t *testing.T) {
+	w := &capturingWriter{}
+
+	indexer := &Indexer{
+		repositoryRemote:      "github.com/sourcegraph/lsif-go",
+		repositoryRoot:        "/users/efritz/dev/sourcegraph/lsif-go",
+		projectRoot:           "/users/efritz/dev/sourcegraph/lsif-go",
+		moduleName:            "https://github.com/sourcegraph/lsif-go",
+		moduleVersion:         "3.14.159",
+		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
+		packageInformationIDs: map[string]uint64{},
+		stripedMutex:          newStripedMutex(),
+	}
+
+	object := types.NewConst(
+		token.Pos(42),
+		types.NewPackage("_/users/efritz/dev/sourcegraph/lsif-go/internal/git", "pkg"),
+		"InferRemote",
+		&types.Basic{},
+		constant.MakeBool(true),
+	)
+
+	indexer.emitExportMoniker(123, nil, object)
+
+	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
+	if monikers == nil || len(monikers) < 1 {
+		t.Fatalf("could not find moniker")
+	}
+	if monikers[0].Kind != "export" {
+		t.Errorf("incorrect moniker kind. want=%q have=%q", "export", monikers[0].Kind)
+	}
+	if monikers[0].Scheme != "gomod" {
+		t.Errorf("incorrect moniker scheme want=%q have=%q", "gomod", monikers[0].Scheme)
+	}
+	if monikers[0].Identifier != "github.com/sourcegraph/lsif-go/internal/git:InferRemote" {
+		t.Errorf("incorrect moniker identifier. want=%q have=%q", "github.com/sourcegraph/lsif-go/internal/git:InferRemote", monikers[0].Identifier)
+	}
+
+	packageInformation := findPackageInformationByMonikerID(w.elements, monikers[0].ID)
+	if monikers == nil || len(monikers) < 1 {
+		t.Fatalf("could not find package information")
+	}
+	if packageInformation[0].Name != "https://github.com/sourcegraph/lsif-go" {
+		t.Errorf("incorrect moniker kind. want=%q have=%q", "https://github.com/sourcegraph/lsif-go", monikers[0].Kind)
 	}
 	if packageInformation[0].Version != "3.14.159" {
 		t.Errorf("incorrect moniker scheme want=%q have=%q", "3.14.159", monikers[0].Scheme)
@@ -61,10 +117,11 @@ func TestEmitImportMoniker(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		dependencies: map[string]string{
-			"github.com/test/pkg/sub1": "1.2.3-deadbeef",
+		dependencies: map[string]gomod.Module{
+			"github.com/test/pkg/sub1": {Name: "github.com/test/pkg/sub1", Version: "1.2.3-deadbeef"},
 		},
 		emitter:               writer.NewEmitter(w),
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		stripedMutex:          newStripedMutex(),
 	}
@@ -163,5 +220,23 @@ func TestMonikerEmbeddedField(t *testing.T) {
 
 	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "ShellStruct.InnerStruct" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "ShellStruct.InnerStruct", identifier)
+	}
+}
+
+func TestJoinMonikerParts(t *testing.T) {
+	testCases := []struct {
+		input    []string
+		expected string
+	}{
+		{input: []string{}, expected: ""},
+		{input: []string{"a"}, expected: "a"},
+		{input: []string{"a", "", "c"}, expected: "a:c"},
+		{input: []string{"a", "b", "c"}, expected: "a:b:c"},
+	}
+
+	for _, testCase := range testCases {
+		if actual := joinMonikerParts(testCase.input...); actual != testCase.expected {
+			t.Errorf("unexpected moniker identifier. want=%q have=%q", testCase.expected, actual)
+		}
 	}
 }

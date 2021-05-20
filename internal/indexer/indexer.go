@@ -3,6 +3,7 @@ package indexer
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -11,20 +12,22 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	protocol "github.com/sourcegraph/lsif-protocol"
-	"github.com/sourcegraph/lsif-protocol/writer"
+	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 	"golang.org/x/tools/go/packages"
 )
 
 type Indexer struct {
-	repositoryRoot string            // path to repository
-	projectRoot    string            // path to package
-	toolInfo       protocol.ToolInfo // metadata vertex payload
-	moduleName     string            // name of this module
-	moduleVersion  string            // version of this module
-	dependencies   map[string]string // parsed module data
-	emitter        *writer.Emitter   // LSIF data emitter
-	outputOptions  OutputOptions     // What to print to stdout/stderr
+	repositoryRoot   string                  // path to repository
+	repositoryRemote string                  // import path inferred by git remote
+	projectRoot      string                  // path to package
+	toolInfo         protocol.ToolInfo       // metadata vertex payload
+	moduleName       string                  // name of this module
+	moduleVersion    string                  // version of this module
+	dependencies     map[string]gomod.Module // parsed module data
+	emitter          *writer.Emitter         // LSIF data emitter
+	outputOptions    OutputOptions           // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -35,13 +38,15 @@ type Indexer struct {
 	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
-	documents             map[string]*DocumentInfo  // filename -> info
-	ranges                map[string]map[int]uint64 // filename -> offset -> rangeID
-	hoverResultCache      map[string]uint64         // cache key -> hoverResultID
-	packageInformationIDs map[string]uint64         // name -> packageInformationID
-	packageDataCache      *PackageDataCache         // hover text and moniker path cache
-	packages              []*packages.Package       // index target packages
-	projectID             uint64                    // project vertex identifier
+	documents             map[string]*DocumentInfo    // filename -> info
+	ranges                map[string]map[int]uint64   // filename -> offset -> rangeID
+	defined               map[string]map[int]struct{} // set of defined ranges (filename, offset)
+	hoverResultCache      map[string]uint64           // cache key -> hoverResultID
+	importMonikerIDs      map[string]uint64           // identifier:packageInformationID -> monikerID
+	packageInformationIDs map[string]uint64           // name -> packageInformationID
+	packageDataCache      *PackageDataCache           // hover text and moniker path cache
+	packages              []*packages.Package         // index target packages
+	projectID             uint64                      // project vertex identifier
 	packagesByFile        map[string][]*packages.Package
 
 	constsMutex                sync.Mutex
@@ -52,22 +57,25 @@ type Indexer struct {
 	varsMutex                  sync.Mutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
+	importMonikerIDsMutex      sync.RWMutex
 	packageInformationIDsMutex sync.RWMutex
 }
 
 func New(
 	repositoryRoot string,
+	repositoryRemote string,
 	projectRoot string,
 	toolInfo protocol.ToolInfo,
 	moduleName string,
 	moduleVersion string,
-	dependencies map[string]string,
+	dependencies map[string]gomod.Module,
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions OutputOptions,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:        repositoryRoot,
+		repositoryRemote:      repositoryRemote,
 		projectRoot:           projectRoot,
 		toolInfo:              toolInfo,
 		moduleName:            moduleName,
@@ -83,7 +91,9 @@ func New(
 		vars:                  map[interface{}]*DefinitionInfo{},
 		documents:             map[string]*DocumentInfo{},
 		ranges:                map[string]map[int]uint64{},
+		defined:               map[string]map[int]struct{}{},
 		hoverResultCache:      map[string]uint64{},
+		importMonikerIDs:      map[string]uint64{},
 		packageInformationIDs: map[string]uint64{},
 		packageDataCache:      packageDataCache,
 		stripedMutex:          newStripedMutex(),
@@ -94,13 +104,14 @@ func New(
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
-	if err := i.loadPackages(); err != nil {
+	if err := i.loadPackages(true); err != nil {
 		return errors.Wrap(err, "loadPackages")
 	}
 
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
+	i.indexDocumentation()
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
@@ -117,7 +128,9 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
-func (i *Indexer) loadPackages() error {
+//
+// deduplicate should be true in all cases except TestIndexer_shouldVisitPackage.
+func (i *Indexer) loadPackages(deduplicate bool) error {
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -139,7 +152,18 @@ func (i *Indexer) loadPackages() error {
 			return
 		}
 
-		i.packages = pkgs
+		if deduplicate {
+			keep := make([]*packages.Package, 0, len(pkgs))
+			for _, pkg := range pkgs {
+				if i.shouldVisitPackage(pkg, pkgs) {
+					keep = append(keep, pkg)
+				}
+			}
+			i.packages = keep
+		} else {
+			i.packages = pkgs
+		}
+
 		i.packagesByFile = map[string][]*packages.Package{}
 
 		for _, p := range i.packages {
@@ -152,6 +176,44 @@ func (i *Indexer) loadPackages() error {
 
 	withProgress(&wg, "Loading packages", i.outputOptions, nil, 0)
 	return <-errs
+}
+
+// shouldVisitPackage tells if the package p should be visited.
+//
+// According to the `Tests` field in https://pkg.go.dev/golang.org/x/tools/go/packages#Config
+// the loader may produce up to four packages for a single Go package directory:
+//
+// 	// For example, when using the go command, loading "fmt" with Tests=true
+// 	// returns four packages, with IDs "fmt" (the standard package),
+// 	// "fmt [fmt.test]" (the package as compiled for the test),
+// 	// "fmt_test" (the test functions from source files in package fmt_test),
+// 	// and "fmt.test" (the test binary).
+//
+// This function handles deduplication, returning true ("should visit") if it makes sense
+// to index the input package (or false if doing so would be duplicative.)
+func (i *Indexer) shouldVisitPackage(p *packages.Package, allPackages []*packages.Package) bool {
+	// The loader returns 4 packages because (loader.Config).Tests==true and we
+	// want to avoid duplication.
+	if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
+		return false // synthesized `go test` program
+	}
+	if strings.HasSuffix(p.Name, "_test") {
+		return true
+	}
+
+	// Index only the combined test package if it's present. If the package has no test files,
+	// it won't be present, and we need to just index the default package.
+	pkgHasTests := false
+	for _, op := range allPackages {
+		if op.ID == fmt.Sprintf("%s [%s.test]", p.PkgPath, p.PkgPath) {
+			pkgHasTests = true
+			break
+		}
+	}
+	if pkgHasTests && !strings.HasSuffix(p.ID, ".test]") {
+		return false
+	}
+	return true
 }
 
 // packagesLoadLogger logs the debug messages from the packages.Load function.
@@ -212,6 +274,7 @@ func (i *Indexer) emitDocument(filename string) {
 	documentID := i.emitter.EmitDocument(languageGo, filename)
 	i.documents[filename] = &DocumentInfo{DocumentID: documentID}
 	i.ranges[filename] = map[int]uint64{}
+	i.defined[filename] = map[int]struct{}{}
 }
 
 // addImports modifies the definitions map of each file to include entries for import statements so
@@ -303,7 +366,14 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 
 		pos, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok || !i.markRange(pos) {
+		if !ok {
+			continue
+		}
+		if !i.markRange(pos) {
+			// This performs a quick assignment to a map that will ensure that
+			// we don't race against another routine indexing the same definition
+			// reachable from another dataflow path through the indexer. If we
+			// lose a race, we'll just bail out and look at the next definition.
 			continue
 		}
 
@@ -337,11 +407,11 @@ func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token
 	return position, d, true
 }
 
-// markRange sets an empty range identifier in the ranges map for the given position.
-// If a  range for this identifier has already been marked, this method returns false.
+// markRange sets a zero-size struct into a map for the given position. If this position
+// has already been marked, this method returns false.
 func (i *Indexer) markRange(pos token.Position) bool {
 	i.stripedMutex.RLockKey(pos.Filename)
-	_, ok := i.ranges[pos.Filename][pos.Offset]
+	_, ok := i.defined[pos.Filename][pos.Offset]
 	i.stripedMutex.RUnlockKey(pos.Filename)
 	if ok {
 		return false
@@ -350,17 +420,19 @@ func (i *Indexer) markRange(pos token.Position) bool {
 	i.stripedMutex.LockKey(pos.Filename)
 	defer i.stripedMutex.UnlockKey(pos.Filename)
 
-	if _, ok := i.ranges[pos.Filename][pos.Offset]; ok {
+	if _, ok := i.defined[pos.Filename][pos.Offset]; ok {
 		return false
 	}
 
-	i.ranges[pos.Filename][pos.Offset] = 0 // placeholder
+	i.defined[pos.Filename][pos.Offset] = struct{}{}
 	return true
 }
 
 // indexDefinition emits data for the given definition object.
 func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
-	rangeID := i.emitter.EmitRange(rangeForObject(obj, pos))
+	// Ensure the range exists, but don't emit a new one as it might already exist due to another
+	// phase of indexing (such as symbols) having emitted the range.
+	rangeID := i.ensureRangeFor(pos, obj)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
@@ -376,7 +448,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		// Create a hover result vertex and cache the result identifier keyed by the definition location.
 		// Caching this gives us a big win for package documentation, which is likely to be large and is
 		// repeated at each import and selector within referenced files.
-		_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() []protocol.MarkedString {
+		_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
 			return findHoverContents(i.packageDataCache, i.packages, p, obj)
 		}))
 	}
@@ -516,7 +588,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 		// hover result of the type switch header for this use. Each reference of such a variable
 		// will need a more specific hover text, as the type of the variable is refined in the body
 		// of case clauses of the type switch.
-		_ = i.emitter.EmitTextDocumentHover(rangeID, i.makeCachedHoverResult(nil, definitionObj, func() []protocol.MarkedString {
+		_ = i.emitter.EmitTextDocumentHover(rangeID, i.makeCachedHoverResult(nil, definitionObj, func() protocol.MarkupContent {
 			return findHoverContents(i.packageDataCache, i.packages, p, definitionObj)
 		}))
 	}
@@ -537,7 +609,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	// (scoped ot the object's package name). Caching this gives us another big win as some
 	// methods imported from other packages are likely to be used many times in a dependent
 	// project (e.g., context.Context, http.Request, etc).
-	hoverResultID := i.makeCachedHoverResult(definitionPkg, definitionObj, func() []protocol.MarkedString {
+	hoverResultID := i.makeCachedHoverResult(definitionPkg, definitionObj, func() protocol.MarkupContent {
 		return findExternalHoverContents(i.packageDataCache, i.packages, p, definitionObj)
 	})
 

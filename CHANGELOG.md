@@ -9,9 +9,37 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
-## Unreleased changes
+## Unreleased (v1.5.0) changes
 
-Nothing yet.
+### Changed
+
+- :rotating_light: Changed package module version generation to make cross-index queries accurate. Cross-linking may not work with indexes created before v1.5.0. [#152](https://github.com/sourcegraph/lsif-go/pull/152)
+- Improve moniker identifiers for exported identifiers in projects with no go.mod file. [#153](https://github.com/sourcegraph/lsif-go/pull/153)
+
+## v1.4.0
+
+### Added
+
+- Added const values to hover text. [#144](https://github.com/sourcegraph/lsif-go/pull/144)
+- Support replace directives in go.mod. [#145](https://github.com/sourcegraph/lsif-go/pull/145)
+- Infer package name from git upstream when go.mod file is absent. [#149](https://github.com/sourcegraph/lsif-go/pull/149)
+
+### Changed
+
+- :rotating_light: Changed moniker identifier generation to support replace directives and vanity imports. Cross-index linking will work only for indexes created on or after v1.4.0. [#145](https://github.com/sourcegraph/lsif-go/pull/145)
+- Deduplicated import moniker vertices. [#146](https://github.com/sourcegraph/lsif-go/pull/146)
+- Update lsif-protocol dependency. [#136](https://github.com/sourcegraph/lsif-go/pull/136)
+- Avoid scanning duplicate test packages. [#138](https://github.com/sourcegraph/lsif-go/pull/138)
+
+### Fixed
+
+- Fix bad moniker generation for cross-index fields. [#148](https://github.com/sourcegraph/lsif-go/pull/148)
+
+## v1.3.1
+
+### Fixed
+
+- Fixed type assertion panic with aliases to anonymous structs. [#134](https://github.com/sourcegraph/lsif-go/pull/134)
 
 ## v1.3.0
 

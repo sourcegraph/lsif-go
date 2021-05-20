@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	protocol "github.com/sourcegraph/lsif-protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 func TestRangeForObject(t *testing.T) {
@@ -39,34 +39,34 @@ func TestRangeForObjectWithQuotedNamed(t *testing.T) {
 }
 
 func TestToMarkedStringSignature(t *testing.T) {
-	content, err := json.Marshal(toMarkedString("var score int64", "", ""))
+	content, err := json.Marshal(toMarkupContent("var score int64", "", ""))
 	if err != nil {
 		t.Errorf("unexpected error marshalling hover content: %s", err)
 	}
 
-	if diff := cmp.Diff(`[{"language":"go","value":"var score int64"}]`, string(content)); diff != "" {
+	if diff := cmp.Diff("{\"kind\":\"markdown\",\"value\":\"```go\\nvar score int64\\n```\"}", string(content)); diff != "" {
 		t.Errorf("unexpected hover content (-want +got): %s", diff)
 	}
 }
 
 func TestToMarkedStringDocstring(t *testing.T) {
-	content, err := json.Marshal(toMarkedString("var score int64", "Score tracks the user's score.", ""))
+	content, err := json.Marshal(toMarkupContent("var score int64", "Score tracks the user's score.", ""))
 	if err != nil {
 		t.Errorf("unexpected error marshalling hover content: %s", err)
 	}
 
-	if diff := cmp.Diff(`[{"language":"go","value":"var score int64"},"Score tracks the user's score.\n\n"]`, string(content)); diff != "" {
+	if diff := cmp.Diff("{\"kind\":\"markdown\",\"value\":\"```go\\nvar score int64\\n```\\n\\n---\\n\\nScore tracks the user's score.\\n\\n\"}", string(content)); diff != "" {
 		t.Errorf("unexpected hover content (-want +got): %s", diff)
 	}
 }
 
 func TestToMarkedStringExtra(t *testing.T) {
-	content, err := json.Marshal(toMarkedString("var score int64", "", "score = 123"))
+	content, err := json.Marshal(toMarkupContent("var score int64", "", "score = 123"))
 	if err != nil {
 		t.Errorf("unexpected error marshalling hover content: %s", err)
 	}
 
-	if diff := cmp.Diff(`[{"language":"go","value":"var score int64"},{"language":"go","value":"score = 123"}]`, string(content)); diff != "" {
+	if diff := cmp.Diff("{\"kind\":\"markdown\",\"value\":\"```go\\nvar score int64\\n```\\n\\n---\\n\\n```go\\nscore = 123\\n```\"}", string(content)); diff != "" {
 		t.Errorf("unexpected hover content (-want +got): %s", diff)
 	}
 }

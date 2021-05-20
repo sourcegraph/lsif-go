@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	doc "github.com/slimsag/godocmd"
-	protocol "github.com/sourcegraph/lsif-protocol"
+	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
 )
 
 const languageGo = "go"
@@ -30,39 +30,40 @@ func rangeForObject(obj types.Object, pos token.Position) (protocol.Pos, protoco
 	return start, end
 }
 
-// toMarkedString creates a protocol.MarkedString object from the given content. The signature
+// toMarkupContent creates a protocol.MarkupContent object from the given content. The signature
 // and extra parameters are formatted as code, if supplied. The docstring is formatted as markdown,
 // if supplied.
-func toMarkedString(signature, docstring, extra string) (mss []protocol.MarkedString) {
-	for _, m := range []*protocol.MarkedString{formatCode(signature), formatMarkdown(docstring), formatCode(extra)} {
-		if m != nil {
-			mss = append(mss, *m)
+func toMarkupContent(signature, docstring, extra string) (mss protocol.MarkupContent) {
+	var ss []string
+
+	for _, m := range []string{formatCode(signature), formatMarkdown(docstring), formatCode(extra)} {
+		if m != "" {
+			ss = append(ss, m)
 		}
 	}
 
-	return mss
+	return protocol.NewMarkupContent(strings.Join(ss, "\n\n---\n\n"), protocol.Markdown)
 }
 
-// formatMarkdown creates a protocol.MarkedString object containing a markdown-formatted version
-// of the given string. If the given string is empty, nil is returned.
-func formatMarkdown(v string) *protocol.MarkedString {
+// formatMarkdown creates a string containing a markdown-formatted version
+// of the given string.
+func formatMarkdown(v string) string {
 	if v == "" {
-		return nil
+		return ""
 	}
 
 	var buf bytes.Buffer
 	doc.ToMarkdown(&buf, v, nil)
-	ms := protocol.RawMarkedString(buf.String())
-	return &ms
+	return buf.String()
 }
 
-// formatCode creates a protocol.MarkedString object containing a code fence-formatted version
-// of the given string. If the given string is empty, nil is returned.
-func formatCode(v string) *protocol.MarkedString {
+// formatCode creates a string containing a code fence-formatted version
+// of the given string.
+func formatCode(v string) string {
 	if v == "" {
-		return nil
+		return ""
 	}
 
-	ms := protocol.NewMarkedString(v, languageGo)
-	return &ms
+	// reuse MarkedString here as it takes care of code fencing
+	return protocol.NewMarkedString(v, languageGo).String()
 }

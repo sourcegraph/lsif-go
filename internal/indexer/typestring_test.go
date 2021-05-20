@@ -8,14 +8,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestTypeStringBasic(t *testing.T) {
-	_, f := findDefinitionByName(t, getTestPackages(t), "Score")
-
-	if signature, _ := typeString(f); signature != "const Score uint64" {
-		t.Errorf("unexpected type string. want=%q have=%q", "const Score uint64", signature)
-	}
-}
-
 func TestTypeStringPackage(t *testing.T) {
 	p := types.NewPkgName(42, nil, "sync", nil)
 
@@ -125,5 +117,50 @@ func TestStructTagRegression(t *testing.T) {
 
 	if diff := cmp.Diff(expectedExtra, extra); diff != "" {
 		t.Errorf("unexpected extra (-want +got): %s", diff)
+	}
+}
+
+func TestTypeStringConstNumber(t *testing.T) {
+	_, obj := findDefinitionByName(t, getTestPackages(t), "Score")
+
+	signature, _ := typeString(obj)
+	if signature != "const Score uint64 = 42" {
+		t.Errorf("unexpected type string. want=%q have=%q", "const Score uint64 = 42", signature)
+	}
+}
+
+func TestTypeStringConstString(t *testing.T) {
+	_, obj := findDefinitionByName(t, getTestPackages(t), "SomeString")
+
+	signature, _ := typeString(obj)
+	if signature != `const SomeString untyped string = "foobar"` {
+		t.Errorf("unexpected type string. want=%q have=%q", `const SomeString string = "foobar"`, signature)
+	}
+}
+
+func TestTypeStringConstTruncatedString(t *testing.T) {
+	_, obj := findDefinitionByName(t, getTestPackages(t), "LongString")
+
+	signature, _ := typeString(obj)
+	if signature != `const LongString untyped string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidu...` {
+		t.Errorf("unexpected type string. want=%q have=%q", `const LongString untyped string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidu...`, signature)
+	}
+}
+
+func TestTypeStringConstArithmetic(t *testing.T) {
+	_, obj := findDefinitionByName(t, getTestPackages(t), "ConstMath")
+
+	signature, _ := typeString(obj)
+	if signature != `const ConstMath untyped int = 26` {
+		t.Errorf("unexpected type string. want=%q have=%q", `const ConstMath untyped int = 26`, signature)
+	}
+}
+
+func TestTypeStringAliasedString(t *testing.T) {
+	_, obj := findDefinitionByName(t, getTestPackages(t), "AliasedString")
+
+	signature, _ := typeString(obj)
+	if signature != `const AliasedString StringAlias = "foobar"` {
+		t.Errorf("unexpected type string. want=%q have=%q", `const AliasedString StringAlias = "foobar"`, signature)
 	}
 }
