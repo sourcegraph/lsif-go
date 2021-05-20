@@ -432,7 +432,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
-	rangeID := i.ensureRangeFor(pos, obj)
+	rangeID, _ := i.ensureRangeFor(pos, obj)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
@@ -462,11 +462,12 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 	}
 
 	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
-		DocumentID:        document.DocumentID,
-		RangeID:           rangeID,
-		ResultSetID:       resultSetID,
-		ReferenceRangeIDs: map[uint64][]uint64{},
-		TypeSwitchHeader:  typeSwitchHeader,
+		DocumentID:         document.DocumentID,
+		RangeID:            rangeID,
+		ResultSetID:        resultSetID,
+		DefinitionResultID: defResultID,
+		ReferenceRangeIDs:  map[uint64][]uint64{},
+		TypeSwitchHeader:   typeSwitchHeader,
 	})
 
 	return rangeID
@@ -576,8 +577,22 @@ func (i *Indexer) getDefinitionInfo(obj types.Object, ident *ast.Ident) *Definit
 // indexReferenceToDefinition emits data for the given reference object that is defined within
 // an index target package.
 func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, d *DefinitionInfo) (uint64, bool) {
-	rangeID := i.ensureRangeFor(pos, definitionObj)
-	_ = i.emitter.EmitNext(rangeID, d.ResultSetID)
+	rangeID, ok := i.ensureRangeFor(pos, definitionObj)
+	if !ok {
+		// Not a new range result; this occurs when the definition and reference 
+		// ranges overlap (e.g., unnamed nested structs). We attach a defintion
+		// edge directly to the range (instead of the result set) so that it takes
+		// precedence over the definition attached to the result set (itself).
+		// 
+		// In the case of unnamed nested structs, this supports go to definition 
+		// from the field to the type definition.
+		_ = i.emitter.EmitTextDocumentDefinition(rangeID, d.DefinitionResultID)
+	} else {
+		// If this was a new range (a reference range only), then we just link the
+		// range to the result set of the definition to attach it to the existing
+		// graph of definitions, references, and hover text.
+		_ = i.emitter.EmitNext(rangeID, d.ResultSetID)
+	}
 
 	d.m.Lock()
 	d.ReferenceRangeIDs[document.DocumentID] = append(d.ReferenceRangeIDs[document.DocumentID], rangeID)
@@ -613,7 +628,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 		return findExternalHoverContents(i.packageDataCache, i.packages, p, definitionObj)
 	})
 
-	rangeID := i.ensureRangeFor(pos, definitionObj)
+	rangeID, _ := i.ensureRangeFor(pos, definitionObj)
 	refResultID := i.emitter.EmitReferenceResult()
 	_ = i.emitter.EmitTextDocumentReferences(rangeID, refResultID)
 	_ = i.emitter.EmitItemOfReferences(refResultID, []uint64{rangeID}, document.DocumentID)
@@ -628,12 +643,12 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
-func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
+func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) (uint64, bool) {
 	i.stripedMutex.RLockKey(pos.Filename)
 	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
 	i.stripedMutex.RUnlockKey(pos.Filename)
 	if ok {
-		return rangeID
+		return rangeID, false
 	}
 
 	// Note: we calculate this outside of the critical section
@@ -643,12 +658,12 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) uint64 {
 	defer i.stripedMutex.UnlockKey(pos.Filename)
 
 	if rangeID, ok := i.ranges[pos.Filename][pos.Offset]; ok {
-		return rangeID
+		return rangeID, false
 	}
 
 	rangeID = i.emitter.EmitRange(start, end)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
-	return rangeID
+	return rangeID, true
 }
 
 // linkReferenceResultsToRanges emits item relations for each indexed definition result value.
