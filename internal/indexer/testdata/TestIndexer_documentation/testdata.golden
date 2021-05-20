@@ -50,6 +50,8 @@ testdata is a small package containing sample Go source code used for testing th
   - [type StringAlias string](#github.com-sourcegraph-lsif-go-internal-testdata-type-StringAlias)
   - [type StructTagRegression struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-StructTagRegression)
   - [type TestEqualsStruct struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestEqualsStruct)
+  - [type ShellStruct struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-ShellStruct)
+  - [type InnerStruct struct{}](#github.com-sourcegraph-lsif-go-internal-testdata-type-InnerStruct)
   - [type ParallelizableFunc func(ctx context.Context) error](#github.com-sourcegraph-lsif-go-internal-testdata-type-ParallelizableFunc)
   - [type SecretBurger secret.Burger](#github.com-sourcegraph-lsif-go-internal-testdata-type-SecretBurger)
   - [type BadBurger struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-BadBurger)
@@ -360,6 +362,23 @@ See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1a
 type TestEqualsStruct = struct {
 	Value int
 }
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-ShellStruct">type ShellStruct struct <small>(exported)</small></a>
+
+```Go
+type ShellStruct struct {
+	// Ensure this field comes before the definition
+	// so that we grab the correct one in our unit
+	// tests.
+	InnerStruct
+}
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-InnerStruct">type InnerStruct struct{} <small>(exported)</small></a>
+
+```Go
+type InnerStruct struct{}
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error <small>(exported)</small></a>
