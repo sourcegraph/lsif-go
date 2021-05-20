@@ -579,8 +579,18 @@ func (i *Indexer) getDefinitionInfo(obj types.Object, ident *ast.Ident) *Definit
 func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, d *DefinitionInfo) (uint64, bool) {
 	rangeID, ok := i.ensureRangeFor(pos, definitionObj)
 	if !ok {
+		// Not a new range result; this occurs when the definition and reference 
+		// ranges overlap (e.g., unnamed nested structs). We attach a defintion
+		// edge directly to the range (instead of the result set) so that it takes
+		// precedence over the definition attached to the result set (itself).
+		// 
+		// In the case of unnamed nested structs, this supports go to definition 
+		// from the field to the type definition.
 		_ = i.emitter.EmitTextDocumentDefinition(rangeID, d.DefinitionResultID)
 	} else {
+		// If this was a new range (a reference range only), then we just link the
+		// range to the result set of the definition to attach it to the existing
+		// graph of definitions, references, and hover text.
 		_ = i.emitter.EmitNext(rangeID, d.ResultSetID)
 	}
 
