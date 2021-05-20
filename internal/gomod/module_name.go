@@ -33,11 +33,14 @@ func ModuleName(dir, repo string) (string, error) {
 // is used only to determine the path suffix.
 func resolveModuleName(repo, name string) (string, error) {
 	// Determine path suffix relative to repository root
-	nameRepoRoot, err := vcs.RepoRootForImportPath(name, false)
-	if err != nil {
-		return "", err
+	var suffix string
+
+	if nameRepoRoot, err := vcs.RepoRootForImportPath(name, false); err == nil {
+		suffix = strings.TrimPrefix(name, nameRepoRoot.Root)
+	} else {
+		// A user-visible warning will occur on this path as the declared
+		// module will be resolved as part of gomod.ListDependencies.
 	}
-	suffix := strings.TrimPrefix(name, nameRepoRoot.Root)
 
 	// Determine the canonical code host of the current repository
 	repoRepoRoot, err := vcs.RepoRootForImportPath(repo, false)
