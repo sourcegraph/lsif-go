@@ -16,6 +16,10 @@ All notable changes to `lsif-go` are documented in this file.
 - :rotating_light: Changed package module version generation to make cross-index queries accurate. Cross-linking may not work with indexes created before v1.5.0. [#152](https://github.com/sourcegraph/lsif-go/pull/152)
 - Improve moniker identifiers for exported identifiers in projects with no go.mod file. [#153](https://github.com/sourcegraph/lsif-go/pull/153)
 
+### Fixed
+
+- Fixed moniker identifiers for composite structs and interfaces. [#135](https://github.com/sourcegraph/lsif-go/pull/135)
+
 ## v1.4.0
 
 ### Added
