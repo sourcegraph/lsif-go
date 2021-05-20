@@ -43,6 +43,8 @@ testdata is a small package containing sample Go source code used for testing th
     - [func NewInterface() Interface](#github.com-sourcegraph-lsif-go-internal-testdata-type-Interface-NewInterface)
   - [type X struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-X)
   - [type Y struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-Y)
+  - [type Inner struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-Inner)
+  - [type Outer struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-Outer)
   - [type TestInterface interface](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestInterface)
   - [type TestStruct struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct)
     - [func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)](#github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct-Doer)
@@ -54,6 +56,7 @@ testdata is a small package containing sample Go source code used for testing th
   - [type SecretBurger secret.Burger](#github.com-sourcegraph-lsif-go-internal-testdata-type-SecretBurger)
   - [type BadBurger struct](#github.com-sourcegraph-lsif-go-internal-testdata-type-BadBurger)
 - [Functions](#github.com-sourcegraph-lsif-go-internal-testdata-func)
+  - [func useOfCompositeStructs()](#github.com-sourcegraph-lsif-go-internal-testdata-func-useOfCompositeStructs)
   - [func Parallel(ctx context.Context, fns ...ParallelizableFunc) error](#github.com-sourcegraph-lsif-go-internal-testdata-func-Parallel)
   - [func Switch(interfaceValue interface{}) bool](#github.com-sourcegraph-lsif-go-internal-testdata-func-Switch)
 
@@ -286,6 +289,25 @@ type Y struct {
 
 Go can be fun 
 
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Inner">type Inner struct <small>(exported)</small></a>
+
+```Go
+type Inner struct {
+	X int
+	Y int
+	Z int
+}
+```
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Outer">type Outer struct <small>(exported)</small></a>
+
+```Go
+type Outer struct {
+	Inner
+	W int
+}
+```
+
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestInterface">type TestInterface interface <small>(exported)</small></a>
 
 ```Go
@@ -387,6 +409,12 @@ type BadBurger = struct {
 ```
 
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func">Functions</a>
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-useOfCompositeStructs">func useOfCompositeStructs()</a>
+
+```Go
+func useOfCompositeStructs()
+```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error <small>(exported)</small></a>
 
