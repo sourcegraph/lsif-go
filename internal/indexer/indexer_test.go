@@ -363,6 +363,7 @@ func TestIndexer_documentation(t *testing.T) {
 			var buf bytes.Buffer
 			indexer := New(
 				tst.repositoryRoot,
+				"github.com/sourcegraph/lsif-go",
 				tst.projectRoot,
 				protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 				"testdata",
