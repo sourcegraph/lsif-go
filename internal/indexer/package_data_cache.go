@@ -171,7 +171,9 @@ func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 	case *ast.Field:
 		// Handle field name/names
 		if len(q.Names) > 0 {
-			// Handles things like `a, b, c T`
+			// Handle things like `a, b, c T`. If there are multiple names we just default to the first
+			// one as each field must belong on at most one moniker path. This is sub-optimal and
+			// should be addressed in https://github.com/sourcegraph/lsif-go/issues/154.
 			return addString(monikerPath, q.Names[0].String())
 		}
 
