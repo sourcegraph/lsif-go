@@ -17,9 +17,14 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ty
 		return
 	}
 
+	packageName := monikerPackage(obj)
+	if strings.HasPrefix(packageName, "_"+i.projectRoot) {
+		packageName = i.repositoryRemote + strings.TrimSuffix(packageName[len(i.projectRoot)+1:], "_test")
+	}
+
 	// Emit export moniker (uncached as these are on unique definitions)
 	monikerID := i.emitter.EmitMoniker("export", "gomod", joinMonikerParts(
-		monikerPackage(obj),
+		packageName,
 		monikerIdentifier(i.packageDataCache, p, obj),
 	))
 

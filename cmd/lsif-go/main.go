@@ -38,6 +38,7 @@ func mainErr() error {
 
 	return writeIndex(
 		repositoryRoot,
+		repositoryRemote,
 		projectRoot,
 		moduleName,
 		moduleVersion,

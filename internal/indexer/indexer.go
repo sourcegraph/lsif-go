@@ -19,14 +19,15 @@ import (
 )
 
 type Indexer struct {
-	repositoryRoot string                  // path to repository
-	projectRoot    string                  // path to package
-	toolInfo       protocol.ToolInfo       // metadata vertex payload
-	moduleName     string                  // name of this module
-	moduleVersion  string                  // version of this module
-	dependencies   map[string]gomod.Module // parsed module data
-	emitter        *writer.Emitter         // LSIF data emitter
-	outputOptions  OutputOptions           // What to print to stdout/stderr
+	repositoryRoot   string                  // path to repository
+	repositoryRemote string                  // import path inferred by git remote
+	projectRoot      string                  // path to package
+	toolInfo         protocol.ToolInfo       // metadata vertex payload
+	moduleName       string                  // name of this module
+	moduleVersion    string                  // version of this module
+	dependencies     map[string]gomod.Module // parsed module data
+	emitter          *writer.Emitter         // LSIF data emitter
+	outputOptions    OutputOptions           // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -62,6 +63,7 @@ type Indexer struct {
 
 func New(
 	repositoryRoot string,
+	repositoryRemote string,
 	projectRoot string,
 	toolInfo protocol.ToolInfo,
 	moduleName string,
@@ -73,6 +75,7 @@ func New(
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:        repositoryRoot,
+		repositoryRemote:      repositoryRemote,
 		projectRoot:           projectRoot,
 		toolInfo:              toolInfo,
 		moduleName:            moduleName,

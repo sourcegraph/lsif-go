@@ -11,7 +11,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
 )
 
-func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string) error {
+func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string) error {
 	start := time.Now()
 
 	out, err := os.Create(outFile)
@@ -33,6 +33,7 @@ func writeIndex(repositoryRoot, projectRoot, moduleName, moduleVersion string, d
 	// set CGO_ENABLED=0. Consider maybe doing this explicitly, always.
 	indexer := indexer.New(
 		repositoryRoot,
+		repositoryRemote,
 		projectRoot,
 		toolInfo,
 		moduleName,
