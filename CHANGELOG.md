@@ -18,6 +18,7 @@ All notable changes to `lsif-go` are documented in this file.
 
 ### Fixed
 
+- Fixed moniker identifiers for composite structs and interfaces. [#135](https://github.com/sourcegraph/lsif-go/pull/135)
 - Fixed definition relationship with composite structs and interfaces. [#156](https://github.com/sourcegraph/lsif-go/pull/156)
 
 ## v1.4.0
