@@ -108,7 +108,7 @@ func (i *Indexer) ensurePackageInformation(name, version string) uint64 {
 }
 
 // ensureImportMoniker returns the identifier of a moniker vertex with the give identifier
-// attached to teh given package information identifier. A vertex will be emitted only if
+// attached to the given package information identifier. A vertex will be emitted only if
 // one with the same key has not yet been emitted.
 func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID uint64) uint64 {
 	key := fmt.Sprintf("%s:%d", identifier, packageInformationID)
