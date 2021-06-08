@@ -38,16 +38,18 @@ type Indexer struct {
 	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
-	documents             map[string]*DocumentInfo    // filename -> info
-	ranges                map[string]map[int]uint64   // filename -> offset -> rangeID
-	defined               map[string]map[int]struct{} // set of defined ranges (filename, offset)
-	hoverResultCache      map[string]uint64           // cache key -> hoverResultID
-	importMonikerIDs      map[string]uint64           // identifier:packageInformationID -> monikerID
-	packageInformationIDs map[string]uint64           // name -> packageInformationID
-	packageDataCache      *PackageDataCache           // hover text and moniker path cache
-	packages              []*packages.Package         // index target packages
-	projectID             uint64                      // project vertex identifier
-	packagesByFile        map[string][]*packages.Package
+	documents                                map[string]*DocumentInfo    // filename -> info
+	ranges                                   map[string]map[int]uint64   // filename -> offset -> rangeID
+	defined                                  map[string]map[int]struct{} // set of defined ranges (filename, offset)
+	hoverResultCache                         map[string]uint64           // cache key -> hoverResultID
+	importMonikerIDs                         map[string]uint64           // identifier:packageInformationID -> monikerID
+	packageInformationIDs                    map[string]uint64           // name -> packageInformationID
+	packageDataCache                         *PackageDataCache           // hover text and moniker path cache
+	packages                                 []*packages.Package         // index target packages
+	projectID                                uint64                      // project vertex identifier
+	packagesByFile                           map[string][]*packages.Package
+	emittedDocumentationResults              map[types.Object]uint64 // type object -> documentationResult vertex ID
+	emittedDocumentationResultsByPackagePath map[string]uint64       // package path -> documentationResult vertex ID
 
 	constsMutex                sync.Mutex
 	funcsMutex                 sync.Mutex
@@ -111,7 +113,7 @@ func (i *Indexer) Index() error {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
-	i.indexDocumentation()
+	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
@@ -461,6 +463,16 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		i.emitExportMoniker(resultSetID, p, obj)
 	}
 
+	// If the pkg/object has associated documentation, link to it. This enables e.g. going from documentation
+	// for a symbol <-> its definition/hover/references/etc in either direction.
+	if pkgName, ok := obj.(*types.PkgName); ok {
+		if documentationResultID, ok := i.emittedDocumentationResultsByPackagePath[pkgName.Imported().Path()]; ok {
+			_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
+		}
+	} else if documentationResultID, ok := i.emittedDocumentationResults[obj]; ok {
+		_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
+	}
+
 	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
 		DocumentID:         document.DocumentID,
 		RangeID:            rangeID,
@@ -579,12 +591,12 @@ func (i *Indexer) getDefinitionInfo(obj types.Object, ident *ast.Ident) *Definit
 func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, d *DefinitionInfo) (uint64, bool) {
 	rangeID, ok := i.ensureRangeFor(pos, definitionObj)
 	if !ok {
-		// Not a new range result; this occurs when the definition and reference 
+		// Not a new range result; this occurs when the definition and reference
 		// ranges overlap (e.g., unnamed nested structs). We attach a defintion
 		// edge directly to the range (instead of the result set) so that it takes
 		// precedence over the definition attached to the result set (itself).
-		// 
-		// In the case of unnamed nested structs, this supports go to definition 
+		//
+		// In the case of unnamed nested structs, this supports go to definition
 		// from the field to the type definition.
 		_ = i.emitter.EmitTextDocumentDefinition(rangeID, d.DefinitionResultID)
 	} else {
