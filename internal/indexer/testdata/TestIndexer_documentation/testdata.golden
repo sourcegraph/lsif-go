@@ -83,7 +83,7 @@ testdata is a small package containing sample Go source code used for testing th
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -107,7 +107,7 @@ testdata is a small package containing sample Go source code used for testing th
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -151,7 +151,7 @@ Const is a constant equal to 5. It's the best constant I've ever written. 😹
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -175,7 +175,7 @@ Const is a constant equal to 5. It's the best constant I've ever written. 😹
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -221,7 +221,7 @@ ConstBlock1 is a constant in a block.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -245,7 +245,7 @@ ConstBlock1 is a constant in a block.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -291,7 +291,7 @@ ConstBlock2 is a constant in a block.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -315,7 +315,7 @@ ConstBlock2 is a constant in a block.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -355,7 +355,7 @@ Score is just a hardcoded number.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -379,7 +379,7 @@ Score is just a hardcoded number.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -417,7 +417,7 @@ const secretScore = secret.SecretScore
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -441,7 +441,7 @@ const secretScore = secret.SecretScore
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -479,7 +479,7 @@ const SomeString = "foobar"
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -503,7 +503,7 @@ const SomeString = "foobar"
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -541,7 +541,7 @@ const LongString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -565,7 +565,7 @@ const LongString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -603,7 +603,7 @@ const ConstMath = 1 + (2+3)*5
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -627,7 +627,7 @@ const ConstMath = 1 + (2+3)*5
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -671,7 +671,7 @@ const AliasedString StringAlias = "foobar"
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -695,7 +695,7 @@ const AliasedString StringAlias = "foobar"
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -739,7 +739,7 @@ Var is a variable interface.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -763,7 +763,7 @@ Var is a variable interface.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -807,7 +807,7 @@ unexportedVar is an unexported variable interface.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -831,7 +831,7 @@ unexportedVar is an unexported variable interface.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -871,7 +871,7 @@ x has a builtin error type
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -895,7 +895,7 @@ x has a builtin error type
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -937,7 +937,7 @@ var BigVar Interface = ...
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -961,7 +961,7 @@ var BigVar Interface = ...
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1025,7 +1025,7 @@ This has some docs
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1049,7 +1049,7 @@ This has some docs
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1116,7 +1116,7 @@ It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed i
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1140,7 +1140,7 @@ It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed i
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1193,7 +1193,7 @@ Yeah this is some Go magic incantation which is common.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/parallel.go",
+  "Document": "/parallel.go",
   "Ranges": [
    {
     "start": {
@@ -1217,7 +1217,7 @@ Yeah this is some Go magic incantation which is common.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/parallel.go",
+  "Document": "/parallel.go",
   "Ranges": [
    {
     "start": {
@@ -1272,7 +1272,7 @@ var wg sync.WaitGroup
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1296,7 +1296,7 @@ var wg sync.WaitGroup
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1354,7 +1354,7 @@ Embedded is a struct, to be embedded in another struct.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1378,7 +1378,7 @@ Embedded is a struct, to be embedded in another struct.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1438,7 +1438,7 @@ type Struct struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1462,7 +1462,7 @@ type Struct struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1504,7 +1504,7 @@ Interface has docs too
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1528,7 +1528,7 @@ Interface has docs too
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1580,7 +1580,7 @@ func NewInterface() Interface
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1604,7 +1604,7 @@ func NewInterface() Interface
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1662,7 +1662,7 @@ And confusing
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1686,7 +1686,7 @@ And confusing
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/child_symbols.go",
+  "Document": "/child_symbols.go",
   "Ranges": [
    {
     "start": {
@@ -1738,7 +1738,7 @@ Go can be fun
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/composite.go",
+  "Document": "/composite.go",
   "Ranges": [
    {
     "start": {
@@ -1762,7 +1762,7 @@ Go can be fun
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/composite.go",
+  "Document": "/composite.go",
   "Ranges": [
    {
     "start": {
@@ -1813,7 +1813,7 @@ type Inner struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/composite.go",
+  "Document": "/composite.go",
   "Ranges": [
    {
     "start": {
@@ -1837,7 +1837,7 @@ type Inner struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/composite.go",
+  "Document": "/composite.go",
   "Ranges": [
    {
     "start": {
@@ -1892,7 +1892,7 @@ type Outer struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -1916,7 +1916,7 @@ type Outer struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -1982,7 +1982,7 @@ TestInterface is an interface used for testing.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2006,7 +2006,7 @@ TestInterface is an interface used for testing.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2067,7 +2067,7 @@ TestStruct is a struct used for testing.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2091,7 +2091,7 @@ TestStruct is a struct used for testing.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2137,7 +2137,7 @@ Doer is similar to the test interface (but not the same).
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2161,7 +2161,7 @@ Doer is similar to the test interface (but not the same).
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2199,7 +2199,7 @@ type TestEmptyStruct struct{}
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2223,7 +2223,7 @@ type TestEmptyStruct struct{}
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2277,7 +2277,7 @@ type StringAlias string
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2301,7 +2301,7 @@ type StringAlias string
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2353,7 +2353,7 @@ See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1a
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2377,7 +2377,7 @@ See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1a
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2425,7 +2425,7 @@ type TestEqualsStruct = struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2449,7 +2449,7 @@ type TestEqualsStruct = struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2498,7 +2498,7 @@ type ShellStruct struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2522,7 +2522,7 @@ type ShellStruct struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2566,7 +2566,7 @@ type InnerStruct struct{}
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/parallel.go",
+  "Document": "/parallel.go",
   "Ranges": [
    {
     "start": {
@@ -2590,7 +2590,7 @@ type InnerStruct struct{}
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/parallel.go",
+  "Document": "/parallel.go",
   "Ranges": [
    {
     "start": {
@@ -2644,7 +2644,7 @@ ParallelizableFunc is a function that can be called concurrently with other inst
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typealias.go",
+  "Document": "/typealias.go",
   "Ranges": [
    {
     "start": {
@@ -2668,7 +2668,7 @@ ParallelizableFunc is a function that can be called concurrently with other inst
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typealias.go",
+  "Document": "/typealias.go",
   "Ranges": [
    {
     "start": {
@@ -2716,7 +2716,7 @@ Type aliased doc
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typealias.go",
+  "Document": "/typealias.go",
   "Ranges": [
    {
     "start": {
@@ -2740,7 +2740,7 @@ Type aliased doc
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typealias.go",
+  "Document": "/typealias.go",
   "Ranges": [
    {
     "start": {
@@ -2782,7 +2782,7 @@ type BadBurger = struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/composite.go",
+  "Document": "/composite.go",
   "Ranges": [
    {
     "start": {
@@ -2806,7 +2806,7 @@ type BadBurger = struct {
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/composite.go",
+  "Document": "/composite.go",
   "Ranges": [
    {
     "start": {
@@ -2848,7 +2848,7 @@ func useOfCompositeStructs()
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/parallel.go",
+  "Document": "/parallel.go",
   "Ranges": [
    {
     "start": {
@@ -2872,7 +2872,7 @@ func useOfCompositeStructs()
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/parallel.go",
+  "Document": "/parallel.go",
   "Ranges": [
    {
     "start": {
@@ -2912,7 +2912,7 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typeswitch.go",
+  "Document": "/typeswitch.go",
   "Ranges": [
    {
     "start": {
@@ -2936,7 +2936,7 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typeswitch.go",
+  "Document": "/typeswitch.go",
   "Ranges": [
    {
     "start": {
@@ -2978,7 +2978,7 @@ func Switch(interfaceValue interface{}) bool
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -2993,7 +2993,7 @@ func Switch(interfaceValue interface{}) bool
   ]
  },
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typealias.go",
+  "Document": "/typealias.go",
   "Ranges": [
    {
     "start": {
@@ -3017,7 +3017,7 @@ func Switch(interfaceValue interface{}) bool
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/data.go",
+  "Document": "/data.go",
   "Ranges": [
    {
     "start": {
@@ -3032,7 +3032,7 @@ func Switch(interfaceValue interface{}) bool
   ]
  },
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/typealias.go",
+  "Document": "/typealias.go",
   "Ranges": [
    {
     "start": {
@@ -3081,7 +3081,7 @@ secret is a package that holds secrets.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/secret/secret.go",
+  "Document": "/internal/secret/secret.go",
   "Ranges": [
    {
     "start": {
@@ -3105,7 +3105,7 @@ secret is a package that holds secrets.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/secret/secret.go",
+  "Document": "/internal/secret/secret.go",
   "Ranges": [
    {
     "start": {
@@ -3161,7 +3161,7 @@ SecretScore is like score but _secret_.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/secret/secret.go",
+  "Document": "/internal/secret/secret.go",
   "Ranges": [
    {
     "start": {
@@ -3185,7 +3185,7 @@ SecretScore is like score but _secret_.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/secret/secret.go",
+  "Document": "/internal/secret/secret.go",
   "Ranges": [
    {
     "start": {
@@ -3238,7 +3238,7 @@ This package has no tests.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/notests/notests.go",
+  "Document": "/internal/shouldvisit/notests/notests.go",
   "Ranges": [
    {
     "start": {
@@ -3262,7 +3262,7 @@ This package has no tests.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/notests/notests.go",
+  "Document": "/internal/shouldvisit/notests/notests.go",
   "Ranges": [
    {
     "start": {
@@ -3312,7 +3312,7 @@ This package has tests.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests/tests.go",
+  "Document": "/internal/shouldvisit/tests/tests.go",
   "Ranges": [
    {
     "start": {
@@ -3336,7 +3336,7 @@ This package has tests.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests/tests.go",
+  "Document": "/internal/shouldvisit/tests/tests.go",
   "Ranges": [
    {
     "start": {
@@ -3374,7 +3374,7 @@ func foo() bool
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests/tests_test.go",
+  "Document": "/internal/shouldvisit/tests/tests_test.go",
   "Ranges": [
    {
     "start": {
@@ -3398,7 +3398,7 @@ func foo() bool
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests/tests_test.go",
+  "Document": "/internal/shouldvisit/tests/tests_test.go",
   "Ranges": [
    {
     "start": {
@@ -3447,7 +3447,7 @@ This package has tests, but in a separate _test package.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests_separate/pkg.go",
+  "Document": "/internal/shouldvisit/tests_separate/pkg.go",
   "Ranges": [
    {
     "start": {
@@ -3471,7 +3471,7 @@ This package has tests, but in a separate _test package.
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests_separate/pkg.go",
+  "Document": "/internal/shouldvisit/tests_separate/pkg.go",
   "Ranges": [
    {
     "start": {
@@ -3518,7 +3518,7 @@ func foo() bool
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests_separate/pkg_test.go",
+  "Document": "/internal/shouldvisit/tests_separate/pkg_test.go",
   "Ranges": [
    {
     "start": {
@@ -3542,7 +3542,7 @@ func foo() bool
 ```json
 [
  {
-  "Document": "file:///Users/slimsag/go/lsif-go/internal/testdata/internal/shouldvisit/tests_separate/pkg_test.go",
+  "Document": "/internal/shouldvisit/tests_separate/pkg_test.go",
   "Ranges": [
    {
     "start": {

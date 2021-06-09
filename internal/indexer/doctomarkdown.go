@@ -129,6 +129,15 @@ func (c *converter) convert() error {
 }
 
 func (c *converter) correlateGeneral() error {
+	projectRoot := ""
+	for _, p := range c.pairs {
+		if p.Element.Type == "vertex" && p.Element.Label == string(protocol.VertexMetaData) {
+			metadata := p.Element.Payload.(reader.MetaData)
+			projectRoot = metadata.ProjectRoot
+			break
+		}
+	}
+
 	c.resultSets = map[int]struct{}{}
 	c.documents = map[int]string{}
 	c.ranges = map[int]reader.Range{}
@@ -137,7 +146,7 @@ func (c *converter) correlateGeneral() error {
 			c.resultSets[p.Element.ID] = struct{}{}
 		}
 		if p.Element.Type == "vertex" && p.Element.Label == string(protocol.VertexDocument) {
-			c.documents[p.Element.ID] = p.Element.Payload.(string)
+			c.documents[p.Element.ID] = strings.TrimPrefix(p.Element.Payload.(string), projectRoot)
 		}
 		if p.Element.Type == "vertex" && p.Element.Label == string(protocol.VertexRange) {
 			c.ranges[p.Element.ID] = p.Element.Payload.(reader.Range)
