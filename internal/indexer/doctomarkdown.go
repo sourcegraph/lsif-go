@@ -3,8 +3,10 @@ package indexer
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
@@ -34,12 +36,25 @@ func doctomarkdown(ctx context.Context, r io.Reader, matchingTags []protocol.Doc
 	return buf.String(), nil
 }
 
+type DocsRefDefInfo struct {
+	Document string
+	Ranges   []reader.Range
+}
+
 type converter struct {
 	pairs        map[int]reader.Pair
 	out          io.Writer
 	matchingTags []protocol.DocumentationTag
 
 	byStringOutV, byChildrenOutV map[int][]reader.Pair
+
+	resultSets                       map[int]struct{}
+	documents                        map[int]string
+	ranges                           map[int]reader.Range
+	resultSetToDocumentationResult   map[int]int
+	documentationResultToHoverResult map[int]interface{} // string or protocol.HoverResult
+	documentationResultToDefinitions map[int][]DocsRefDefInfo
+	documentationResultToReferences  map[int][]DocsRefDefInfo
 }
 
 func (c *converter) findElementByID(id int, typ, description string) (*reader.Element, error) {
@@ -64,6 +79,19 @@ func (c *converter) findEdgeByID(id int, description string) (*reader.Element, e
 }
 
 func (c *converter) convert() error {
+	if err := c.correlateGeneral(); err != nil {
+		return err
+	}
+	if err := c.correlateDocumentationResultToHoverResult(); err != nil {
+		return err
+	}
+	if err := c.correlateDocumentationResultToDefinitions(); err != nil {
+		return err
+	}
+	if err := c.correlateDocumentationResultToReferences(); err != nil {
+		return err
+	}
+
 	// Find the root "documentationResult" vertex
 	var root *reader.Element
 	for _, p := range c.pairs {
@@ -98,6 +126,169 @@ func (c *converter) convert() error {
 
 	// Recurse on the root element's children, emitting documentation as we go.
 	return c.recurse(root, 0, "")
+}
+
+func (c *converter) correlateGeneral() error {
+	c.resultSets = map[int]struct{}{}
+	c.documents = map[int]string{}
+	c.ranges = map[int]reader.Range{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "vertex" && p.Element.Label == "resultSet" {
+			c.resultSets[p.Element.ID] = struct{}{}
+		}
+		if p.Element.Type == "vertex" && p.Element.Label == string(protocol.VertexDocument) {
+			c.documents[p.Element.ID] = p.Element.Payload.(string)
+		}
+		if p.Element.Type == "vertex" && p.Element.Label == string(protocol.VertexRange) {
+			c.ranges[p.Element.ID] = p.Element.Payload.(reader.Range)
+		}
+	}
+
+	// resultSet ID -> documentationResult IDs
+	c.resultSetToDocumentationResult = map[int]int{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "edge" && p.Element.Label == string(protocol.EdgeSourcegraphDocumentationResult) {
+			edge := p.Element.Payload.(reader.Edge)
+			documentationResultVertexID := edge.InV
+			projectOrResultSetID := edge.OutV
+			if _, isResultSet := c.resultSets[projectOrResultSetID]; isResultSet {
+				c.resultSetToDocumentationResult[projectOrResultSetID] = documentationResultVertexID
+			}
+		}
+	}
+	return nil
+}
+
+func (c *converter) correlateDocumentationResultToHoverResult() error {
+	// documentationResult ID -> hoverResult
+	hoverResultIDToResultSetID := map[int]int{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "edge" && p.Element.Label == string(protocol.EdgeTextDocumentHover) {
+			edge := p.Element.Payload.(reader.Edge)
+			if _, isResultSet := c.resultSets[edge.OutV]; isResultSet {
+				hoverResultIDToResultSetID[edge.InV] = edge.OutV
+			}
+		}
+	}
+	c.documentationResultToHoverResult = map[int]interface{}{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "vertex" && p.Element.Label == string(protocol.VertexHoverResult) {
+			resultSet := hoverResultIDToResultSetID[p.Element.ID]
+			documentationResult := c.resultSetToDocumentationResult[resultSet]
+			hoverResultString, ok := p.Element.Payload.(string)
+			if ok {
+				c.documentationResultToHoverResult[documentationResult] = hoverResultString
+			} else {
+				c.documentationResultToHoverResult[documentationResult] = p.Element.Payload.(protocol.HoverResult)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *converter) correlateDocumentationResultToDefinitions() error {
+	// documentationResult ID -> DocsDefinitionInfo
+	definitionResultToDocumentID := map[int]int{}
+	definitionResultToRangeIDs := map[int][]int{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "edge" && p.Element.Label == string(protocol.EdgeItem) {
+			edge := p.Element.Payload.(reader.Edge)
+			definitionResultID := edge.OutV
+			rangeIDs := edge.InVs
+			documentID := edge.Document
+			definitionResultToRangeIDs[definitionResultID] = rangeIDs
+			definitionResultToDocumentID[definitionResultID] = documentID
+		}
+	}
+	c.documentationResultToDefinitions = map[int][]DocsRefDefInfo{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "edge" && p.Element.Label == string(protocol.EdgeTextDocumentDefinition) {
+			edge := p.Element.Payload.(reader.Edge)
+			definitionResult := edge.InV
+			resultSet := edge.OutV
+			if _, isResultSet := c.resultSets[resultSet]; !isResultSet {
+				continue
+			}
+			documentationResult, ok := c.resultSetToDocumentationResult[resultSet]
+			if !ok {
+				continue
+			}
+			documentID, ok := definitionResultToDocumentID[definitionResult]
+			if !ok {
+				continue
+			}
+			rangeIDs, ok := definitionResultToRangeIDs[definitionResult]
+			if !ok {
+				continue
+			}
+
+			var decodedRanges []reader.Range
+			for _, id := range rangeIDs {
+				decodedRanges = append(decodedRanges, c.ranges[id])
+			}
+			c.documentationResultToDefinitions[documentationResult] = append(
+				c.documentationResultToDefinitions[documentationResult],
+				DocsRefDefInfo{
+					Document: c.documents[documentID],
+					Ranges:   decodedRanges,
+				},
+			)
+		}
+	}
+	for _, definitions := range c.documentationResultToDefinitions {
+		sort.Slice(definitions, func(i, j int) bool {
+			return definitions[i].Document < definitions[j].Document
+		})
+	}
+	return nil
+}
+
+func (c *converter) correlateDocumentationResultToReferences() error {
+	// documentationResult ID -> DocsReferenceInfo
+	referenceResultToDocumentID := map[int]int{}
+	referenceResultToRangeIDs := map[int][]int{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "edge" && p.Element.Label == string(protocol.EdgeItem) {
+			edge := p.Element.Payload.(reader.Edge)
+			referenceResultID := edge.OutV
+			rangeIDs := edge.InVs
+			documentID := edge.Document
+			referenceResultToRangeIDs[referenceResultID] = rangeIDs
+			referenceResultToDocumentID[referenceResultID] = documentID
+		}
+	}
+	c.documentationResultToReferences = map[int][]DocsRefDefInfo{}
+	for _, p := range c.pairs {
+		if p.Element.Type == "edge" && p.Element.Label == string(protocol.EdgeTextDocumentReferences) {
+			edge := p.Element.Payload.(reader.Edge)
+			referenceResult := p.Element.ID
+			resultSet := edge.OutV
+			if _, isResultSet := c.resultSets[resultSet]; !isResultSet {
+				continue
+			}
+			documentationResult := c.resultSetToDocumentationResult[resultSet]
+			documentID := referenceResultToDocumentID[referenceResult]
+			rangeIDs := referenceResultToRangeIDs[referenceResult]
+
+			var decodedRanges []reader.Range
+			for _, id := range rangeIDs {
+				decodedRanges = append(decodedRanges, c.ranges[id])
+			}
+			c.documentationResultToReferences[documentationResult] = append(
+				c.documentationResultToReferences[documentationResult],
+				DocsRefDefInfo{
+					Document: c.documents[documentID],
+					Ranges:   decodedRanges,
+				},
+			)
+		}
+	}
+	for _, references := range c.documentationResultToReferences {
+		sort.Slice(references, func(i, j int) bool {
+			return references[i].Document < references[j].Document
+		})
+	}
+	return nil
 }
 
 func (c *converter) findDocumentationStringsFor(result int) (label, detail *reader.Element, err error) {
@@ -199,6 +390,29 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 	if _, err := fmt.Fprintf(c.out, "%s <a name=\"%s\">%s%s</a>\n\n", depthStr, slug, label.Value, annotations); err != nil {
 		return err
 	}
+	writeDetails := func(summary string, contents string) error {
+		_, err := fmt.Fprintf(c.out, "<details><summary>%s</summary>\n\n%s\n\n</details>\n\n", summary, contents)
+		return err
+	}
+	hover, ok := c.documentationResultToHoverResult[this.ID]
+	if ok {
+		lines := strings.Split(fmt.Sprint(hover), "\n")
+		for i, line := range lines {
+			lines[i] = "> " + line
+		}
+		writeDetails("hover", strings.Join(lines, "\n"))
+	}
+	definitions, ok := c.documentationResultToDefinitions[this.ID]
+	if ok && len(definitions) > 0 {
+		j, _ := json.MarshalIndent(definitions, "", " ")
+		writeDetails("definitions", "```json\n"+string(j)+"\n```")
+	}
+	references, ok := c.documentationResultToDefinitions[this.ID]
+	if ok && len(references) > 0 {
+		j, _ := json.MarshalIndent(references, "", " ")
+		writeDetails("references", "```json\n"+string(j)+"\n```")
+	}
+
 	if detail.Value != "" {
 		if _, err := fmt.Fprintf(c.out, "%s", detail.Value); err != nil {
 			return err
