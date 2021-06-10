@@ -54,7 +54,12 @@ func (i *Indexer) indexDocumentation() error {
 		errs                  error
 	)
 	i.visitEachPackage("Indexing documentation", func(p *packages.Package) {
+		// Index the package without the lock, for parallelism.
 		docsPkg, err := d.indexPackage(p)
+
+		// Acquire the lock; note that multierror.Append could also be racy and hence we hold the
+		// lock even for the error check. In practice, this is not where most of the work is done
+		// (indexPackage is) so this is fine.
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
