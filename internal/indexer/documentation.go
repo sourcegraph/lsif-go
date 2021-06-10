@@ -36,7 +36,7 @@ import (
 // A mapping of types -> documentationResult vertex ID
 type emittedDocumentationResults map[types.Object]uint64
 
-func (e emittedDocumentationResults) add(other emittedDocumentationResults) map[types.Object]uint64 {
+func (e emittedDocumentationResults) addAll(other emittedDocumentationResults) map[types.Object]uint64 {
 	for associatedType, documentationResultID := range other {
 		e[associatedType] = documentationResultID
 	}
@@ -61,7 +61,7 @@ func (i *Indexer) indexDocumentation() error {
 			errs = multierror.Append(errs, errors.Wrap(err, "package "+p.Name))
 			return
 		}
-		emitted.add(docsPkg.emitted)
+		emitted.addAll(docsPkg.emitted)
 		docsPackages = append(docsPackages, docsPkg)
 		emittedPackagesByPath[docsPkg.Path] = docsPkg.ID
 	})
