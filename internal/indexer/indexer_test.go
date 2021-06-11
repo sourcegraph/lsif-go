@@ -364,7 +364,7 @@ func TestIndexer_documentation(t *testing.T) {
 	}{
 		{
 			name:           "testdata",
-			repositoryRoot: "/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+			repositoryRoot: projectRoot,
 			projectRoot:    projectRoot,
 			short:          true,
 		},

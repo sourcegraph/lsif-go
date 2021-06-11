@@ -66,6 +66,66 @@ testdata is a small package containing sample Go source code used for testing th
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-Const">const Const <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const Const untyped int = 5
+> ```
+> 
+> ---
+> 
+> Const is a constant equal to 5. It's the best constant I've ever written. 😹
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 6
+    },
+    "end": {
+     "line": 4,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 6
+    },
+    "end": {
+     "line": 4,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const Const = 5
 ```
@@ -73,6 +133,66 @@ const Const = 5
 Const is a constant equal to 5. It's the best constant I've ever written. 😹 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-ConstBlock1">const ConstBlock1 <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> const ConstBlock1 untyped int = 1
+> ```
+> 
+> ---
+> 
+> ConstBlock1 is a constant in a block.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 1
+    },
+    "end": {
+     "line": 9,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 1
+    },
+    "end": {
+     "line": 9,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 const ConstBlock1 = 1
@@ -84,6 +204,66 @@ ConstBlock1 is a constant in a block.
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-ConstBlock2">const ConstBlock2 <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const ConstBlock2 untyped int = 2
+> ```
+> 
+> ---
+> 
+> ConstBlock2 is a constant in a block.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 12,
+     "character": 1
+    },
+    "end": {
+     "line": 12,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 12,
+     "character": 1
+    },
+    "end": {
+     "line": 12,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const ConstBlock2 = 2
 ```
@@ -94,6 +274,66 @@ ConstBlock2 is a constant in a block.
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-Score">const Score <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const Score uint64 = 42
+> ```
+> 
+> ---
+> 
+> Score is just a hardcoded number.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 39,
+     "character": 6
+    },
+    "end": {
+     "line": 39,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 39,
+     "character": 6
+    },
+    "end": {
+     "line": 39,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const Score = uint64(42)
 ```
@@ -102,11 +342,123 @@ Score is just a hardcoded number.
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-secretScore">const secretScore</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const secretScore uint64 = 43
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 40,
+     "character": 6
+    },
+    "end": {
+     "line": 40,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 40,
+     "character": 6
+    },
+    "end": {
+     "line": 40,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const secretScore = secret.SecretScore
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-SomeString">const SomeString <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> const SomeString untyped string = "foobar"
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 42,
+     "character": 6
+    },
+    "end": {
+     "line": 42,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 42,
+     "character": 6
+    },
+    "end": {
+     "line": 42,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 const SomeString = "foobar"
@@ -114,17 +466,185 @@ const SomeString = "foobar"
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-LongString">const LongString <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const LongString untyped string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidu...
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 43,
+     "character": 6
+    },
+    "end": {
+     "line": 43,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 43,
+     "character": 6
+    },
+    "end": {
+     "line": 43,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const LongString = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed tincidunt viverra aliquam. Phasellus finibus, arcu eu commodo porta, dui quam dictum ante, nec porta enim leo quis felis. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Curabitur luctus orci tortor, non condimentum arcu bibendum ut. Proin sit amet vulputate lorem, ut egestas arcu. Curabitur quis sagittis mi. Aenean elit sem, imperdiet ut risus eget, varius varius erat.\nNullam lobortis tortor sed sodales consectetur. Aenean condimentum vehicula elit, eget interdum ante finibus nec. Mauris mollis, nulla eu vehicula rhoncus, eros lectus viverra tellus, ac hendrerit quam massa et felis. Nunc vestibulum diam a facilisis sollicitudin. Aenean nec varius metus. Sed nec diam nibh. Ut erat erat, suscipit et ante eget, tincidunt condimentum orci. Aenean nec facilisis augue, ac sodales ex. Nulla dictum hendrerit tempus. Aliquam fringilla tortor in massa molestie, quis bibendum nulla ullamcorper. Suspendisse congue laoreet elit, vitae consectetur orci facilisis non. Aliquam tempus ultricies sapien, rhoncus tincidunt nisl tincidunt eget. Aliquam nisi ante, rutrum eget viverra imperdiet, congue ut nunc. Donec mollis sed tellus vel placerat. Sed mi ex, fringilla a fermentum a, tincidunt eget lectus.\nPellentesque lacus nibh, accumsan eget feugiat nec, gravida eget urna. Donec quam velit, imperdiet in consequat eget, ultricies eget nunc. Curabitur interdum vel sem et euismod. Donec sed vulputate odio, sit amet bibendum tellus. Integer pellentesque nunc eu turpis cursus, vestibulum sodales ipsum posuere. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Ut at vestibulum sapien. In hac habitasse platea dictumst. Nullam sed lobortis urna, non bibendum ipsum. Sed in sapien quis purus semper fringilla. Integer ut egestas nulla, eu ornare lectus. Maecenas quis sapien condimentum, dignissim urna quis, hendrerit neque. Donec cursus sit amet metus eu mollis.\nSed scelerisque vitae odio non egestas. Cras hendrerit tortor mauris. Aenean quis imperdiet nulla, a viverra purus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Praesent finibus faucibus orci, sed ultrices justo iaculis ut. Ut libero massa, condimentum at elit non, fringilla iaculis quam. Sed sit amet ipsum placerat, tincidunt sem in, efficitur lacus. Curabitur ligula orci, tempus ut magna eget, sodales tristique odio.\nPellentesque in libero ac risus pretium ultrices. In hac habitasse platea dictumst. Curabitur a quam sed orci tempus luctus. Integer commodo nec odio quis consequat. Aenean vitae dapibus augue, nec dictum lectus. Etiam sit amet leo diam. Duis eu ligula venenatis, fermentum lacus vel, interdum odio. Vivamus sit amet libero vitae elit interdum cursus et eu erat. Cras interdum augue sit amet ex aliquet tempor. Praesent dolor nisl, convallis bibendum mauris a, euismod commodo ante. Phasellus non ipsum condimentum, molestie dolor quis, pretium nisi. Mauris augue urna, fermentum ut lacinia a, efficitur vitae odio. Praesent finibus nisl et dolor luctus faucibus. Donec eget lectus sed mi porttitor placerat ac eu odio."
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-ConstMath">const ConstMath <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const ConstMath untyped int = 26
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 44,
+     "character": 6
+    },
+    "end": {
+     "line": 44,
+     "character": 15
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 44,
+     "character": 6
+    },
+    "end": {
+     "line": 44,
+     "character": 15
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const ConstMath = 1 + (2+3)*5
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-const-AliasedString">const AliasedString <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> const AliasedString StringAlias = "foobar"
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 48,
+     "character": 6
+    },
+    "end": {
+     "line": 48,
+     "character": 19
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 48,
+     "character": 6
+    },
+    "end": {
+     "line": 48,
+     "character": 19
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 const AliasedString StringAlias = "foobar"
@@ -134,6 +654,66 @@ const AliasedString StringAlias = "foobar"
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-Var">var Var <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> var Var Interface
+> ```
+> 
+> ---
+> 
+> Var is a variable interface.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 16,
+     "character": 4
+    },
+    "end": {
+     "line": 16,
+     "character": 7
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 16,
+     "character": 4
+    },
+    "end": {
+     "line": 16,
+     "character": 7
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 var Var Interface = ...
 ```
@@ -141,6 +721,66 @@ var Var Interface = ...
 Var is a variable interface. 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-unexportedVar">var unexportedVar</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> var unexportedVar Interface
+> ```
+> 
+> ---
+> 
+> unexportedVar is an unexported variable interface.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 19,
+     "character": 4
+    },
+    "end": {
+     "line": 19,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 19,
+     "character": 4
+    },
+    "end": {
+     "line": 19,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 var unexportedVar Interface = ...
@@ -150,6 +790,66 @@ unexportedVar is an unexported variable interface.
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-x">var x</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> var x error
+> ```
+> 
+> ---
+> 
+> x has a builtin error type
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 22,
+     "character": 4
+    },
+    "end": {
+     "line": 22,
+     "character": 5
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 22,
+     "character": 4
+    },
+    "end": {
+     "line": 22,
+     "character": 5
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 var x error
 ```
@@ -158,11 +858,127 @@ x has a builtin error type
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-BigVar">var BigVar <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> var BigVar Interface
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 24,
+     "character": 4
+    },
+    "end": {
+     "line": 24,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 24,
+     "character": 4
+    },
+    "end": {
+     "line": 24,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 var BigVar Interface = ...
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock1">var VarBlock1 <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> var VarBlock1 string
+> ```
+> 
+> ---
+> 
+> This has some docs
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 46,
+     "character": 1
+    },
+    "end": {
+     "line": 46,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 46,
+     "character": 1
+    },
+    "end": {
+     "line": 46,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 var VarBlock1 = "if you're reading this"
@@ -183,6 +999,75 @@ This has some docs
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-VarBlock2">var VarBlock2 <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> var VarBlock2 string
+> ```
+> 
+> ---
+> 
+> What are docs, really? I can't say for sure, I don't write any. But look, a CAT! 
+> 
+> ```
+>       |\      _,,,---,,_
+> ZZZzz /,`.-'`'    -.  ;-;;,_
+>      |,4-  ) )-,_. ,\ (  `'-'
+>     '---''(_/--'  `-'\_)
+> 
+> ```
+> It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?!
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 48,
+     "character": 1
+    },
+    "end": {
+     "line": 48,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 48,
+     "character": 1
+    },
+    "end": {
+     "line": 48,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 var VarBlock2 = "hi"
 ```
@@ -199,6 +1084,80 @@ ZZZzz /,`.-'`'    -.  ;-;;,_
 It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-_">var _</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> var _ invalid type
+> ```
+> 
+> ---
+> 
+> Yeah this is some Go magic incantation which is common. 
+> 
+> ```
+>  ,_     _
+>  |\\_,-~/
+>  / _  _ |    ,--.
+> (  @  @ )   / ,-'
+>  \  _T_/-._( (
+> /         `. \
+> |         _  \ |
+> \ \ ,  /      |
+>  || |-_\__   /
+> ((_/`(____,-'
+> 
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 116,
+     "character": 4
+    },
+    "end": {
+     "line": 116,
+     "character": 5
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 116,
+     "character": 4
+    },
+    "end": {
+     "line": 116,
+     "character": 5
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 var _ = Interface(&Struct{})
@@ -221,6 +1180,62 @@ Yeah this is some Go magic incantation which is common.
 ```
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-var-wg">var wg</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> var wg WaitGroup
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/parallel.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 14,
+     "character": 5
+    },
+    "end": {
+     "line": 14,
+     "character": 7
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/parallel.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 14,
+     "character": 5
+    },
+    "end": {
+     "line": 14,
+     "character": 7
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 var wg sync.WaitGroup
 ```
@@ -228,6 +1243,77 @@ var wg sync.WaitGroup
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type">Types</a>
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Embedded">type Embedded struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type Embedded struct
+> ```
+> 
+> ---
+> 
+> Embedded is a struct, to be embedded in another struct. 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     EmbeddedField string
+>     Field string
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 52,
+     "character": 5
+    },
+    "end": {
+     "line": 52,
+     "character": 13
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 52,
+     "character": 5
+    },
+    "end": {
+     "line": 52,
+     "character": 13
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type Embedded struct {
@@ -240,6 +1326,76 @@ type Embedded struct {
 Embedded is a struct, to be embedded in another struct. 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Struct">type Struct struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type Struct struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct {
+>     *Embedded
+>     Field string
+>     Anonymous struct {
+>         FieldA int
+>         FieldB int
+>         FieldC int
+>     }
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 58,
+     "character": 5
+    },
+    "end": {
+     "line": 58,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 58,
+     "character": 5
+    },
+    "end": {
+     "line": 58,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type Struct struct {
@@ -255,6 +1411,76 @@ type Struct struct {
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Interface">type Interface interface <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type Interface interface
+> ```
+> 
+> ---
+> 
+> Interface has docs too 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> interface {
+>     ImplementsInterface() string
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 97,
+     "character": 5
+    },
+    "end": {
+     "line": 97,
+     "character": 14
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 97,
+     "character": 5
+    },
+    "end": {
+     "line": 97,
+     "character": 14
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type Interface interface {
 	ImplementsInterface() string
@@ -265,11 +1491,137 @@ Interface has docs too
 
 ##### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Interface-NewInterface">func NewInterface() Interface <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func NewInterface() Interface
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 101,
+     "character": 5
+    },
+    "end": {
+     "line": 101,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 101,
+     "character": 5
+    },
+    "end": {
+     "line": 101,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func NewInterface() Interface
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-X">type X struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type X struct
+> ```
+> 
+> ---
+> 
+> And confusing 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     bar string
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 121,
+     "character": 1
+    },
+    "end": {
+     "line": 121,
+     "character": 2
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 121,
+     "character": 1
+    },
+    "end": {
+     "line": 121,
+     "character": 2
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type X struct {
@@ -283,6 +1635,76 @@ And confusing
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Y">type Y struct <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type Y struct
+> ```
+> 
+> ---
+> 
+> Go can be fun 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     baz invalid type
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 125,
+     "character": 1
+    },
+    "end": {
+     "line": 125,
+     "character": 2
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 125,
+     "character": 1
+    },
+    "end": {
+     "line": 125,
+     "character": 2
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type Y struct {
 	baz float
@@ -292,6 +1714,72 @@ type Y struct {
 Go can be fun 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Inner">type Inner struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type Inner struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct {
+>     X int
+>     Y int
+>     Z int
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/composite.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 5
+    },
+    "end": {
+     "line": 4,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/composite.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 5
+    },
+    "end": {
+     "line": 4,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type Inner struct {
@@ -303,6 +1791,71 @@ type Inner struct {
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-Outer">type Outer struct <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type Outer struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct {
+>     Inner
+>     W int
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/composite.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 10,
+     "character": 5
+    },
+    "end": {
+     "line": 10,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/composite.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 10,
+     "character": 5
+    },
+    "end": {
+     "line": 10,
+     "character": 10
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type Outer struct {
 	Inner
@@ -311,6 +1864,76 @@ type Outer struct {
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestInterface">type TestInterface interface <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type TestInterface interface
+> ```
+> 
+> ---
+> 
+> TestInterface is an interface used for testing. 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> interface {
+>     Do(ctx Context, data string) (score int, _ error)
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 5
+    },
+    "end": {
+     "line": 9,
+     "character": 18
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 5
+    },
+    "end": {
+     "line": 9,
+     "character": 18
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type TestInterface interface {
@@ -322,6 +1945,85 @@ type TestInterface interface {
 TestInterface is an interface used for testing. 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct">type TestStruct struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type TestStruct struct
+> ```
+> 
+> ---
+> 
+> TestStruct is a struct used for testing. 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     SimpleA int
+>     SimpleB int
+>     SimpleC int
+>     FieldWithTag string "json:\"tag\""
+>     FieldWithAnonymousType struct {
+>         NestedA string
+>         NestedB string
+>         NestedC string
+>     }
+>     EmptyStructField struct{}
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 16,
+     "character": 1
+    },
+    "end": {
+     "line": 16,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 16,
+     "character": 1
+    },
+    "end": {
+     "line": 16,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type TestStruct struct {
@@ -348,6 +2050,66 @@ TestStruct is a struct used for testing.
 
 ##### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestStruct-Doer">func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func (*TestStruct).Doer(ctx Context, data string) (score int, err error)
+> ```
+> 
+> ---
+> 
+> Doer is similar to the test interface (but not the same).
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 51,
+     "character": 22
+    },
+    "end": {
+     "line": 51,
+     "character": 26
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 51,
+     "character": 22
+    },
+    "end": {
+     "line": 51,
+     "character": 26
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)
 ```
@@ -356,17 +2118,207 @@ Doer is similar to the test interface (but not the same).
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestEmptyStruct">type TestEmptyStruct struct{} <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type TestEmptyStruct struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct{}
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 35,
+     "character": 1
+    },
+    "end": {
+     "line": 35,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 35,
+     "character": 1
+    },
+    "end": {
+     "line": 35,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type TestEmptyStruct struct{}
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-StringAlias">type StringAlias string <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> string
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 46,
+     "character": 5
+    },
+    "end": {
+     "line": 46,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 46,
+     "character": 5
+    },
+    "end": {
+     "line": 46,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type StringAlias string
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-StructTagRegression">type StructTagRegression struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type StructTagRegression struct
+> ```
+> 
+> ---
+> 
+> StructTagRegression is a struct that caused panic in the wild. Added here to support a regression test. 
+> 
+> See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     Value int "key:\",range=[:}\""
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 59,
+     "character": 5
+    },
+    "end": {
+     "line": 59,
+     "character": 24
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 59,
+     "character": 5
+    },
+    "end": {
+     "line": 59,
+     "character": 24
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type StructTagRegression struct {
@@ -380,6 +2332,70 @@ See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1a
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-TestEqualsStruct">type TestEqualsStruct struct <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type TestEqualsStruct = struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct {
+>     Value int
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 63,
+     "character": 5
+    },
+    "end": {
+     "line": 63,
+     "character": 21
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 63,
+     "character": 5
+    },
+    "end": {
+     "line": 63,
+     "character": 21
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type TestEqualsStruct = struct {
 	Value int
@@ -387,6 +2403,70 @@ type TestEqualsStruct = struct {
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-ShellStruct">type ShellStruct struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type ShellStruct struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct {
+>     InnerStruct
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 67,
+     "character": 5
+    },
+    "end": {
+     "line": 67,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 67,
+     "character": 5
+    },
+    "end": {
+     "line": 67,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type ShellStruct struct {
@@ -399,11 +2479,135 @@ type ShellStruct struct {
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-InnerStruct">type InnerStruct struct{} <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type InnerStruct struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct{}
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 74,
+     "character": 5
+    },
+    "end": {
+     "line": 74,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 74,
+     "character": 5
+    },
+    "end": {
+     "line": 74,
+     "character": 16
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type InnerStruct struct{}
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ParallelizableFunc is a function that can be called concurrently with other instances of this function type. 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> func(ctx Context) error
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/parallel.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 5
+    },
+    "end": {
+     "line": 9,
+     "character": 23
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/parallel.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 5
+    },
+    "end": {
+     "line": 9,
+     "character": 23
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type ParallelizableFunc func(ctx context.Context) error
@@ -413,6 +2617,76 @@ ParallelizableFunc is a function that can be called concurrently with other inst
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-SecretBurger">type SecretBurger secret.Burger <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> type SecretBurger = secret.Burger
+> ```
+> 
+> ---
+> 
+> Type aliased doc 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     Field int
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/typealias.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 7,
+     "character": 5
+    },
+    "end": {
+     "line": 7,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/typealias.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 7,
+     "character": 5
+    },
+    "end": {
+     "line": 7,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 type SecretBurger = secret.Burger
 ```
@@ -420,6 +2694,70 @@ type SecretBurger = secret.Burger
 Type aliased doc 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-type-BadBurger">type BadBurger struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type BadBurger = struct
+> ```
+> 
+> ---
+> 
+> ```go
+> struct {
+>     Field string
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/typealias.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 5
+    },
+    "end": {
+     "line": 9,
+     "character": 14
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/typealias.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 9,
+     "character": 5
+    },
+    "end": {
+     "line": 9,
+     "character": 14
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type BadBurger = struct {
@@ -431,11 +2769,127 @@ type BadBurger = struct {
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-useOfCompositeStructs">func useOfCompositeStructs()</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func useOfCompositeStructs()
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/composite.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 15,
+     "character": 5
+    },
+    "end": {
+     "line": 15,
+     "character": 26
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/composite.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 15,
+     "character": 5
+    },
+    "end": {
+     "line": 15,
+     "character": 26
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func useOfCompositeStructs()
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> func Parallel(ctx Context, fns ...ParallelizableFunc) error
+> ```
+> 
+> ---
+> 
+> Parallel invokes each of the given parallelizable functions in their own goroutines and returns the first error to occur. This method will block until all goroutines have returned.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/parallel.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 13,
+     "character": 5
+    },
+    "end": {
+     "line": 13,
+     "character": 13
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/parallel.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 13,
+     "character": 5
+    },
+    "end": {
+     "line": 13,
+     "character": 13
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 func Parallel(ctx context.Context, fns ...ParallelizableFunc) error
@@ -445,11 +2899,157 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata-func-Switch">func Switch(interfaceValue interface{}) bool <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func Switch(interfaceValue interface{}) bool
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/typeswitch.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 2,
+     "character": 5
+    },
+    "end": {
+     "line": 2,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/typeswitch.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 2,
+     "character": 5
+    },
+    "end": {
+     "line": 2,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func Switch(interfaceValue interface{}) bool
 ```
 
 ## <a name="internal-secret">Package secret <small>(new page)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> package "github.com/sourcegraph/lsif-go/internal/testdata/internal/secret"
+> ```
+> 
+> ---
+> 
+> secret is a package that holds secrets.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 5,
+     "character": 2
+    },
+    "end": {
+     "line": 5,
+     "character": 66
+    }
+   }
+  ]
+ },
+ {
+  "Document": "/typealias.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 2
+    },
+    "end": {
+     "line": 3,
+     "character": 66
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/data.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 5,
+     "character": 2
+    },
+    "end": {
+     "line": 5,
+     "character": 66
+    }
+   }
+  ]
+ },
+ {
+  "Document": "/typealias.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 2
+    },
+    "end": {
+     "line": 3,
+     "character": 66
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 secret is a package that holds secrets. 
 
@@ -464,6 +3064,66 @@ secret is a package that holds secrets.
 
 #### <a name="internal-secret-const-SecretScore">const SecretScore <small>(exported)</small></a>
 
+<details><summary>hover</summary>
+
+> ```go
+> const SecretScore uint64 = 43
+> ```
+> 
+> ---
+> 
+> SecretScore is like score but _secret_.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/secret/secret.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 6
+    },
+    "end": {
+     "line": 3,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/secret/secret.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 6
+    },
+    "end": {
+     "line": 3,
+     "character": 17
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 const SecretScore = uint64(43)
 ```
@@ -473,6 +3133,76 @@ SecretScore is like score but _secret_.
 ### <a name="internal-secret-type">Types</a>
 
 #### <a name="internal-secret-type-Burger">type Burger struct <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type Burger struct
+> ```
+> 
+> ---
+> 
+> Original doc 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     Field int
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/secret/secret.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 6,
+     "character": 5
+    },
+    "end": {
+     "line": 6,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/secret/secret.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 6,
+     "character": 5
+    },
+    "end": {
+     "line": 6,
+     "character": 11
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 type Burger struct {
@@ -495,6 +3225,62 @@ This package has no tests.
 
 #### <a name="internal-shouldvisit-notests-func-foo">func foo() bool</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func foo() bool
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/notests/notests.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 5
+    },
+    "end": {
+     "line": 3,
+     "character": 8
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/notests/notests.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 5
+    },
+    "end": {
+     "line": 3,
+     "character": 8
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func foo() bool
 ```
@@ -513,11 +3299,123 @@ This package has tests.
 
 #### <a name="internal-shouldvisit-tests-func-foo">func foo() bool</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func foo() bool
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests/tests.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 5
+    },
+    "end": {
+     "line": 3,
+     "character": 8
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests/tests.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 5
+    },
+    "end": {
+     "line": 3,
+     "character": 8
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func foo() bool
 ```
 
 #### <a name="internal-shouldvisit-tests-func-TestFoo">func TestFoo(t *testing.T)</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> func TestFoo(t *T)
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests/tests_test.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 5
+    },
+    "end": {
+     "line": 4,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests/tests_test.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 5
+    },
+    "end": {
+     "line": 4,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 func TestFoo(t *testing.T)
@@ -536,6 +3434,62 @@ This package has tests, but in a separate _test package.
 
 #### <a name="internal-shouldvisit-tests_separate-func-foo">func foo() bool</a>
 
+<details><summary>hover</summary>
+
+> ```go
+> func foo() bool
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests_separate/pkg.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 5
+    },
+    "end": {
+     "line": 3,
+     "character": 8
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests_separate/pkg.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 3,
+     "character": 5
+    },
+    "end": {
+     "line": 3,
+     "character": 8
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
 ```Go
 func foo() bool
 ```
@@ -550,6 +3504,62 @@ func foo() bool
 ### <a name="internal-shouldvisit-tests_separate_test-func">Functions</a>
 
 #### <a name="internal-shouldvisit-tests_separate_test-func-TestFoo">func TestFoo(t *testing.T)</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> func TestFoo(t *T)
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests_separate/pkg_test.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 5
+    },
+    "end": {
+     "line": 4,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/internal/shouldvisit/tests_separate/pkg_test.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 4,
+     "character": 5
+    },
+    "end": {
+     "line": 4,
+     "character": 12
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
 
 ```Go
 func TestFoo(t *testing.T)

@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -32,20 +33,42 @@ import (
 // * (Zig) https://ziglang.org/documentation/master/std/#builtin
 //
 
+// A mapping of types -> documentationResult vertex ID
+type emittedDocumentationResults map[types.Object]uint64
+
+func (e emittedDocumentationResults) addAll(other emittedDocumentationResults) map[types.Object]uint64 {
+	for associatedType, documentationResultID := range other {
+		e[associatedType] = documentationResultID
+	}
+	return e
+}
+
 // indexDocumentation indexes all packages in the project.
 func (i *Indexer) indexDocumentation() error {
 	var (
-		d            = &docsIndexer{i: i}
-		docsPackages []docsPackage
-		errs         error
+		d                     = &docsIndexer{i: i}
+		mu                    sync.Mutex
+		docsPackages          []docsPackage
+		emitted               = make(emittedDocumentationResults, 4096)
+		emittedPackagesByPath = make(map[string]uint64, 32)
+		errs                  error
 	)
 	i.visitEachPackage("Indexing documentation", func(p *packages.Package) {
+		// Index the package without the lock, for parallelism.
 		docsPkg, err := d.indexPackage(p)
+
+		// Acquire the lock; note that multierror.Append could also be racy and hence we hold the
+		// lock even for the error check. In practice, this is not where most of the work is done
+		// (indexPackage is) so this is fine.
+		mu.Lock()
+		defer mu.Unlock()
 		if err != nil {
 			errs = multierror.Append(errs, errors.Wrap(err, "package "+p.Name))
 			return
 		}
+		emitted.addAll(docsPkg.emitted)
 		docsPackages = append(docsPackages, docsPkg)
+		emittedPackagesByPath[docsPkg.Path] = docsPkg.ID
 	})
 
 	// Emit the root documentationResult which will link all packages in this project to the
@@ -70,6 +93,8 @@ func (i *Indexer) indexDocumentation() error {
 		children = append(children, docsPkg.ID)
 	}
 	_ = i.emitter.EmitDocumentationChildrenEdge(children, rootDocumentationID)
+	i.emittedDocumentationResults = emitted
+	i.emittedDocumentationResultsByPackagePath = emittedPackagesByPath
 	return errs
 }
 
@@ -80,6 +105,9 @@ type docsPackage struct {
 
 	// Path is the actual package path.
 	Path string
+
+	// A mapping of types -> documentationResult vertex ID
+	emitted emittedDocumentationResults
 }
 
 type docsIndexer struct {
@@ -94,6 +122,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 		vars            []constVarDocs
 		types           []typeDocs
 		funcs           []funcDocs
+		emitted         = make(emittedDocumentationResults, 64)
 	)
 	for _, file := range p.Syntax {
 		filename := p.Fset.Position(file.Pos()).Filename
@@ -107,10 +136,22 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 			return docsPackage{}, errors.Wrap(err, "file "+filename)
 		}
 		pkgDocsMarkdown += fileDocs.pkgDocsMarkdown
-		consts = append(consts, fileDocs.consts...)
-		vars = append(vars, fileDocs.vars...)
-		types = append(types, fileDocs.types...)
-		funcs = append(funcs, fileDocs.funcs...)
+		for _, c := range fileDocs.consts {
+			consts = append(consts, c)
+			emitted[c.def] = c.ID
+		}
+		for _, v := range fileDocs.vars {
+			vars = append(vars, v)
+			emitted[v.def] = v.ID
+		}
+		for _, t := range fileDocs.types {
+			types = append(types, t)
+			emitted[t.def] = t.ID
+		}
+		for _, f := range fileDocs.funcs {
+			funcs = append(funcs, f)
+			emitted[f.def] = f.ID
+		}
 	}
 
 	rootPkgPath := ""
@@ -230,8 +271,9 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	}
 
 	return docsPackage{
-		ID:   packageDocsID,
-		Path: p.PkgPath,
+		ID:      packageDocsID,
+		Path:    p.PkgPath,
+		emitted: emitted,
 	}, nil
 }
 
@@ -367,6 +409,9 @@ type constVarDocs struct {
 
 	// Is the type itself exported, deprecated?
 	exported, deprecated bool
+
+	// The definition object.
+	def types.Object
 }
 
 func (t constVarDocs) result() *documentationResult {
@@ -403,6 +448,7 @@ func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, name
 	result.name = name.String()
 	result.exported = ast.IsExported(name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
+	result.def = p.TypesInfo.Defs[name]
 
 	// Produce the full type signature with docs on e.g. methods and struct fields, but not on the
 	// type itself (we'll produce those as Markdown below.)
@@ -444,6 +490,9 @@ type typeDocs struct {
 
 	// The type itself.
 	typ types.Type
+
+	// The definition object.
+	def types.Object
 }
 
 func (t typeDocs) result() *documentationResult {
@@ -480,6 +529,7 @@ func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTes
 	result.typ = p.TypesInfo.ObjectOf(in.Name).Type()
 	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
+	result.def = p.TypesInfo.Defs[in.Name]
 
 	// Produce the full type signature with docs on e.g. methods and struct fields, but not on the
 	// type itself (we'll produce those as Markdown below.)
@@ -516,6 +566,9 @@ type funcDocs struct {
 
 	// The type of return values, or nil.
 	resultTypes []ast.Expr
+
+	// The definition object.
+	def types.Object
 }
 
 func (f funcDocs) result() *documentationResult {
@@ -554,6 +607,7 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
 	result.docsMarkdown = godocToMarkdown(in.Doc.Text())
+	result.def = p.TypesInfo.Defs[in.Name]
 
 	// Create a brand new FuncDecl based on the parts of the input we care about,
 	// ignoring other aspects (e.g. docs and the function body, which are not needed to
