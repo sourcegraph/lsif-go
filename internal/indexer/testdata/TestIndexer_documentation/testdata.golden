@@ -47,7 +47,7 @@ testdata is a small package containing sample Go source code used for testing th
   - [type Outer struct](#github.com-sourcegraph-lsif-go-internal-testdata---Outer)
   - [type TestInterface interface](#github.com-sourcegraph-lsif-go-internal-testdata---TestInterface)
   - [type TestStruct struct](#github.com-sourcegraph-lsif-go-internal-testdata---TestStruct)
-    - [func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)](#github.com-sourcegraph-lsif-go-internal-testdata---Doer)
+    - [func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)](#github.com-sourcegraph-lsif-go-internal-testdata---TestStruct.Doer)
   - [type TestEmptyStruct struct{}](#github.com-sourcegraph-lsif-go-internal-testdata---TestEmptyStruct)
   - [type StringAlias string](#github.com-sourcegraph-lsif-go-internal-testdata---StringAlias)
   - [type StructTagRegression struct](#github.com-sourcegraph-lsif-go-internal-testdata---StructTagRegression)
@@ -2048,7 +2048,7 @@ type TestStruct struct {
 
 TestStruct is a struct used for testing. 
 
-##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Doer">func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) <small>(exported)</small></a>
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestStruct.Doer">func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) <small>(exported)</small></a>
 
 <details><summary>hover</summary>
 

@@ -564,6 +564,9 @@ type funcDocs struct {
 	// The type of the receiver, or nil.
 	recvType ast.Expr
 
+	// The name of the receiver type, or an empty string.
+	recvTypeName string
+
 	// The type of return values, or nil.
 	resultTypes []ast.Expr
 
@@ -589,9 +592,13 @@ func (f funcDocs) result() *documentationResult {
 	detail.WriteString("```\n\n")
 	detail.WriteString(f.docsMarkdown)
 
+	identifier := f.name
+	if f.recvTypeName != "" {
+		identifier = f.recvTypeName + "." + f.name
+	}
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Identifier: f.name,
+			Identifier: identifier,
 			NewPage:    false,
 			Tags:       tags,
 		},
@@ -630,6 +637,7 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 			// Mark functions as unexported if they are an exported method of a type that is
 			// unexported.
 			if named, ok := dereference(p.TypesInfo.TypeOf(result.recvType)).(*types.Named); ok {
+				result.recvTypeName = named.Obj().Name()
 				if !named.Obj().Exported() {
 					result.exported = false
 				}
