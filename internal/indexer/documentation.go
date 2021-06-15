@@ -75,11 +75,11 @@ func (i *Indexer) indexDocumentation() error {
 	// project itself.
 	rootDocumentationID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    "index",
+			Slug:    "",
 			NewPage: true,
 			Tags:    []protocol.DocumentationTag{protocol.DocumentationExported},
 		},
-		Label:  protocol.NewMarkupContent("Index", protocol.PlainText),
+		Label:  protocol.NewMarkupContent("", protocol.PlainText),
 		Detail: protocol.NewMarkupContent("", protocol.PlainText),
 	}).emit(i.emitter)
 	_ = i.emitter.EmitDocumentationResultEdge(rootDocumentationID, i.projectID)
@@ -171,7 +171,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	}
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(shortestUniquePkgPath),
+			Slug:    shortestUniquePkgPath,
 			NewPage: true,
 			Tags:    pkgTags,
 		},
@@ -182,7 +182,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	newSection := func(label, slug string, children []uint64) uint64 {
 		sectionID := (&documentationResult{
 			Documentation: protocol.Documentation{
-				Slug:    slugify(slug),
+				Slug:    slug,
 				NewPage: false,
 				Tags:    pkgTags,
 			},
@@ -432,7 +432,7 @@ func (t constVarDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(t.name),
+			Slug:    t.name,
 			NewPage: false,
 			Tags:    tags,
 		},
@@ -513,7 +513,7 @@ func (t typeDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(t.name),
+			Slug:    t.name,
 			NewPage: false,
 			Tags:    tags,
 		},
@@ -591,7 +591,7 @@ func (f funcDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(f.name),
+			Slug:    f.name,
 			NewPage: false,
 			Tags:    tags,
 		},
@@ -750,12 +750,6 @@ func dereference(t types.Type) types.Type {
 		return dereference(p.Elem())
 	}
 	return t
-}
-
-func slugify(s string) string {
-	s = strings.Replace(s, " ", "-", -1)
-	s = strings.Replace(s, "/", "-", -1)
-	return s
 }
 
 func godocToMarkdown(godoc string) string {
