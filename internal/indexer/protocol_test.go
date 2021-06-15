@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	protocol "github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 )
 
 func TestRangeForObject(t *testing.T) {
