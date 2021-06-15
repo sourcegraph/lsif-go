@@ -368,7 +368,7 @@ func (c *converter) findDocumentationChildrenFor(result int) (children []*reader
 	return
 }
 
-func (c *converter) recurse(this *reader.Element, depth int, slug string) error {
+func (c *converter) recurse(this *reader.Element, depth int, identifier string) error {
 	labelVertex, detailVertex, err := c.findDocumentationStringsFor(this.ID)
 	if err != nil {
 		return err
@@ -382,7 +382,7 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 	}
 	emptyRootDocumentation := depth == 0 && detail.Value == ""
 	if !emptyRootDocumentation {
-		slug = joinSlugs(slug, doc.Slug)
+		identifier = joinIdentifiers(identifier, doc.Identifier)
 	}
 	depthStr := strings.Repeat("#", depth+1)
 	var infos []string
@@ -396,7 +396,7 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 	if annotations != "" {
 		annotations = fmt.Sprintf(" <small>(%s)</small>", annotations)
 	}
-	if _, err := fmt.Fprintf(c.out, "%s <a name=\"%s\">%s%s</a>\n\n", depthStr, slug, label.Value, annotations); err != nil {
+	if _, err := fmt.Fprintf(c.out, "%s <a name=\"%s\">%s%s</a>\n\n", depthStr, identifier, label.Value, annotations); err != nil {
 		return err
 	}
 	writeDetails := func(summary string, contents string) error {
@@ -441,14 +441,14 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 		return err
 	}
 	for _, child := range children {
-		if err := c.recurse(child, depth+1, slug); err != nil {
+		if err := c.recurse(child, depth+1, identifier); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, end bool, slug string) error {
+func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, end bool, identifier string) error {
 	labelVertex, _, err := c.findDocumentationStringsFor(this.ID)
 	if err != nil {
 		return err
@@ -461,7 +461,7 @@ func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, e
 	}
 
 	if parentDepth != 0 || depth != 0 {
-		slug = joinSlugs(slug, doc.Slug)
+		identifier = joinIdentifiers(identifier, doc.Identifier)
 	}
 	if depth == 0 {
 		if _, err := fmt.Fprintf(c.out, "%s Index\n\n", strings.Repeat("#", parentDepth+1)); err != nil {
@@ -469,7 +469,7 @@ func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, e
 		}
 	} else {
 		depthStr := strings.Repeat("  ", depth-1)
-		if _, err := fmt.Fprintf(c.out, "%s- [%s](#%s)\n", depthStr, label.Value, slug); err != nil {
+		if _, err := fmt.Fprintf(c.out, "%s- [%s](#%s)\n", depthStr, label.Value, identifier); err != nil {
 			return err
 		}
 	}
@@ -483,7 +483,7 @@ func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, e
 	}
 	for _, child := range children {
 		childDoc := child.Payload.(protocol.Documentation)
-		if err := c.recurseIndex(child, depth+1, parentDepth, childDoc.NewPage, slug); err != nil {
+		if err := c.recurseIndex(child, depth+1, parentDepth, childDoc.NewPage, identifier); err != nil {
 			return err
 		}
 	}
@@ -505,7 +505,7 @@ func tagsMatch(want, have []protocol.DocumentationTag) bool {
 	return true
 }
 
-func joinSlugs(a, b string) string {
+func joinIdentifiers(a, b string) string {
 	s := []string{}
 	if a != "" {
 		s = append(s, a)
