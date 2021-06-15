@@ -75,9 +75,9 @@ func (i *Indexer) indexDocumentation() error {
 	// project itself.
 	rootDocumentationID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    "",
-			NewPage: true,
-			Tags:    []protocol.DocumentationTag{protocol.DocumentationExported},
+			Identifier: "",
+			NewPage:    true,
+			Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
 		},
 		Label:  protocol.NewMarkupContent("", protocol.PlainText),
 		Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -171,20 +171,20 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	}
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    shortestUniquePkgPath,
-			NewPage: true,
-			Tags:    pkgTags,
+			Identifier: shortestUniquePkgPath,
+			NewPage:    true,
+			Tags:       pkgTags,
 		},
 		Label:  protocol.NewMarkupContent("Package "+p.Name, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(pkgDocsMarkdown, protocol.Markdown),
 	}).emit(d.i.emitter)
 
-	newSection := func(label, slug string, children []uint64) uint64 {
+	newSection := func(label, identifier string, children []uint64) uint64 {
 		sectionID := (&documentationResult{
 			Documentation: protocol.Documentation{
-				Slug:    slug,
-				NewPage: false,
-				Tags:    pkgTags,
+				Identifier: identifier,
+				NewPage:    false,
+				Tags:       pkgTags,
 			},
 			Label:  protocol.NewMarkupContent(label, protocol.PlainText),
 			Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -432,9 +432,9 @@ func (t constVarDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    t.name,
-			NewPage: false,
-			Tags:    tags,
+			Identifier: t.name,
+			NewPage:    false,
+			Tags:       tags,
 		},
 		Label:  protocol.NewMarkupContent(t.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -513,9 +513,9 @@ func (t typeDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    t.name,
-			NewPage: false,
-			Tags:    tags,
+			Identifier: t.name,
+			NewPage:    false,
+			Tags:       tags,
 		},
 		Label:  protocol.NewMarkupContent(t.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -591,9 +591,9 @@ func (f funcDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    f.name,
-			NewPage: false,
-			Tags:    tags,
+			Identifier: f.name,
+			NewPage:    false,
+			Tags:       tags,
 		},
 		Label:  protocol.NewMarkupContent(f.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
