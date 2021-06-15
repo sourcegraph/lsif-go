@@ -13,8 +13,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/sourcegraph/enterprise/lib v0.0.0-20210510223937-fa85dfb33caa
+	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210615182129-22e00c9fc8cd // indirect
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/sys v0.0.0-20210331175145-43e1dd70ce54 // indirect
 	golang.org/x/tools v0.1.0
 	mvdan.cc/gofumpt v0.1.1 // indirect
 )
