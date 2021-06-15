@@ -380,10 +380,7 @@ func (c *converter) recurse(this *reader.Element, depth int, identifier string) 
 	if !tagsMatch(c.matchingTags, doc.Tags) {
 		return nil
 	}
-	emptyRootDocumentation := depth == 0 && detail.Value == ""
-	if !emptyRootDocumentation {
-		identifier = joinIdentifiers(identifier, doc.Identifier)
-	}
+	identifier = joinIdentifiers(identifier, doc.Identifier)
 	depthStr := strings.Repeat("#", depth+1)
 	var infos []string
 	if doc.NewPage {
