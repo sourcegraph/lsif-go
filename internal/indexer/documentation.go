@@ -299,13 +299,9 @@ func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, isTestFile boo
 	var result fileDocs
 	result.pkgDocsMarkdown = godocToMarkdown(f.Doc.Text())
 
-	// Visit each AST node, collecting the bits we want to emit documentation for.
-	var (
-		firstErr error
-		visitor  ast.Visitor
-	)
-	visitor = visitorFunc(func(n ast.Node) (w ast.Visitor) {
-		switch node := n.(type) {
+	// Collect each top-level declaration.
+	for _, decl := range f.Decls {
+		switch node := decl.(type) {
 		case *ast.GenDecl:
 			genDeclDocs := d.indexGenDecl(p, f, node, isTestFile)
 			result.consts = append(result.consts, genDeclDocs.consts...)
@@ -315,11 +311,6 @@ func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, isTestFile boo
 			// Functions, methods
 			result.funcs = append(result.funcs, d.indexFuncDecl(p.Fset, p, node, isTestFile))
 		}
-		return visitor
-	})
-	ast.Walk(visitor, f)
-	if firstErr != nil {
-		return fileDocs{}, firstErr
 	}
 
 	// Emit documentation for all constants.
@@ -768,13 +759,6 @@ func godocToMarkdown(godoc string) string {
 	var buf bytes.Buffer
 	doc.ToMarkdown(&buf, godoc, nil)
 	return buf.String()
-}
-
-// visitorFunc is a function which implements the ast.Visitor interface.
-type visitorFunc func(ast.Node) ast.Visitor
-
-func (v visitorFunc) Visit(n ast.Node) ast.Visitor {
-	return v(n)
 }
 
 // documentationResult is a simple emitter of complete documentationResults.
