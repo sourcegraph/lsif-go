@@ -369,7 +369,11 @@ func (d *docsIndexer) indexGenDecl(p *packages.Package, f *ast.File, node *ast.G
 		case *ast.ValueSpec:
 			// Variable or constant, potentially of the form `var x, y = 1, 2` - we emit each
 			// separately.
-			for i := range t.Names {
+			for i, name := range t.Names {
+				if name.Name == "_" {
+					// Not only is it not exported, it cannot be referenced outside this package at all.
+					continue
+				}
 				switch node.Tok {
 				case token.CONST:
 					constDocs := d.indexConstVar(p, t, i, "const", isTestFile)
