@@ -42,7 +42,7 @@ var BigVar Interface = &Struct{
 //
 // It's sleeping! Some people write that as `sleeping` but Markdown
 // isn't allowed in Go docstrings, right? right?!
-var(
+var (
 	// This has some docs
 	VarBlock1 = "if you're reading this"
 
@@ -53,18 +53,18 @@ var(
 type Embedded struct {
 	// EmbeddedField has some docs!
 	EmbeddedField string
-	Field string // conflicts with parent "Field"
+	Field         string // conflicts with parent "Field"
 }
 
 type Struct struct {
 	*Embedded
-	Field string
+	Field     string
 	Anonymous struct {
 		FieldA int
 		FieldB int
 		FieldC int
 	}
-}}
+}
 
 // StructMethod has some docs!
 func (s *Struct) StructMethod() {}
@@ -89,9 +89,9 @@ func (s *Struct) MachineLearning(
 	// 	   `--'   `--'
 	//
 	hyperparam2 float32,
-	hyperparam3 float32
+	hyperparam3 float32,
 ) float32 {
-	return param1+(hyperparam2**hyperparam3) // lol is this all ML is? I'm gonna be rich
+	return param1 + (hyperparam2 * *hyperparam3) // lol is this all ML is? I'm gonna be rich
 }
 
 // Interface has docs too
