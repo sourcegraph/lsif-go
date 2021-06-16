@@ -38,6 +38,9 @@ testdata is a small package containing sample Go source code used for testing th
 - [Types](#github.com-sourcegraph-lsif-go-internal-testdata---type)
   - [type Embedded struct](#github.com-sourcegraph-lsif-go-internal-testdata---Embedded)
   - [type Struct struct](#github.com-sourcegraph-lsif-go-internal-testdata---Struct)
+    - [func (s *Struct) StructMethod()](#github.com-sourcegraph-lsif-go-internal-testdata---Struct.StructMethod)
+    - [func (s *Struct) ImplementsInterface() string](#github.com-sourcegraph-lsif-go-internal-testdata---Struct.ImplementsInterface)
+    - [func (s *Struct) MachineLearning(param1 float32,...](#github.com-sourcegraph-lsif-go-internal-testdata---Struct.MachineLearning)
   - [type Interface interface](#github.com-sourcegraph-lsif-go-internal-testdata---Interface)
     - [func NewInterface() Interface](#github.com-sourcegraph-lsif-go-internal-testdata---NewInterface)
   - [type X struct](#github.com-sourcegraph-lsif-go-internal-testdata---X)
@@ -1311,6 +1314,203 @@ type Struct struct {
 		FieldC int
 	}
 }
+```
+
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.StructMethod">func (s *Struct) StructMethod() <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> func (*Struct).StructMethod()
+> ```
+> 
+> ---
+> 
+> StructMethod has some docs!
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 69,
+     "character": 17
+    },
+    "end": {
+     "line": 69,
+     "character": 29
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 69,
+     "character": 17
+    },
+    "end": {
+     "line": 69,
+     "character": 29
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+```Go
+func (s *Struct) StructMethod()
+```
+
+StructMethod has some docs! 
+
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.ImplementsInterface">func (s *Struct) ImplementsInterface() string <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> func (*Struct).ImplementsInterface() string
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 71,
+     "character": 17
+    },
+    "end": {
+     "line": 71,
+     "character": 36
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 71,
+     "character": 17
+    },
+    "end": {
+     "line": 71,
+     "character": 36
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+```Go
+func (s *Struct) ImplementsInterface() string
+```
+
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.MachineLearning">func (s *Struct) MachineLearning(param1 float32,... <small>(exported)</small></a>
+
+<details><summary>hover</summary>
+
+> ```go
+> func (*Struct).MachineLearning(param1 float32, hyperparam2 float32, hyperparam3 float32) float32
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 73,
+     "character": 17
+    },
+    "end": {
+     "line": 73,
+     "character": 32
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 73,
+     "character": 17
+    },
+    "end": {
+     "line": 73,
+     "character": 32
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+```Go
+func (s *Struct) MachineLearning(
+	param1 float32,
+
+	hyperparam2 float32,
+	hyperparam3 float32,
+) float32
 ```
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Interface">type Interface interface <small>(exported)</small></a>
