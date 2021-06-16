@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
+	protocol "github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"golang.org/x/tools/go/packages"
 )
 

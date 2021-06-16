@@ -7,8 +7,8 @@ import (
 
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/indexer"
-	protocol "github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
+	protocol "github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
 func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string) error {

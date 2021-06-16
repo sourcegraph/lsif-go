@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	doc "github.com/slimsag/godocmd"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -75,11 +75,11 @@ func (i *Indexer) indexDocumentation() error {
 	// project itself.
 	rootDocumentationID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    "index",
-			NewPage: true,
-			Tags:    []protocol.DocumentationTag{protocol.DocumentationExported},
+			Identifier: "",
+			NewPage:    true,
+			Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
 		},
-		Label:  protocol.NewMarkupContent("Index", protocol.PlainText),
+		Label:  protocol.NewMarkupContent("", protocol.PlainText),
 		Detail: protocol.NewMarkupContent("", protocol.PlainText),
 	}).emit(i.emitter)
 	_ = i.emitter.EmitDocumentationResultEdge(rootDocumentationID, i.projectID)
@@ -171,20 +171,20 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	}
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(shortestUniquePkgPath),
-			NewPage: true,
-			Tags:    pkgTags,
+			Identifier: shortestUniquePkgPath,
+			NewPage:    true,
+			Tags:       pkgTags,
 		},
 		Label:  protocol.NewMarkupContent("Package "+p.Name, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(pkgDocsMarkdown, protocol.Markdown),
 	}).emit(d.i.emitter)
 
-	newSection := func(label, slug string, children []uint64) uint64 {
+	newSection := func(label, identifier string, children []uint64) uint64 {
 		sectionID := (&documentationResult{
 			Documentation: protocol.Documentation{
-				Slug:    slugify(slug),
-				NewPage: false,
-				Tags:    pkgTags,
+				Identifier: identifier,
+				NewPage:    false,
+				Tags:       pkgTags,
 			},
 			Label:  protocol.NewMarkupContent(label, protocol.PlainText),
 			Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -432,9 +432,9 @@ func (t constVarDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(t.name),
-			NewPage: false,
-			Tags:    tags,
+			Identifier: t.name,
+			NewPage:    false,
+			Tags:       tags,
 		},
 		Label:  protocol.NewMarkupContent(t.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -513,9 +513,9 @@ func (t typeDocs) result() *documentationResult {
 
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(t.name),
-			NewPage: false,
-			Tags:    tags,
+			Identifier: t.name,
+			NewPage:    false,
+			Tags:       tags,
 		},
 		Label:  protocol.NewMarkupContent(t.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -564,6 +564,9 @@ type funcDocs struct {
 	// The type of the receiver, or nil.
 	recvType ast.Expr
 
+	// The name of the receiver type, or an empty string.
+	recvTypeName string
+
 	// The type of return values, or nil.
 	resultTypes []ast.Expr
 
@@ -589,11 +592,15 @@ func (f funcDocs) result() *documentationResult {
 	detail.WriteString("```\n\n")
 	detail.WriteString(f.docsMarkdown)
 
+	identifier := f.name
+	if f.recvTypeName != "" {
+		identifier = f.recvTypeName + "." + f.name
+	}
 	return &documentationResult{
 		Documentation: protocol.Documentation{
-			Slug:    slugify(f.name),
-			NewPage: false,
-			Tags:    tags,
+			Identifier: identifier,
+			NewPage:    false,
+			Tags:       tags,
 		},
 		Label:  protocol.NewMarkupContent(f.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -630,6 +637,7 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 			// Mark functions as unexported if they are an exported method of a type that is
 			// unexported.
 			if named, ok := dereference(p.TypesInfo.TypeOf(result.recvType)).(*types.Named); ok {
+				result.recvTypeName = named.Obj().Name()
 				if !named.Obj().Exported() {
 					result.exported = false
 				}
@@ -750,12 +758,6 @@ func dereference(t types.Type) types.Type {
 		return dereference(p.Elem())
 	}
 	return t
-}
-
-func slugify(s string) string {
-	s = strings.Replace(s, " ", "-", -1)
-	s = strings.Replace(s, "/", "-", -1)
-	return s
 }
 
 func godocToMarkdown(godoc string) string {

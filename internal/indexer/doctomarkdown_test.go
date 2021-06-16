@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/reader"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/reader"
 )
 
 // doctomarkdown converts the LSIF data in r to Markdown by scanning for data in the Sourcegraph LSIF
@@ -368,7 +368,7 @@ func (c *converter) findDocumentationChildrenFor(result int) (children []*reader
 	return
 }
 
-func (c *converter) recurse(this *reader.Element, depth int, slug string) error {
+func (c *converter) recurse(this *reader.Element, depth int, pathID string) error {
 	labelVertex, detailVertex, err := c.findDocumentationStringsFor(this.ID)
 	if err != nil {
 		return err
@@ -380,14 +380,16 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 	if !tagsMatch(c.matchingTags, doc.Tags) {
 		return nil
 	}
-	emptyRootDocumentation := depth == 0 && detail.Value == ""
-	if !emptyRootDocumentation {
-		slug = joinSlugs(slug, doc.Slug)
-	}
 	depthStr := strings.Repeat("#", depth+1)
+
 	var infos []string
+	var thisPathID string
 	if doc.NewPage {
+		thisPathID = joinIdentifiers(pathID, cleanPathElement(doc.Identifier))
+		pathID = thisPathID
 		infos = append(infos, "new page")
+	} else {
+		thisPathID = pathID + "---" + cleanPathElement(doc.Identifier)
 	}
 	for _, tag := range doc.Tags {
 		infos = append(infos, string(tag))
@@ -396,7 +398,7 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 	if annotations != "" {
 		annotations = fmt.Sprintf(" <small>(%s)</small>", annotations)
 	}
-	if _, err := fmt.Fprintf(c.out, "%s <a name=\"%s\">%s%s</a>\n\n", depthStr, slug, label.Value, annotations); err != nil {
+	if _, err := fmt.Fprintf(c.out, "%s <a name=\"%s\">%s%s</a>\n\n", depthStr, thisPathID, label.Value, annotations); err != nil {
 		return err
 	}
 	writeDetails := func(summary string, contents string) error {
@@ -441,14 +443,14 @@ func (c *converter) recurse(this *reader.Element, depth int, slug string) error 
 		return err
 	}
 	for _, child := range children {
-		if err := c.recurse(child, depth+1, slug); err != nil {
+		if err := c.recurse(child, depth+1, pathID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, end bool, slug string) error {
+func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, end bool, pathID string) error {
 	labelVertex, _, err := c.findDocumentationStringsFor(this.ID)
 	if err != nil {
 		return err
@@ -460,8 +462,12 @@ func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, e
 		return nil
 	}
 
-	if parentDepth != 0 || depth != 0 {
-		slug = joinSlugs(slug, doc.Slug)
+	var thisPathID string
+	if doc.NewPage {
+		thisPathID = joinIdentifiers(pathID, cleanPathElement(doc.Identifier))
+		pathID = thisPathID
+	} else {
+		thisPathID = pathID + "---" + cleanPathElement(doc.Identifier)
 	}
 	if depth == 0 {
 		if _, err := fmt.Fprintf(c.out, "%s Index\n\n", strings.Repeat("#", parentDepth+1)); err != nil {
@@ -469,7 +475,7 @@ func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, e
 		}
 	} else {
 		depthStr := strings.Repeat("  ", depth-1)
-		if _, err := fmt.Fprintf(c.out, "%s- [%s](#%s)\n", depthStr, label.Value, slug); err != nil {
+		if _, err := fmt.Fprintf(c.out, "%s- [%s](#%s)\n", depthStr, label.Value, thisPathID); err != nil {
 			return err
 		}
 	}
@@ -483,7 +489,7 @@ func (c *converter) recurseIndex(this *reader.Element, depth, parentDepth int, e
 	}
 	for _, child := range children {
 		childDoc := child.Payload.(protocol.Documentation)
-		if err := c.recurseIndex(child, depth+1, parentDepth, childDoc.NewPage, slug); err != nil {
+		if err := c.recurseIndex(child, depth+1, parentDepth, childDoc.NewPage, pathID); err != nil {
 			return err
 		}
 	}
@@ -505,7 +511,7 @@ func tagsMatch(want, have []protocol.DocumentationTag) bool {
 	return true
 }
 
-func joinSlugs(a, b string) string {
+func joinIdentifiers(a, b string) string {
 	s := []string{}
 	if a != "" {
 		s = append(s, a)
@@ -513,5 +519,11 @@ func joinSlugs(a, b string) string {
 	if b != "" {
 		s = append(s, b)
 	}
-	return strings.Join(s, "-")
+	return strings.Join(s, "/")
+}
+
+func cleanPathElement(s string) string {
+	s = strings.Replace(s, "/", "-", -1)
+	s = strings.Replace(s, "#", "-", -1)
+	return s
 }

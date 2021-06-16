@@ -50,11 +50,11 @@ func TestParseGoListOutput(t *testing.T) {
 			"Replace": {
 				"Path": "./enterprise/lib",
 				"Dir": "/Users/efritz/dev/sourcegraph/sourcegraph/enterprise/lib",
-				"GoMod": "/Users/efritz/dev/sourcegraph/sourcegraph/enterprise/lib/go.mod",
+				"GoMod": "/Users/efritz/dev/sourcegraph/sourcegraph/lib/go.mod",
 				"GoVersion": "1.16"
 			},
 			"Dir": "/Users/efritz/dev/sourcegraph/sourcegraph/enterprise/lib",
-			"GoMod": "/Users/efritz/dev/sourcegraph/sourcegraph/enterprise/lib/go.mod",
+			"GoMod": "/Users/efritz/dev/sourcegraph/sourcegraph/lib/go.mod",
 			"GoVersion": "1.16"
 		}
 	`

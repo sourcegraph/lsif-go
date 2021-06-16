@@ -13,8 +13,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 	"golang.org/x/tools/go/packages"
 )
 

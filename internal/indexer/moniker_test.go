@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
-	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/protocol/writer"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
 func TestEmitExportMoniker(t *testing.T) {
