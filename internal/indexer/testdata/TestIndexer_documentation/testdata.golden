@@ -21,6 +21,7 @@ testdata is a small package containing sample Go source code used for testing th
   - [const Const](#github.com-sourcegraph-lsif-go-internal-testdata---Const)
   - [const ConstBlock1](#github.com-sourcegraph-lsif-go-internal-testdata---ConstBlock1)
   - [const ConstBlock2](#github.com-sourcegraph-lsif-go-internal-testdata---ConstBlock2)
+  - [const constShouldNotHaveDocs](#github.com-sourcegraph-lsif-go-internal-testdata---constShouldNotHaveDocs)
   - [const Score](#github.com-sourcegraph-lsif-go-internal-testdata---Score)
   - [const secretScore](#github.com-sourcegraph-lsif-go-internal-testdata---secretScore)
   - [const SomeString](#github.com-sourcegraph-lsif-go-internal-testdata---SomeString)
@@ -34,6 +35,7 @@ testdata is a small package containing sample Go source code used for testing th
   - [var BigVar](#github.com-sourcegraph-lsif-go-internal-testdata---BigVar)
   - [var VarBlock1](#github.com-sourcegraph-lsif-go-internal-testdata---VarBlock1)
   - [var VarBlock2](#github.com-sourcegraph-lsif-go-internal-testdata---VarBlock2)
+  - [var varShouldNotHaveDocs](#github.com-sourcegraph-lsif-go-internal-testdata---varShouldNotHaveDocs)
   - [var wg](#github.com-sourcegraph-lsif-go-internal-testdata---wg)
 - [Types](#github.com-sourcegraph-lsif-go-internal-testdata---type)
   - [type Embedded struct](#github.com-sourcegraph-lsif-go-internal-testdata---Embedded)
@@ -41,6 +43,7 @@ testdata is a small package containing sample Go source code used for testing th
     - [func (s *Struct) StructMethod()](#github.com-sourcegraph-lsif-go-internal-testdata---Struct.StructMethod)
     - [func (s *Struct) ImplementsInterface() string](#github.com-sourcegraph-lsif-go-internal-testdata---Struct.ImplementsInterface)
     - [func (s *Struct) MachineLearning(param1 float32,...](#github.com-sourcegraph-lsif-go-internal-testdata---Struct.MachineLearning)
+  - [type typeShouldNotHaveDocs struct](#github.com-sourcegraph-lsif-go-internal-testdata---typeShouldNotHaveDocs)
   - [type Interface interface](#github.com-sourcegraph-lsif-go-internal-testdata---Interface)
     - [func NewInterface() Interface](#github.com-sourcegraph-lsif-go-internal-testdata---NewInterface)
   - [type X struct](#github.com-sourcegraph-lsif-go-internal-testdata---X)
@@ -273,6 +276,74 @@ const ConstBlock2 = 2
 Docs for the const block itself. 
 
 ConstBlock2 is a constant in a block. 
+
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---constShouldNotHaveDocs">const constShouldNotHaveDocs</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> const constShouldNotHaveDocs untyped int = 5
+> ```
+> 
+> ---
+> 
+> constShouldNotHaveDocs is in a function, should not have docs emitted.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 97,
+     "character": 7
+    },
+    "end": {
+     "line": 97,
+     "character": 29
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 97,
+     "character": 7
+    },
+    "end": {
+     "line": 97,
+     "character": 29
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+```Go
+const constShouldNotHaveDocs = 5
+```
+
+constShouldNotHaveDocs is in a function, should not have docs emitted. 
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Score">const Score <small>(exported)</small></a>
 
@@ -1085,6 +1156,74 @@ ZZZzz /,`.-'`'    -.  ;-;;,_
 ```
 It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
 
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---varShouldNotHaveDocs">var varShouldNotHaveDocs</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> var varShouldNotHaveDocs int32
+> ```
+> 
+> ---
+> 
+> varShouldNotHaveDocs is in a function, should not have docs emitted.
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 94,
+     "character": 5
+    },
+    "end": {
+     "line": 94,
+     "character": 25
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 94,
+     "character": 5
+    },
+    "end": {
+     "line": 94,
+     "character": 25
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+```Go
+var varShouldNotHaveDocs int32
+```
+
+varShouldNotHaveDocs is in a function, should not have docs emitted. 
+
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata---wg">var wg</a>
 
 <details><summary>hover</summary>
@@ -1513,6 +1652,84 @@ func (s *Struct) MachineLearning(
 ) float32
 ```
 
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---typeShouldNotHaveDocs">type typeShouldNotHaveDocs struct</a>
+
+<details><summary>hover</summary>
+
+> ```go
+> type typeShouldNotHaveDocs struct
+> ```
+> 
+> ---
+> 
+> typeShouldNotHaveDocs is in a function, should not have docs emitted. 
+> 
+> 
+> 
+> ---
+> 
+> ```go
+> struct {
+>     a string
+> }
+> ```
+
+</details>
+
+<details><summary>definitions</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 100,
+     "character": 6
+    },
+    "end": {
+     "line": 100,
+     "character": 27
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+<details><summary>references</summary>
+
+```json
+[
+ {
+  "Document": "/child_symbols.go",
+  "Ranges": [
+   {
+    "start": {
+     "line": 100,
+     "character": 6
+    },
+    "end": {
+     "line": 100,
+     "character": 27
+    }
+   }
+  ]
+ }
+]
+```
+
+</details>
+
+```Go
+type typeShouldNotHaveDocs struct{ a string }
+```
+
+typeShouldNotHaveDocs is in a function, should not have docs emitted. 
+
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Interface">type Interface interface <small>(exported)</small></a>
 
 <details><summary>hover</summary>
@@ -1546,11 +1763,11 @@ func (s *Struct) MachineLearning(
   "Ranges": [
    {
     "start": {
-     "line": 97,
+     "line": 109,
      "character": 5
     },
     "end": {
-     "line": 97,
+     "line": 109,
      "character": 14
     }
    }
@@ -1570,11 +1787,11 @@ func (s *Struct) MachineLearning(
   "Ranges": [
    {
     "start": {
-     "line": 97,
+     "line": 109,
      "character": 5
     },
     "end": {
-     "line": 97,
+     "line": 109,
      "character": 14
     }
    }
@@ -1612,11 +1829,11 @@ Interface has docs too
   "Ranges": [
    {
     "start": {
-     "line": 101,
+     "line": 113,
      "character": 5
     },
     "end": {
-     "line": 101,
+     "line": 113,
      "character": 17
     }
    }
@@ -1636,11 +1853,11 @@ Interface has docs too
   "Ranges": [
    {
     "start": {
-     "line": 101,
+     "line": 113,
      "character": 5
     },
     "end": {
-     "line": 101,
+     "line": 113,
      "character": 17
     }
    }
@@ -1688,11 +1905,11 @@ func NewInterface() Interface
   "Ranges": [
    {
     "start": {
-     "line": 121,
+     "line": 133,
      "character": 1
     },
     "end": {
-     "line": 121,
+     "line": 133,
      "character": 2
     }
    }
@@ -1712,11 +1929,11 @@ func NewInterface() Interface
   "Ranges": [
    {
     "start": {
-     "line": 121,
+     "line": 133,
      "character": 1
     },
     "end": {
-     "line": 121,
+     "line": 133,
      "character": 2
     }
    }
@@ -1770,11 +1987,11 @@ And confusing
   "Ranges": [
    {
     "start": {
-     "line": 125,
+     "line": 137,
      "character": 1
     },
     "end": {
-     "line": 125,
+     "line": 137,
      "character": 2
     }
    }
@@ -1794,11 +2011,11 @@ And confusing
   "Ranges": [
    {
     "start": {
-     "line": 125,
+     "line": 137,
      "character": 1
     },
     "end": {
-     "line": 125,
+     "line": 137,
      "character": 2
     }
    }

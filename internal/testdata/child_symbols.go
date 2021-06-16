@@ -91,6 +91,18 @@ func (s *Struct) MachineLearning(
 	hyperparam2 float32,
 	hyperparam3 float32,
 ) float32 {
+	// varShouldNotHaveDocs is in a function, should not have docs emitted.
+	var varShouldNotHaveDocs int32
+
+	// constShouldNotHaveDocs is in a function, should not have docs emitted.
+	const constShouldNotHaveDocs = 5
+
+	// typeShouldNotHaveDocs is in a function, should not have docs emitted.
+	type typeShouldNotHaveDocs struct{ a string }
+
+	// funcShouldNotHaveDocs is in a function, should not have docs emitted.
+	funcShouldNotHaveDocs := func(a string) string { return "hello" }
+
 	return param1 + (hyperparam2 * *hyperparam3) // lol is this all ML is? I'm gonna be rich
 }
 
