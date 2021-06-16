@@ -34,7 +34,6 @@ testdata is a small package containing sample Go source code used for testing th
   - [var BigVar](#github.com-sourcegraph-lsif-go-internal-testdata---BigVar)
   - [var VarBlock1](#github.com-sourcegraph-lsif-go-internal-testdata---VarBlock1)
   - [var VarBlock2](#github.com-sourcegraph-lsif-go-internal-testdata---VarBlock2)
-  - [var wg](#github.com-sourcegraph-lsif-go-internal-testdata---wg)
 - [Types](#github.com-sourcegraph-lsif-go-internal-testdata---type)
   - [type Embedded struct](#github.com-sourcegraph-lsif-go-internal-testdata---Embedded)
   - [type Struct struct](#github.com-sourcegraph-lsif-go-internal-testdata---Struct)
@@ -1085,68 +1084,6 @@ ZZZzz /,`.-'`'    -.  ;-;;,_
 ```
 It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---wg">var wg</a>
-
-<details><summary>hover</summary>
-
-> ```go
-> var wg WaitGroup
-> ```
-
-</details>
-
-<details><summary>definitions</summary>
-
-```json
-[
- {
-  "Document": "/parallel.go",
-  "Ranges": [
-   {
-    "start": {
-     "line": 14,
-     "character": 5
-    },
-    "end": {
-     "line": 14,
-     "character": 7
-    }
-   }
-  ]
- }
-]
-```
-
-</details>
-
-<details><summary>references</summary>
-
-```json
-[
- {
-  "Document": "/parallel.go",
-  "Ranges": [
-   {
-    "start": {
-     "line": 14,
-     "character": 5
-    },
-    "end": {
-     "line": 14,
-     "character": 7
-    }
-   }
-  ]
- }
-]
-```
-
-</details>
-
-```Go
-var wg sync.WaitGroup
-```
-
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata---type">Types</a>
 
 #### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Embedded">type Embedded struct <small>(exported)</small></a>
@@ -1546,11 +1483,11 @@ func (s *Struct) MachineLearning(
   "Ranges": [
    {
     "start": {
-     "line": 97,
+     "line": 109,
      "character": 5
     },
     "end": {
-     "line": 97,
+     "line": 109,
      "character": 14
     }
    }
@@ -1570,11 +1507,11 @@ func (s *Struct) MachineLearning(
   "Ranges": [
    {
     "start": {
-     "line": 97,
+     "line": 109,
      "character": 5
     },
     "end": {
-     "line": 97,
+     "line": 109,
      "character": 14
     }
    }
@@ -1612,11 +1549,11 @@ Interface has docs too
   "Ranges": [
    {
     "start": {
-     "line": 101,
+     "line": 113,
      "character": 5
     },
     "end": {
-     "line": 101,
+     "line": 113,
      "character": 17
     }
    }
@@ -1636,11 +1573,11 @@ Interface has docs too
   "Ranges": [
    {
     "start": {
-     "line": 101,
+     "line": 113,
      "character": 5
     },
     "end": {
-     "line": 101,
+     "line": 113,
      "character": 17
     }
    }
@@ -1688,11 +1625,11 @@ func NewInterface() Interface
   "Ranges": [
    {
     "start": {
-     "line": 121,
+     "line": 133,
      "character": 1
     },
     "end": {
-     "line": 121,
+     "line": 133,
      "character": 2
     }
    }
@@ -1712,11 +1649,11 @@ func NewInterface() Interface
   "Ranges": [
    {
     "start": {
-     "line": 121,
+     "line": 133,
      "character": 1
     },
     "end": {
-     "line": 121,
+     "line": 133,
      "character": 2
     }
    }
@@ -1770,11 +1707,11 @@ And confusing
   "Ranges": [
    {
     "start": {
-     "line": 125,
+     "line": 137,
      "character": 1
     },
     "end": {
-     "line": 125,
+     "line": 137,
      "character": 2
     }
    }
@@ -1794,11 +1731,11 @@ And confusing
   "Ranges": [
    {
     "start": {
-     "line": 125,
+     "line": 137,
      "character": 1
     },
     "end": {
-     "line": 125,
+     "line": 137,
      "character": 2
     }
    }
