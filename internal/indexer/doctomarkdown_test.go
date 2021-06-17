@@ -398,6 +398,9 @@ func (c *converter) recurse(this *reader.Element, depth int, pathID string) erro
 	if annotations != "" {
 		annotations = fmt.Sprintf(" <small>(%s)</small>", annotations)
 	}
+	if doc.SearchKey != "" {
+		annotations = annotations + fmt.Sprintf(" <small>searchKey=\"%s\"</small>", doc.SearchKey)
+	}
 	if _, err := fmt.Fprintf(c.out, "%s <a name=\"%s\">%s%s</a>\n\n", depthStr, thisPathID, label.Value, annotations); err != nil {
 		return err
 	}

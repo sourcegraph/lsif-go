@@ -9,7 +9,7 @@
 - [Package pkg](#internal-shouldvisit-tests_separate)
 - [Package pkg_test](#internal-shouldvisit-tests_separate_test)
 
-## <a name="github.com-sourcegraph-lsif-go-internal-testdata">Package testdata <small>(new page)</small></a>
+## <a name="github.com-sourcegraph-lsif-go-internal-testdata">Package testdata <small>(new page)</small> <small>searchKey="github.com/sourcegraph/lsif-go/internal/testdata"</small></a>
 
 Package testdata 
 
@@ -65,7 +65,7 @@ testdata is a small package containing sample Go source code used for testing th
 
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata---const">Constants</a>
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Const">const Const <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Const">const Const <small>(exported)</small> <small>searchKey="testdata.Const"</small></a>
 
 <details><summary>hover</summary>
 
@@ -133,7 +133,7 @@ const Const = 5
 
 Const is a constant equal to 5. It's the best constant I've ever written. 😹 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ConstBlock1">const ConstBlock1 <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ConstBlock1">const ConstBlock1 <small>(exported)</small> <small>searchKey="testdata.ConstBlock1"</small></a>
 
 <details><summary>hover</summary>
 
@@ -203,7 +203,7 @@ Docs for the const block itself.
 
 ConstBlock1 is a constant in a block. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ConstBlock2">const ConstBlock2 <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ConstBlock2">const ConstBlock2 <small>(exported)</small> <small>searchKey="testdata.ConstBlock2"</small></a>
 
 <details><summary>hover</summary>
 
@@ -273,7 +273,7 @@ Docs for the const block itself.
 
 ConstBlock2 is a constant in a block. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Score">const Score <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Score">const Score <small>(exported)</small> <small>searchKey="testdata.Score"</small></a>
 
 <details><summary>hover</summary>
 
@@ -341,7 +341,7 @@ const Score = uint64(42)
 
 Score is just a hardcoded number. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---secretScore">const secretScore</a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---secretScore">const secretScore <small>searchKey="testdata.secretScore"</small></a>
 
 <details><summary>hover</summary>
 
@@ -403,7 +403,7 @@ Score is just a hardcoded number.
 const secretScore = secret.SecretScore
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---SomeString">const SomeString <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---SomeString">const SomeString <small>(exported)</small> <small>searchKey="testdata.SomeString"</small></a>
 
 <details><summary>hover</summary>
 
@@ -465,7 +465,7 @@ const secretScore = secret.SecretScore
 const SomeString = "foobar"
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---LongString">const LongString <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---LongString">const LongString <small>(exported)</small> <small>searchKey="testdata.LongString"</small></a>
 
 <details><summary>hover</summary>
 
@@ -527,7 +527,7 @@ const SomeString = "foobar"
 const LongString = ...
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ConstMath">const ConstMath <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ConstMath">const ConstMath <small>(exported)</small> <small>searchKey="testdata.ConstMath"</small></a>
 
 <details><summary>hover</summary>
 
@@ -589,7 +589,7 @@ const LongString = ...
 const ConstMath = 1 + (2+3)*5
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---AliasedString">const AliasedString <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---AliasedString">const AliasedString <small>(exported)</small> <small>searchKey="testdata.AliasedString"</small></a>
 
 <details><summary>hover</summary>
 
@@ -653,7 +653,7 @@ const AliasedString StringAlias = "foobar"
 
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata---var">Variables</a>
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Var">var Var <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Var">var Var <small>(exported)</small> <small>searchKey="testdata.Var"</small></a>
 
 <details><summary>hover</summary>
 
@@ -721,7 +721,7 @@ var Var Interface = &Struct{Field: "bar!"}
 
 Var is a variable interface. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---unexportedVar">var unexportedVar</a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---unexportedVar">var unexportedVar <small>searchKey="testdata.unexportedVar"</small></a>
 
 <details><summary>hover</summary>
 
@@ -789,7 +789,7 @@ var unexportedVar Interface = &Struct{Field: "bar!"}
 
 unexportedVar is an unexported variable interface. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---x">var x</a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---x">var x <small>searchKey="testdata.x"</small></a>
 
 <details><summary>hover</summary>
 
@@ -857,7 +857,7 @@ var x error
 
 x has a builtin error type 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---BigVar">var BigVar <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---BigVar">var BigVar <small>(exported)</small> <small>searchKey="testdata.BigVar"</small></a>
 
 <details><summary>hover</summary>
 
@@ -919,7 +919,7 @@ x has a builtin error type
 var BigVar Interface = ...
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---VarBlock1">var VarBlock1 <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---VarBlock1">var VarBlock1 <small>(exported)</small> <small>searchKey="testdata.VarBlock1"</small></a>
 
 <details><summary>hover</summary>
 
@@ -998,7 +998,7 @@ It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed i
 
 This has some docs 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---VarBlock2">var VarBlock2 <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---VarBlock2">var VarBlock2 <small>(exported)</small> <small>searchKey="testdata.VarBlock2"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1086,7 +1086,7 @@ It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed i
 
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata---type">Types</a>
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Embedded">type Embedded struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Embedded">type Embedded struct <small>(exported)</small> <small>searchKey="testdata.Embedded"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1169,7 +1169,7 @@ type Embedded struct {
 
 Embedded is a struct, to be embedded in another struct. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct">type Struct struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct">type Struct struct <small>(exported)</small> <small>searchKey="testdata.Struct"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1253,7 +1253,7 @@ type Struct struct {
 }
 ```
 
-##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.StructMethod">func (s *Struct) StructMethod() <small>(exported)</small></a>
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.StructMethod">func (s *Struct) StructMethod() <small>(exported)</small> <small>searchKey="testdata.Struct.StructMethod"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1321,7 +1321,7 @@ func (s *Struct) StructMethod()
 
 StructMethod has some docs! 
 
-##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.ImplementsInterface">func (s *Struct) ImplementsInterface() string <small>(exported)</small></a>
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.ImplementsInterface">func (s *Struct) ImplementsInterface() string <small>(exported)</small> <small>searchKey="testdata.Struct.ImplementsInterface"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1383,7 +1383,7 @@ StructMethod has some docs!
 func (s *Struct) ImplementsInterface() string
 ```
 
-##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.MachineLearning">func (s *Struct) MachineLearning(param1 float32,... <small>(exported)</small></a>
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Struct.MachineLearning">func (s *Struct) MachineLearning(param1 float32,... <small>(exported)</small> <small>searchKey="testdata.Struct.MachineLearning"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1450,7 +1450,7 @@ func (s *Struct) MachineLearning(
 ) float32
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Interface">type Interface interface <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Interface">type Interface interface <small>(exported)</small> <small>searchKey="testdata.Interface"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1530,7 +1530,7 @@ type Interface interface {
 
 Interface has docs too 
 
-##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---NewInterface">func NewInterface() Interface <small>(exported)</small></a>
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---NewInterface">func NewInterface() Interface <small>(exported)</small> <small>searchKey="testdata.NewInterface"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1592,7 +1592,7 @@ Interface has docs too
 func NewInterface() Interface
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---X">type X struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---X">type X struct <small>(exported)</small> <small>searchKey="testdata.X"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1674,7 +1674,7 @@ Go can be fun
 
 And confusing 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Y">type Y struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Y">type Y struct <small>(exported)</small> <small>searchKey="testdata.Y"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1754,7 +1754,7 @@ type Y struct {
 
 Go can be fun 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Inner">type Inner struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Inner">type Inner struct <small>(exported)</small> <small>searchKey="testdata.Inner"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1830,7 +1830,7 @@ type Inner struct {
 }
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Outer">type Outer struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Outer">type Outer struct <small>(exported)</small> <small>searchKey="testdata.Outer"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1904,7 +1904,7 @@ type Outer struct {
 }
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestInterface">type TestInterface interface <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestInterface">type TestInterface interface <small>(exported)</small> <small>searchKey="testdata.TestInterface"</small></a>
 
 <details><summary>hover</summary>
 
@@ -1985,7 +1985,7 @@ type TestInterface interface {
 
 TestInterface is an interface used for testing. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestStruct">type TestStruct struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestStruct">type TestStruct struct <small>(exported)</small> <small>searchKey="testdata.TestStruct"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2089,7 +2089,7 @@ type TestStruct struct {
 
 TestStruct is a struct used for testing. 
 
-##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestStruct.Doer">func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) <small>(exported)</small></a>
+##### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestStruct.Doer">func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error) <small>(exported)</small> <small>searchKey="testdata.TestStruct.Doer"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2157,7 +2157,7 @@ func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err err
 
 Doer is similar to the test interface (but not the same). 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestEmptyStruct">type TestEmptyStruct struct{} <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestEmptyStruct">type TestEmptyStruct struct{} <small>(exported)</small> <small>searchKey="testdata.TestEmptyStruct"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2225,7 +2225,7 @@ Doer is similar to the test interface (but not the same).
 type TestEmptyStruct struct{}
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---StringAlias">type StringAlias string <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---StringAlias">type StringAlias string <small>(exported)</small> <small>searchKey="testdata.StringAlias"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2287,7 +2287,7 @@ type TestEmptyStruct struct{}
 type StringAlias string
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---StructTagRegression">type StructTagRegression struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---StructTagRegression">type StructTagRegression struct <small>(exported)</small> <small>searchKey="testdata.StructTagRegression"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2371,7 +2371,7 @@ StructTagRegression is a struct that caused panic in the wild. Added here to sup
 
 See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestEqualsStruct">type TestEqualsStruct struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---TestEqualsStruct">type TestEqualsStruct struct <small>(exported)</small> <small>searchKey="testdata.TestEqualsStruct"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2443,7 +2443,7 @@ type TestEqualsStruct = struct {
 }
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ShellStruct">type ShellStruct struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ShellStruct">type ShellStruct struct <small>(exported)</small> <small>searchKey="testdata.ShellStruct"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2518,7 +2518,7 @@ type ShellStruct struct {
 }
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---InnerStruct">type InnerStruct struct{} <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---InnerStruct">type InnerStruct struct{} <small>(exported)</small> <small>searchKey="testdata.InnerStruct"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2586,7 +2586,7 @@ type ShellStruct struct {
 type InnerStruct struct{}
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error <small>(exported)</small> <small>searchKey="testdata.ParallelizableFunc"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2656,7 +2656,7 @@ type ParallelizableFunc func(ctx context.Context) error
 
 ParallelizableFunc is a function that can be called concurrently with other instances of this function type. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---SecretBurger">type SecretBurger secret.Burger <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---SecretBurger">type SecretBurger secret.Burger <small>(exported)</small> <small>searchKey="testdata.SecretBurger"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2734,7 +2734,7 @@ type SecretBurger = secret.Burger
 
 Type aliased doc 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---BadBurger">type BadBurger struct <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---BadBurger">type BadBurger struct <small>(exported)</small> <small>searchKey="testdata.BadBurger"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2808,7 +2808,7 @@ type BadBurger = struct {
 
 ### <a name="github.com-sourcegraph-lsif-go-internal-testdata---func">Functions</a>
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---useOfCompositeStructs">func useOfCompositeStructs()</a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---useOfCompositeStructs">func useOfCompositeStructs() <small>searchKey="testdata.useOfCompositeStructs"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2870,7 +2870,7 @@ type BadBurger = struct {
 func useOfCompositeStructs()
 ```
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error <small>(exported)</small> <small>searchKey="testdata.Parallel"</small></a>
 
 <details><summary>hover</summary>
 
@@ -2938,7 +2938,7 @@ func Parallel(ctx context.Context, fns ...ParallelizableFunc) error
 
 Parallel invokes each of the given parallelizable functions in their own goroutines and returns the first error to occur. This method will block until all goroutines have returned. 
 
-#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Switch">func Switch(interfaceValue interface{}) bool <small>(exported)</small></a>
+#### <a name="github.com-sourcegraph-lsif-go-internal-testdata---Switch">func Switch(interfaceValue interface{}) bool <small>(exported)</small> <small>searchKey="testdata.Switch"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3000,7 +3000,7 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 func Switch(interfaceValue interface{}) bool
 ```
 
-## <a name="internal-secret">Package secret <small>(new page)</small></a>
+## <a name="internal-secret">Package secret <small>(new page)</small> <small>searchKey="internal/secret"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3103,7 +3103,7 @@ secret is a package that holds secrets.
 
 ### <a name="internal-secret---const">Constants</a>
 
-#### <a name="internal-secret---SecretScore">const SecretScore <small>(exported)</small></a>
+#### <a name="internal-secret---SecretScore">const SecretScore <small>(exported)</small> <small>searchKey="secret.SecretScore"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3173,7 +3173,7 @@ SecretScore is like score but _secret_.
 
 ### <a name="internal-secret---type">Types</a>
 
-#### <a name="internal-secret---Burger">type Burger struct <small>(exported)</small></a>
+#### <a name="internal-secret---Burger">type Burger struct <small>(exported)</small> <small>searchKey="secret.Burger"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3253,7 +3253,7 @@ type Burger struct {
 
 Original doc 
 
-## <a name="internal-shouldvisit-notests">Package notests <small>(new page)</small></a>
+## <a name="internal-shouldvisit-notests">Package notests <small>(new page)</small> <small>searchKey="internal/shouldvisit/notests"</small></a>
 
 This package has no tests. 
 
@@ -3264,7 +3264,7 @@ This package has no tests.
 
 ### <a name="internal-shouldvisit-notests---func">Functions</a>
 
-#### <a name="internal-shouldvisit-notests---foo">func foo() bool</a>
+#### <a name="internal-shouldvisit-notests---foo">func foo() bool <small>searchKey="notests.foo"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3326,7 +3326,7 @@ This package has no tests.
 func foo() bool
 ```
 
-## <a name="internal-shouldvisit-tests">Package tests <small>(new page)</small></a>
+## <a name="internal-shouldvisit-tests">Package tests <small>(new page)</small> <small>searchKey="internal/shouldvisit/tests"</small></a>
 
 This package has tests. 
 
@@ -3338,7 +3338,7 @@ This package has tests.
 
 ### <a name="internal-shouldvisit-tests---func">Functions</a>
 
-#### <a name="internal-shouldvisit-tests---foo">func foo() bool</a>
+#### <a name="internal-shouldvisit-tests---foo">func foo() bool <small>searchKey="tests.foo"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3400,7 +3400,7 @@ This package has tests.
 func foo() bool
 ```
 
-#### <a name="internal-shouldvisit-tests---TestFoo">func TestFoo(t *testing.T)</a>
+#### <a name="internal-shouldvisit-tests---TestFoo">func TestFoo(t *testing.T) <small>searchKey="tests.TestFoo"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3462,7 +3462,7 @@ func foo() bool
 func TestFoo(t *testing.T)
 ```
 
-## <a name="internal-shouldvisit-tests_separate">Package pkg <small>(new page)</small></a>
+## <a name="internal-shouldvisit-tests_separate">Package pkg <small>(new page)</small> <small>searchKey="internal/shouldvisit/tests_separate"</small></a>
 
 This package has tests, but in a separate _test package. 
 
@@ -3473,7 +3473,7 @@ This package has tests, but in a separate _test package.
 
 ### <a name="internal-shouldvisit-tests_separate---func">Functions</a>
 
-#### <a name="internal-shouldvisit-tests_separate---foo">func foo() bool</a>
+#### <a name="internal-shouldvisit-tests_separate---foo">func foo() bool <small>searchKey="pkg.foo"</small></a>
 
 <details><summary>hover</summary>
 
@@ -3535,7 +3535,7 @@ This package has tests, but in a separate _test package.
 func foo() bool
 ```
 
-## <a name="internal-shouldvisit-tests_separate_test">Package pkg_test <small>(new page)</small></a>
+## <a name="internal-shouldvisit-tests_separate_test">Package pkg_test <small>(new page)</small> <small>searchKey="internal/shouldvisit/tests_separate_test"</small></a>
 
 ## Index
 
@@ -3544,7 +3544,7 @@ func foo() bool
 
 ### <a name="internal-shouldvisit-tests_separate_test---func">Functions</a>
 
-#### <a name="internal-shouldvisit-tests_separate_test---TestFoo">func TestFoo(t *testing.T)</a>
+#### <a name="internal-shouldvisit-tests_separate_test---TestFoo">func TestFoo(t *testing.T) <small>searchKey="pkg_test.TestFoo"</small></a>
 
 <details><summary>hover</summary>
 
