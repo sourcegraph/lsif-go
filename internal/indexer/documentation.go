@@ -265,7 +265,9 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 			}
 			children = append(children, funcDocs.ID)
 		}
-		sections = append(sections, newSection("Functions", "func", children))
+		if len(children) > 0 {
+			sections = append(sections, newSection("Functions", "func", children))
+		}
 	}
 
 	// Link the sections to the package.
