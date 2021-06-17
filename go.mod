@@ -10,7 +10,7 @@ require (
 	github.com/hexops/autogold v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
-	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210615182129-22e00c9fc8cd
+	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210617172845-d205f1bd6042
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/tools v0.1.0
 	mvdan.cc/gofumpt v0.1.1 // indirect

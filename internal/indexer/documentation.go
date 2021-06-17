@@ -76,6 +76,7 @@ func (i *Indexer) indexDocumentation() error {
 	rootDocumentationID := (&documentationResult{
 		Documentation: protocol.Documentation{
 			Identifier: "",
+			SearchKey:  "",
 			NewPage:    true,
 			Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
 		},
@@ -172,6 +173,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
 			Identifier: shortestUniquePkgPath,
+			SearchKey:  shortestUniquePkgPath,
 			NewPage:    true,
 			Tags:       pkgTags,
 		},
@@ -183,6 +185,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 		sectionID := (&documentationResult{
 			Documentation: protocol.Documentation{
 				Identifier: identifier,
+				SearchKey:  "", // don't index sections of documentation for search
 				NewPage:    false,
 				Tags:       pkgTags,
 			},
@@ -396,6 +399,9 @@ type constVarDocs struct {
 	// The name of the const/var.
 	name string
 
+	// The search key for this const/var (see protocol.Documentation.SearchKey.)
+	searchKey string
+
 	// The full type signature, with docstrings on e.g. struct fields.
 	signature string
 
@@ -428,6 +434,7 @@ func (t constVarDocs) result() *documentationResult {
 	return &documentationResult{
 		Documentation: protocol.Documentation{
 			Identifier: t.name,
+			SearchKey:  t.searchKey,
 			NewPage:    false,
 			Tags:       tags,
 		},
@@ -441,6 +448,7 @@ func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, name
 	name := in.Names[nameIndex]
 	result.label = fmt.Sprintf("%s %s", typ, name.String())
 	result.name = name.String()
+	result.searchKey = p.Name + "." + name.String()
 	result.exported = ast.IsExported(name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
 	result.def = p.TypesInfo.Defs[name]
@@ -473,6 +481,9 @@ type typeDocs struct {
 
 	// The name of the type.
 	name string
+
+	// The search key for this const/var (see protocol.Documentation.SearchKey.)
+	searchKey string
 
 	// The full type signature, with docstrings on e.g. methods and struct fields.
 	signature string
@@ -509,6 +520,7 @@ func (t typeDocs) result() *documentationResult {
 	return &documentationResult{
 		Documentation: protocol.Documentation{
 			Identifier: t.name,
+			SearchKey:  t.searchKey,
 			NewPage:    false,
 			Tags:       tags,
 		},
@@ -521,6 +533,7 @@ func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTes
 	var result typeDocs
 	result.label = fmt.Sprintf("type %s %s", in.Name.String(), formatTypeLabel(p.TypesInfo.TypeOf(in.Type)))
 	result.name = in.Name.String()
+	result.searchKey = p.Name + "." + in.Name.String()
 	result.typ = p.TypesInfo.ObjectOf(in.Name).Type()
 	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
@@ -549,6 +562,9 @@ type funcDocs struct {
 
 	// The name of the function.
 	name string
+
+	// The search key for this const/var (see protocol.Documentation.SearchKey.)
+	searchKey string
 
 	// Documentation strings in Markdown.
 	docsMarkdown string
@@ -594,6 +610,7 @@ func (f funcDocs) result() *documentationResult {
 	return &documentationResult{
 		Documentation: protocol.Documentation{
 			Identifier: identifier,
+			SearchKey:  f.searchKey,
 			NewPage:    false,
 			Tags:       tags,
 		},
@@ -606,6 +623,7 @@ func (f funcDocs) result() *documentationResult {
 func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in *ast.FuncDecl, isTestFile bool) funcDocs {
 	var result funcDocs
 	result.name = in.Name.String()
+	result.searchKey = p.Name + "." + in.Name.String()
 	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
 	result.docsMarkdown = godocToMarkdown(in.Doc.Text())
@@ -633,6 +651,7 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 			// unexported.
 			if named, ok := dereference(p.TypesInfo.TypeOf(result.recvType)).(*types.Named); ok {
 				result.recvTypeName = named.Obj().Name()
+				result.searchKey = p.Name + "." + result.recvTypeName + "." + in.Name.String()
 				if !named.Obj().Exported() {
 					result.exported = false
 				}
