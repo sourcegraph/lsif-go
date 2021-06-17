@@ -454,7 +454,7 @@ func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, name
 	// TODO(slimsag): future: this is a HACK because some variables/constants are ultra long table
 	// initializers, including those is not helpful to the user so we fallback in this case to
 	// something much briefer.
-	if (strings.HasSuffix(result.signature, "}\n") || strings.HasSuffix(result.signature, "}")) && strings.Contains(result.signature, "{") {
+	if len(result.signature) > 100 {
 		cpy.Values = nil
 		result.signature = typ + " " + formatNode(p.Fset, &cpy) + " = ..."
 	}
