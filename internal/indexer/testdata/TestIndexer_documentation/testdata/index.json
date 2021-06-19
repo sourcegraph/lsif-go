@@ -1,0 +1,39 @@
+{
+  "pathID": "/",
+  "documentation": {
+    "identifier": "",
+    "newPage": true,
+    "searchKey": "",
+    "tags": [
+      "exported"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": ""
+  },
+  "detail": {
+    "kind": "plaintext",
+    "value": ""
+  },
+  "children": [
+    {
+      "pathID": "/github.com-sourcegraph-lsif-go-internal-testdata"
+    },
+    {
+      "pathID": "/internal-secret"
+    },
+    {
+      "pathID": "/internal-shouldvisit-notests"
+    },
+    {
+      "pathID": "/internal-shouldvisit-tests"
+    },
+    {
+      "pathID": "/internal-shouldvisit-tests_separate"
+    },
+    {
+      "pathID": "/internal-shouldvisit-tests_separate_test"
+    }
+  ]
+}
