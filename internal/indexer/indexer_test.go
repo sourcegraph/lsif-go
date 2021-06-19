@@ -3,12 +3,15 @@ package indexer
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/hexops/autogold"
+	"github.com/sourcegraph/lsif-static-doc/staticdoc"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
@@ -393,12 +396,20 @@ func TestIndexer_documentation(t *testing.T) {
 			}
 
 			// Convert documentation to Markdown format.
-			matchingTags := []protocol.DocumentationTag{}
-			converted, err := doctomarkdown(context.Background(), &buf, matchingTags)
+			files, err := staticdoc.Generate(context.Background(), &buf, tst.projectRoot, staticdoc.TestingOptions)
 			if err != nil {
-				t.Fatalf("failed to convert documentation to Markdown: %s", err.Error())
+				t.Fatal("failed to generate static doc:", err)
 			}
-			autogold.Equal(t, autogold.Raw(converted))
+			dir := filepath.Join("testdata", t.Name())
+			_ = os.RemoveAll(dir)
+			for filePath, fileContents := range files.ByPath {
+				filePath = filepath.Join(dir, filePath)
+				_ = os.MkdirAll(filepath.Dir(filePath), 0700)
+				err := ioutil.WriteFile(filePath, fileContents, 0700)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 		})
 	}
 }
