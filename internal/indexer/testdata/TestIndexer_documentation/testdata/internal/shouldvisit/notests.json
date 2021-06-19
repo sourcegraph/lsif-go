@@ -1,23 +1,23 @@
 {
-  "pathID": "/internal-shouldvisit-tests",
+  "pathID": "/internal/shouldvisit/notests",
   "documentation": {
-    "identifier": "internal/shouldvisit/tests",
+    "identifier": "notests",
     "newPage": true,
-    "searchKey": "internal/shouldvisit/tests",
+    "searchKey": "internal/shouldvisit/notests",
     "tags": []
   },
   "label": {
     "kind": "plaintext",
-    "value": "Package tests"
+    "value": "Package notests"
   },
   "detail": {
     "kind": "markdown",
-    "value": "This package has tests. \n\n"
+    "value": "This package has no tests. \n\n"
   },
   "children": [
     {
       "node": {
-        "pathID": "/internal-shouldvisit-tests#func",
+        "pathID": "/internal/shouldvisit/notests#func",
         "documentation": {
           "identifier": "func",
           "newPage": false,
@@ -35,11 +35,11 @@
         "children": [
           {
             "node": {
-              "pathID": "/internal-shouldvisit-tests#foo",
+              "pathID": "/internal/shouldvisit/notests#foo",
               "documentation": {
                 "identifier": "foo",
                 "newPage": false,
-                "searchKey": "tests.foo",
+                "searchKey": "notests.foo",
                 "tags": null
               },
               "label": {
@@ -49,26 +49,6 @@
               "detail": {
                 "kind": "markdown",
                 "value": "```Go\nfunc foo() bool\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/internal-shouldvisit-tests#TestFoo",
-              "documentation": {
-                "identifier": "TestFoo",
-                "newPage": false,
-                "searchKey": "tests.TestFoo",
-                "tags": null
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func TestFoo(t *testing.T)"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc TestFoo(t *testing.T)\n```\n\n"
               },
               "children": null
             }
