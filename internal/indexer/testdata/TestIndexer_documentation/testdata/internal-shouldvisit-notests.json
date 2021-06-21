@@ -1,0 +1,60 @@
+{
+  "pathID": "/internal-shouldvisit-notests",
+  "documentation": {
+    "identifier": "internal/shouldvisit/notests",
+    "newPage": true,
+    "searchKey": "internal/shouldvisit/notests",
+    "tags": []
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": "Package notests"
+  },
+  "detail": {
+    "kind": "markdown",
+    "value": "This package has no tests. \n\n"
+  },
+  "children": [
+    {
+      "node": {
+        "pathID": "/internal-shouldvisit-notests#func",
+        "documentation": {
+          "identifier": "func",
+          "newPage": false,
+          "searchKey": "",
+          "tags": []
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Functions"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/internal-shouldvisit-notests#foo",
+              "documentation": {
+                "identifier": "foo",
+                "newPage": false,
+                "searchKey": "notests.foo",
+                "tags": null
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func foo() bool"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc foo() bool\n```\n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
