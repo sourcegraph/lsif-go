@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -71,32 +72,144 @@ func (i *Indexer) indexDocumentation() error {
 		emittedPackagesByPath[docsPkg.Path] = docsPkg.ID
 	})
 
-	// Emit the root documentationResult which will link all packages in this project to the
-	// project itself.
-	rootDocumentationID := (&documentationResult{
-		Documentation: protocol.Documentation{
-			Identifier: "",
-			SearchKey:  "",
-			NewPage:    true,
-			Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
-		},
-		Label:  protocol.NewMarkupContent("", protocol.PlainText),
-		Detail: protocol.NewMarkupContent("", protocol.PlainText),
-	}).emit(i.emitter)
-	_ = i.emitter.EmitDocumentationResultEdge(rootDocumentationID, i.projectID)
+	// Find the root package path (e.g. "github.com/sourcegraph/sourcegraph").
+	rootPkgPath := ""
+	for _, pkg := range d.i.packages {
+		if rootPkgPath == "" || len(pkg.PkgPath) < len(rootPkgPath) {
+			rootPkgPath = pkg.PkgPath
+		}
+	}
 
-	// Sort package documentation and attach to the index page.
+	// Build an understanding of all pages in the workspace.
+	type page struct {
+		id       uint64   // the page itself
+		children []uint64 // the children pages of this one
+	}
+	pagesByPath := map[string]*page{}
+	for _, docsPkg := range docsPackages {
+		relPackagePath := strings.TrimPrefix(strings.TrimPrefix(docsPkg.Path, rootPkgPath), "/") // e.g. "internal/lib/protocol"
+		if _, exists := pagesByPath[relPackagePath]; exists {
+			panic("invariant: no duplicate paths")
+		}
+		pagesByPath[relPackagePath] = &page{id: docsPkg.ID}
+	}
+
+	// Emit the root documentationResult which will link all packages in this project to the
+	// project itself. If the root of the workspace is a Go package, this may already exist
+	// and would be that Go package's documentation.
+	if rootPage, ok := pagesByPath[""]; ok {
+		_ = i.emitter.EmitDocumentationResultEdge(rootPage.id, i.projectID)
+	} else {
+		// Emit a blank index page.
+		rootDocumentationID := (&documentationResult{
+			Documentation: protocol.Documentation{
+				Identifier: "",
+				SearchKey:  "",
+				NewPage:    true,
+				Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
+			},
+			Label:  protocol.NewMarkupContent("", protocol.PlainText),
+			Detail: protocol.NewMarkupContent("", protocol.PlainText),
+		}).emit(i.emitter)
+		_ = i.emitter.EmitDocumentationResultEdge(rootDocumentationID, i.projectID)
+		pagesByPath[""] = &page{id: rootDocumentationID}
+	}
+
+	// What we have now is pages for each package in the workspace, e.g.:
+	//
+	// 	/                      (root index page)
+	// 	/internal/lib/protocol (package page)
+	// 	/internal/lib/util     (package page)
+	// 	/router/mux            (package page)
+	//
+	// What we want ot add in is index pages (blank pages) for each parent path so we end up with:
+	//
+	// 	/                      (root index page)
+	// 	/internal              (index page)
+	// 	/internal/lib          (index page)
+	// 	/internal/lib/protocol (package page)
+	// 	/internal/lib/util     (package page)
+	// 	/router                (index page)
+	// 	/router/mux            (package page)
+	//
+	// Note: the actual paths do not have a leading slash.
 	sort.Slice(docsPackages, func(i, j int) bool {
 		return docsPackages[i].Path < docsPackages[j].Path
 	})
-	var children []uint64
 	for _, docsPkg := range docsPackages {
-		children = append(children, docsPkg.ID)
+		relPackagePath := strings.TrimPrefix(strings.TrimPrefix(docsPkg.Path, rootPkgPath), "/") // e.g. "internal/lib/protocol"
+		pkgPathElements := strings.Split(relPackagePath, "/")                                    // ["internal", "lib", "protocol"]
+
+		// Walk over each path: "internal", "internal/lib", "internal/lib/protocol" and emit an
+		// index page for each that does not have it.
+		currentPath := ""
+		for _, element := range pkgPathElements {
+			currentPath = path.Join(currentPath, element)
+			_, ok := pagesByPath[currentPath]
+			if ok {
+				continue
+			}
+			currentPathElements := strings.Split(currentPath, "/")
+			parentPath := path.Join(currentPathElements[:len(currentPathElements)-1]...)
+
+			// Emit an index page at this path since one does not exist.
+			pageID := (&documentationResult{
+				Documentation: protocol.Documentation{
+					Identifier: element,
+					SearchKey:  "", // don't index for search
+					NewPage:    true,
+					Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
+				},
+				Label:  protocol.NewMarkupContent("", protocol.PlainText),
+				Detail: protocol.NewMarkupContent("", protocol.PlainText),
+			}).emit(i.emitter)
+			parentPage, ok := pagesByPath[parentPath]
+			if !ok {
+				panic("invariant: parentPage should always exist(1)")
+			}
+			parentPage.children = append(parentPage.children, pageID)
+			pagesByPath[currentPath] = &page{id: pageID}
+		}
 	}
-	_ = i.emitter.EmitDocumentationChildrenEdge(children, rootDocumentationID)
+
+	// Finalize children of pages.
+	for _, docsPkg := range docsPackages {
+		relPackagePath := strings.TrimPrefix(strings.TrimPrefix(docsPkg.Path, rootPkgPath), "/") // e.g. "internal/lib/protocol"
+
+		// Attach the children sections of the page (consts/vars/etc) as children of the page itself.
+		page, ok := pagesByPath[relPackagePath]
+		if !ok {
+			panic("invariant: page should always exist")
+		}
+		page.children = append(page.children, docsPkg.children...)
+
+		// Attach package documentation pages as children of their parent (either another package
+		// documentation page, or a blank index page.)
+		if relPackagePath == "" {
+			// root is not a child of anything.
+			continue
+		}
+		pkgPathElements := strings.Split(relPackagePath, "/") // ["internal", "lib", "protocol"]
+		parentPath := path.Join(pkgPathElements[:len(pkgPathElements)-1]...)
+		parentPage, ok := pagesByPath[parentPath]
+		if !ok {
+			panic("invariant: parentPage should always exist(2)")
+		}
+		parentPage.children = append(parentPage.children, docsPkg.ID)
+	}
+
+	// Emit children edges of all pages.
+	for _, page := range pagesByPath {
+		_ = i.emitter.EmitDocumentationChildrenEdge(page.children, page.id)
+	}
+
 	i.emittedDocumentationResults = emitted
 	i.emittedDocumentationResultsByPackagePath = emittedPackagesByPath
 	return errs
+}
+
+type docsIndexer struct {
+	i *Indexer
 }
 
 // docsPackage is the result of indexing documentation for a single Go package.
@@ -109,10 +222,9 @@ type docsPackage struct {
 
 	// A mapping of types -> documentationResult vertex ID
 	emitted emittedDocumentationResults
-}
 
-type docsIndexer struct {
-	i *Indexer
+	// children of the page to be attached later.
+	children []uint64
 }
 
 // indexPackage indexes a single Go package.
@@ -161,7 +273,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 			rootPkgPath = pkg.PkgPath
 		}
 	}
-	shortestUniquePkgPath := strings.TrimPrefix(p.PkgPath, rootPkgPath+"/")
+	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(p.PkgPath, rootPkgPath), "/")
 
 	pkgTags := []protocol.DocumentationTag{}
 	if !strings.Contains(p.PkgPath, "/internal/") && !strings.HasSuffix(p.Name, "_test") {
@@ -170,9 +282,10 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	if isDeprecated(pkgDocsMarkdown) {
 		pkgTags = append(pkgTags, protocol.DocumentationDeprecated)
 	}
+	pkgPathElements := strings.Split(p.PkgPath, "/")
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
-			Identifier: shortestUniquePkgPath,
+			Identifier: pkgPathElements[len(pkgPathElements)-1],
 			SearchKey:  shortestUniquePkgPath,
 			NewPage:    true,
 			Tags:       pkgTags,
@@ -270,15 +383,11 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 		}
 	}
 
-	// Link the sections to the package.
-	if len(sections) > 0 {
-		_ = d.i.emitter.EmitDocumentationChildrenEdge(sections, packageDocsID)
-	}
-
 	return docsPackage{
-		ID:      packageDocsID,
-		Path:    p.PkgPath,
-		emitted: emitted,
+		ID:       packageDocsID,
+		Path:     p.PkgPath,
+		emitted:  emitted,
+		children: sections,
 	}, nil
 }
 
