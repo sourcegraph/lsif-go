@@ -1,0 +1,27 @@
+{
+  "pathID": "/internal",
+  "documentation": {
+    "identifier": "internal",
+    "newPage": true,
+    "searchKey": "",
+    "tags": [
+      "exported"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": ""
+  },
+  "detail": {
+    "kind": "plaintext",
+    "value": ""
+  },
+  "children": [
+    {
+      "pathID": "/internal/shouldvisit"
+    },
+    {
+      "pathID": "/internal/secret"
+    }
+  ]
+}

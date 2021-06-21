@@ -1,23 +1,23 @@
 {
-  "pathID": "/internal-shouldvisit-notests",
+  "pathID": "/internal/shouldvisit/tests_separate_test",
   "documentation": {
-    "identifier": "internal/shouldvisit/notests",
+    "identifier": "tests_separate_test",
     "newPage": true,
-    "searchKey": "internal/shouldvisit/notests",
+    "searchKey": "internal/shouldvisit/tests_separate_test",
     "tags": []
   },
   "label": {
     "kind": "plaintext",
-    "value": "Package notests"
+    "value": "Package pkg_test"
   },
   "detail": {
     "kind": "markdown",
-    "value": "This package has no tests. \n\n"
+    "value": ""
   },
   "children": [
     {
       "node": {
-        "pathID": "/internal-shouldvisit-notests#func",
+        "pathID": "/internal/shouldvisit/tests_separate_test#func",
         "documentation": {
           "identifier": "func",
           "newPage": false,
@@ -35,20 +35,20 @@
         "children": [
           {
             "node": {
-              "pathID": "/internal-shouldvisit-notests#foo",
+              "pathID": "/internal/shouldvisit/tests_separate_test#TestFoo",
               "documentation": {
-                "identifier": "foo",
+                "identifier": "TestFoo",
                 "newPage": false,
-                "searchKey": "notests.foo",
+                "searchKey": "pkg_test.TestFoo",
                 "tags": null
               },
               "label": {
                 "kind": "plaintext",
-                "value": "func foo() bool"
+                "value": "func TestFoo(t *testing.T)"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\nfunc foo() bool\n```\n\n"
+                "value": "```Go\nfunc TestFoo(t *testing.T)\n```\n\n"
               },
               "children": null
             }
