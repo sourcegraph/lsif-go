@@ -349,10 +349,14 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	for _, typeDocs := range types {
 		var children []uint64
 		for _, funcDocs := range funcs {
+			if _, emitted := emittedMethods[funcDocs.ID]; emitted {
+				continue
+			}
 			if funcDocs.recvType == nil {
 				for _, resultTypeExpr := range funcDocs.resultTypes {
 					resultType := p.TypesInfo.TypeOf(resultTypeExpr)
 					if dereference(resultType) == dereference(typeDocs.typ) {
+						fmt.Println("under type section", funcDocs.name)
 						emittedMethods[funcDocs.ID] = struct{}{}
 						children = append(children, funcDocs.ID)
 						break
@@ -361,6 +365,9 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 			}
 		}
 		for _, funcDocs := range funcs {
+			if _, emitted := emittedMethods[funcDocs.ID]; emitted {
+				continue
+			}
 			if funcDocs.recvType != nil {
 				recvType := p.TypesInfo.TypeOf(funcDocs.recvType)
 				if dereference(recvType) == dereference(typeDocs.typ) {
