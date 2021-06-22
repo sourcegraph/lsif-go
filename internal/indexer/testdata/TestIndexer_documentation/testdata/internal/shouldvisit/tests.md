@@ -11,10 +11,15 @@ This package has tests.
 
 ## <a id="func" href="#func">Functions</a>
 
+```
+tags: [private]
+```
+
 ### <a id="foo" href="#foo">func foo() bool</a>
 
 ```
 searchKey: tests.foo
+tags: [private]
 ```
 
 ```Go
@@ -25,6 +30,7 @@ func foo() bool
 
 ```
 searchKey: tests.TestFoo
+tags: [private]
 ```
 
 ```Go

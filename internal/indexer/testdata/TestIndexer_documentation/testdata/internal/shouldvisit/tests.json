@@ -4,7 +4,9 @@
     "identifier": "tests",
     "newPage": true,
     "searchKey": "internal/shouldvisit/tests",
-    "tags": []
+    "tags": [
+      "private"
+    ]
   },
   "label": {
     "kind": "plaintext",
@@ -22,7 +24,9 @@
           "identifier": "func",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -40,7 +44,9 @@
                 "identifier": "foo",
                 "newPage": false,
                 "searchKey": "tests.foo",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",
@@ -60,7 +66,9 @@
                 "identifier": "TestFoo",
                 "newPage": false,
                 "searchKey": "tests.TestFoo",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",

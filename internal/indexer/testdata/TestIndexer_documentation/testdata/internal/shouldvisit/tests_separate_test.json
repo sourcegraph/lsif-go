@@ -4,7 +4,9 @@
     "identifier": "tests_separate_test",
     "newPage": true,
     "searchKey": "internal/shouldvisit/tests_separate_test",
-    "tags": []
+    "tags": [
+      "private"
+    ]
   },
   "label": {
     "kind": "plaintext",
@@ -22,7 +24,9 @@
           "identifier": "func",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -40,7 +44,9 @@
                 "identifier": "TestFoo",
                 "newPage": false,
                 "searchKey": "pkg_test.TestFoo",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",

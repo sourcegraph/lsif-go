@@ -57,11 +57,14 @@ testdata is a small package containing sample Go source code used for testing th
 
 ## <a id="const" href="#const">Constants</a>
 
+```
+tags: [private]
+```
+
 ### <a id="Const" href="#Const">const Const</a>
 
 ```
 searchKey: testdata.Const
-tags: [exported]
 ```
 
 ```Go
@@ -74,7 +77,6 @@ Const is a constant equal to 5. It's the best constant I've ever written. 😹
 
 ```
 searchKey: testdata.ConstBlock1
-tags: [exported]
 ```
 
 ```Go
@@ -89,7 +91,6 @@ ConstBlock1 is a constant in a block.
 
 ```
 searchKey: testdata.ConstBlock2
-tags: [exported]
 ```
 
 ```Go
@@ -104,7 +105,6 @@ ConstBlock2 is a constant in a block.
 
 ```
 searchKey: testdata.Score
-tags: [exported]
 ```
 
 ```Go
@@ -117,6 +117,7 @@ Score is just a hardcoded number.
 
 ```
 searchKey: testdata.secretScore
+tags: [private]
 ```
 
 ```Go
@@ -127,7 +128,6 @@ const secretScore = secret.SecretScore
 
 ```
 searchKey: testdata.SomeString
-tags: [exported]
 ```
 
 ```Go
@@ -138,7 +138,6 @@ const SomeString = "foobar"
 
 ```
 searchKey: testdata.LongString
-tags: [exported]
 ```
 
 ```Go
@@ -149,7 +148,6 @@ const LongString = ...
 
 ```
 searchKey: testdata.ConstMath
-tags: [exported]
 ```
 
 ```Go
@@ -160,7 +158,6 @@ const ConstMath = 1 + (2+3)*5
 
 ```
 searchKey: testdata.AliasedString
-tags: [exported]
 ```
 
 ```Go
@@ -169,11 +166,14 @@ const AliasedString StringAlias = "foobar"
 
 ## <a id="var" href="#var">Variables</a>
 
+```
+tags: [private]
+```
+
 ### <a id="Var" href="#Var">var Var</a>
 
 ```
 searchKey: testdata.Var
-tags: [exported]
 ```
 
 ```Go
@@ -186,6 +186,7 @@ Var is a variable interface.
 
 ```
 searchKey: testdata.unexportedVar
+tags: [private]
 ```
 
 ```Go
@@ -198,6 +199,7 @@ unexportedVar is an unexported variable interface.
 
 ```
 searchKey: testdata.x
+tags: [private]
 ```
 
 ```Go
@@ -210,7 +212,6 @@ x has a builtin error type
 
 ```
 searchKey: testdata.BigVar
-tags: [exported]
 ```
 
 ```Go
@@ -221,7 +222,6 @@ var BigVar Interface = ...
 
 ```
 searchKey: testdata.VarBlock1
-tags: [exported]
 ```
 
 ```Go
@@ -245,7 +245,6 @@ This has some docs
 
 ```
 searchKey: testdata.VarBlock2
-tags: [exported]
 ```
 
 ```Go
@@ -265,11 +264,14 @@ It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed i
 
 ## <a id="type" href="#type">Types</a>
 
+```
+tags: [private]
+```
+
 ### <a id="Embedded" href="#Embedded">type Embedded struct</a>
 
 ```
 searchKey: testdata.Embedded
-tags: [exported]
 ```
 
 ```Go
@@ -286,7 +288,6 @@ Embedded is a struct, to be embedded in another struct.
 
 ```
 searchKey: testdata.Struct
-tags: [exported]
 ```
 
 ```Go
@@ -305,7 +306,6 @@ type Struct struct {
 
 ```
 searchKey: testdata.Struct.StructMethod
-tags: [exported]
 ```
 
 ```Go
@@ -318,7 +318,6 @@ StructMethod has some docs!
 
 ```
 searchKey: testdata.Struct.ImplementsInterface
-tags: [exported]
 ```
 
 ```Go
@@ -329,7 +328,6 @@ func (s *Struct) ImplementsInterface() string
 
 ```
 searchKey: testdata.Struct.MachineLearning
-tags: [exported]
 ```
 
 ```Go
@@ -345,7 +343,6 @@ func (s *Struct) MachineLearning(
 
 ```
 searchKey: testdata.Interface
-tags: [exported]
 ```
 
 ```Go
@@ -360,7 +357,6 @@ Interface has docs too
 
 ```
 searchKey: testdata.NewInterface
-tags: [exported]
 ```
 
 ```Go
@@ -371,7 +367,6 @@ func NewInterface() Interface
 
 ```
 searchKey: testdata.X
-tags: [exported]
 ```
 
 ```Go
@@ -388,7 +383,6 @@ And confusing
 
 ```
 searchKey: testdata.Y
-tags: [exported]
 ```
 
 ```Go
@@ -403,7 +397,6 @@ Go can be fun
 
 ```
 searchKey: testdata.Inner
-tags: [exported]
 ```
 
 ```Go
@@ -418,7 +411,6 @@ type Inner struct {
 
 ```
 searchKey: testdata.Outer
-tags: [exported]
 ```
 
 ```Go
@@ -432,7 +424,6 @@ type Outer struct {
 
 ```
 searchKey: testdata.TestInterface
-tags: [exported]
 ```
 
 ```Go
@@ -448,7 +439,6 @@ TestInterface is an interface used for testing.
 
 ```
 searchKey: testdata.TestStruct
-tags: [exported]
 ```
 
 ```Go
@@ -478,7 +468,6 @@ TestStruct is a struct used for testing.
 
 ```
 searchKey: testdata.TestStruct.Doer
-tags: [exported]
 ```
 
 ```Go
@@ -491,7 +480,6 @@ Doer is similar to the test interface (but not the same).
 
 ```
 searchKey: testdata.TestEmptyStruct
-tags: [exported]
 ```
 
 ```Go
@@ -502,7 +490,6 @@ type TestEmptyStruct struct{}
 
 ```
 searchKey: testdata.StringAlias
-tags: [exported]
 ```
 
 ```Go
@@ -513,7 +500,6 @@ type StringAlias string
 
 ```
 searchKey: testdata.StructTagRegression
-tags: [exported]
 ```
 
 ```Go
@@ -530,7 +516,6 @@ See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1a
 
 ```
 searchKey: testdata.TestEqualsStruct
-tags: [exported]
 ```
 
 ```Go
@@ -543,7 +528,6 @@ type TestEqualsStruct = struct {
 
 ```
 searchKey: testdata.ShellStruct
-tags: [exported]
 ```
 
 ```Go
@@ -559,7 +543,6 @@ type ShellStruct struct {
 
 ```
 searchKey: testdata.InnerStruct
-tags: [exported]
 ```
 
 ```Go
@@ -570,7 +553,6 @@ type InnerStruct struct{}
 
 ```
 searchKey: testdata.ParallelizableFunc
-tags: [exported]
 ```
 
 ```Go
@@ -583,7 +565,6 @@ ParallelizableFunc is a function that can be called concurrently with other inst
 
 ```
 searchKey: testdata.SecretBurger
-tags: [exported]
 ```
 
 ```Go
@@ -596,7 +577,6 @@ Type aliased doc
 
 ```
 searchKey: testdata.BadBurger
-tags: [exported]
 ```
 
 ```Go
@@ -607,10 +587,15 @@ type BadBurger = struct {
 
 ## <a id="func" href="#func">Functions</a>
 
+```
+tags: [private]
+```
+
 ### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>
 
 ```
 searchKey: testdata.useOfCompositeStructs
+tags: [private]
 ```
 
 ```Go
@@ -621,7 +606,6 @@ func useOfCompositeStructs()
 
 ```
 searchKey: testdata.Parallel
-tags: [exported]
 ```
 
 ```Go
@@ -634,7 +618,6 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 
 ```
 searchKey: testdata.Switch
-tags: [exported]
 ```
 
 ```Go

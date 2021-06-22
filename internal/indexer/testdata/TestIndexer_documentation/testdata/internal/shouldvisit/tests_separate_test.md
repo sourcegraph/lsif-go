@@ -8,10 +8,15 @@
 
 ## <a id="func" href="#func">Functions</a>
 
+```
+tags: [private]
+```
+
 ### <a id="TestFoo" href="#TestFoo">func TestFoo(t *testing.T)</a>
 
 ```
 searchKey: pkg_test.TestFoo
+tags: [private]
 ```
 
 ```Go
