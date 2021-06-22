@@ -101,7 +101,7 @@ func (i *Indexer) indexDocumentation() error {
 				Identifier: "",
 				SearchKey:  "",
 				NewPage:    true,
-				Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
+				Tags:       nil,
 			},
 			Label:  protocol.NewMarkupContent("", protocol.PlainText),
 			Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -153,7 +153,7 @@ func (i *Indexer) indexDocumentation() error {
 					Identifier: element,
 					SearchKey:  "", // don't index for search
 					NewPage:    true,
-					Tags:       []protocol.DocumentationTag{protocol.DocumentationExported},
+					Tags:       nil,
 				},
 				Label:  protocol.NewMarkupContent("", protocol.PlainText),
 				Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -291,8 +291,8 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(pkgPathStdStrip(p.PkgPath), rootPkgPath), "/")
 
 	pkgTags := []protocol.DocumentationTag{}
-	if !strings.Contains(p.PkgPath, "/internal/") && !strings.HasSuffix(p.Name, "_test") {
-		pkgTags = append(pkgTags, protocol.DocumentationExported)
+	if strings.Contains(p.PkgPath, "/internal/") || strings.HasSuffix(p.Name, "_test") {
+		pkgTags = append(pkgTags, protocol.DocumentationPrivate)
 	}
 	if isDeprecated(pkgDocsMarkdown) {
 		pkgTags = append(pkgTags, protocol.DocumentationDeprecated)
@@ -543,8 +543,8 @@ type constVarDocs struct {
 
 func (t constVarDocs) result() *documentationResult {
 	var tags []protocol.DocumentationTag
-	if t.exported {
-		tags = append(tags, protocol.DocumentationExported)
+	if !t.exported {
+		tags = append(tags, protocol.DocumentationPrivate)
 	}
 	if t.deprecated {
 		tags = append(tags, protocol.DocumentationDeprecated)
@@ -629,8 +629,8 @@ type typeDocs struct {
 
 func (t typeDocs) result() *documentationResult {
 	var tags []protocol.DocumentationTag
-	if t.exported {
-		tags = append(tags, protocol.DocumentationExported)
+	if !t.exported {
+		tags = append(tags, protocol.DocumentationPrivate)
 	}
 	if t.deprecated {
 		tags = append(tags, protocol.DocumentationDeprecated)
@@ -713,8 +713,8 @@ type funcDocs struct {
 
 func (f funcDocs) result() *documentationResult {
 	var tags []protocol.DocumentationTag
-	if f.exported {
-		tags = append(tags, protocol.DocumentationExported)
+	if !f.exported {
+		tags = append(tags, protocol.DocumentationPrivate)
 	}
 	if f.deprecated {
 		tags = append(tags, protocol.DocumentationDeprecated)
