@@ -73,12 +73,7 @@ func (i *Indexer) indexDocumentation() error {
 	})
 
 	// Find the root package path (e.g. "github.com/sourcegraph/sourcegraph").
-	rootPkgPath := ""
-	for _, pkg := range d.i.packages {
-		if rootPkgPath == "" || len(pkg.PkgPath) < len(rootPkgPath) {
-			rootPkgPath = pkg.PkgPath
-		}
-	}
+	rootPkgPath := d.rootPkgPath()
 
 	// Build an understanding of all pages in the workspace.
 	type page struct {
@@ -87,7 +82,7 @@ func (i *Indexer) indexDocumentation() error {
 	}
 	pagesByPath := map[string]*page{}
 	for _, docsPkg := range docsPackages {
-		relPackagePath := strings.TrimPrefix(strings.TrimPrefix(docsPkg.Path, rootPkgPath), "/") // e.g. "internal/lib/protocol"
+		relPackagePath := d.relPackagePath(docsPkg.Path, rootPkgPath)
 		if _, exists := pagesByPath[relPackagePath]; exists {
 			panic("invariant: no duplicate paths")
 		}
@@ -137,8 +132,8 @@ func (i *Indexer) indexDocumentation() error {
 		return docsPackages[i].Path < docsPackages[j].Path
 	})
 	for _, docsPkg := range docsPackages {
-		relPackagePath := strings.TrimPrefix(strings.TrimPrefix(docsPkg.Path, rootPkgPath), "/") // e.g. "internal/lib/protocol"
-		pkgPathElements := strings.Split(relPackagePath, "/")                                    // ["internal", "lib", "protocol"]
+		relPackagePath := d.relPackagePath(docsPkg.Path, rootPkgPath)
+		pkgPathElements := strings.Split(relPackagePath, "/") // ["internal", "lib", "protocol"]
 
 		// Walk over each path: "internal", "internal/lib", "internal/lib/protocol" and emit an
 		// index page for each that does not have it.
@@ -174,7 +169,7 @@ func (i *Indexer) indexDocumentation() error {
 
 	// Finalize children of pages.
 	for _, docsPkg := range docsPackages {
-		relPackagePath := strings.TrimPrefix(strings.TrimPrefix(docsPkg.Path, rootPkgPath), "/") // e.g. "internal/lib/protocol"
+		relPackagePath := d.relPackagePath(docsPkg.Path, rootPkgPath)
 
 		// Attach the children sections of the page (consts/vars/etc) as children of the page itself.
 		page, ok := pagesByPath[relPackagePath]
@@ -208,8 +203,33 @@ func (i *Indexer) indexDocumentation() error {
 	return errs
 }
 
+// The Go standard library at github.com/golang/go/src has a Go module name of "std"
+// but we do not want stdlib package paths to be prefixed with "std/".
+func pkgPathStdStrip(path string) string {
+	return strings.TrimPrefix(path, "std/")
+}
+
 type docsIndexer struct {
 	i *Indexer
+}
+
+func (d *docsIndexer) relPackagePath(pkgPath, rootPkgPath string) string {
+	v := strings.TrimPrefix(pkgPath, rootPkgPath) // e.g. "/internal/lib/protocol"
+	v = strings.TrimPrefix(v, "/")
+	return v
+}
+
+func (d *docsIndexer) rootPkgPath() string {
+	root := ""
+	for _, pkg := range d.i.packages {
+		if strings.HasPrefix(pkg.PkgPath, "std/") {
+			return "" // Go stdlib
+		}
+		if root == "" || len(pkg.PkgPath) < len(root) {
+			root = pkg.PkgPath
+		}
+	}
+	return pkgPathStdStrip(root)
 }
 
 // docsPackage is the result of indexing documentation for a single Go package.
@@ -267,13 +287,8 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 		}
 	}
 
-	rootPkgPath := ""
-	for _, pkg := range d.i.packages {
-		if rootPkgPath == "" || len(pkg.PkgPath) < len(rootPkgPath) {
-			rootPkgPath = pkg.PkgPath
-		}
-	}
-	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(p.PkgPath, rootPkgPath), "/")
+	rootPkgPath := d.rootPkgPath()
+	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(pkgPathStdStrip(p.PkgPath), rootPkgPath), "/")
 
 	pkgTags := []protocol.DocumentationTag{}
 	if !strings.Contains(p.PkgPath, "/internal/") && !strings.HasSuffix(p.Name, "_test") {
@@ -282,7 +297,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	if isDeprecated(pkgDocsMarkdown) {
 		pkgTags = append(pkgTags, protocol.DocumentationDeprecated)
 	}
-	pkgPathElements := strings.Split(p.PkgPath, "/")
+	pkgPathElements := strings.Split(pkgPathStdStrip(p.PkgPath), "/")
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
 			Identifier: pkgPathElements[len(pkgPathElements)-1],
@@ -385,7 +400,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 
 	return docsPackage{
 		ID:       packageDocsID,
-		Path:     p.PkgPath,
+		Path:     pkgPathStdStrip(p.PkgPath),
 		emitted:  emitted,
 		children: sections,
 	}, nil
