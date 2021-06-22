@@ -353,14 +353,18 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 				continue
 			}
 			if funcDocs.recvType == nil {
+				var matches int
 				for _, resultTypeExpr := range funcDocs.resultTypes {
 					resultType := p.TypesInfo.TypeOf(resultTypeExpr)
 					if dereference(resultType) == dereference(typeDocs.typ) {
-						fmt.Println("under type section", funcDocs.name)
-						emittedMethods[funcDocs.ID] = struct{}{}
-						children = append(children, funcDocs.ID)
-						break
+						matches++
 					}
+				}
+				if matches == 1 {
+					// The function is only a child of the type it produces if there was one match.
+					// If it returned multiple types, better off keeping it separate from both.
+					emittedMethods[funcDocs.ID] = struct{}{}
+					children = append(children, funcDocs.ID)
 				}
 			}
 		}
