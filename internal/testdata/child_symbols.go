@@ -128,6 +128,12 @@ func NewInterface() Interface { return nil }
 //
 var _ = Interface(&Struct{})
 
+type _ = struct{}
+
+// crypto/tls/common_string.go uses this pattern..
+func _() {
+}
+
 // Go can be fun
 type (
 	// And confusing
