@@ -4,7 +4,9 @@
     "identifier": "notests",
     "newPage": true,
     "searchKey": "internal/shouldvisit/notests",
-    "tags": []
+    "tags": [
+      "private"
+    ]
   },
   "label": {
     "kind": "plaintext",
@@ -22,7 +24,9 @@
           "identifier": "func",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -40,7 +44,9 @@
                 "identifier": "foo",
                 "newPage": false,
                 "searchKey": "notests.foo",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",

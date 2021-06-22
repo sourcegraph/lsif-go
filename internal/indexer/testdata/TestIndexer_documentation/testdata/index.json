@@ -4,7 +4,9 @@
     "identifier": "testdata",
     "newPage": true,
     "searchKey": "",
-    "tags": []
+    "tags": [
+      "private"
+    ]
   },
   "label": {
     "kind": "plaintext",
@@ -25,7 +27,9 @@
           "identifier": "const",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -43,9 +47,7 @@
                 "identifier": "Const",
                 "newPage": false,
                 "searchKey": "testdata.Const",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -65,9 +67,7 @@
                 "identifier": "ConstBlock1",
                 "newPage": false,
                 "searchKey": "testdata.ConstBlock1",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -87,9 +87,7 @@
                 "identifier": "ConstBlock2",
                 "newPage": false,
                 "searchKey": "testdata.ConstBlock2",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -109,9 +107,7 @@
                 "identifier": "Score",
                 "newPage": false,
                 "searchKey": "testdata.Score",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -131,7 +127,9 @@
                 "identifier": "secretScore",
                 "newPage": false,
                 "searchKey": "testdata.secretScore",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",
@@ -151,9 +149,7 @@
                 "identifier": "SomeString",
                 "newPage": false,
                 "searchKey": "testdata.SomeString",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -173,9 +169,7 @@
                 "identifier": "LongString",
                 "newPage": false,
                 "searchKey": "testdata.LongString",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -195,9 +189,7 @@
                 "identifier": "ConstMath",
                 "newPage": false,
                 "searchKey": "testdata.ConstMath",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -217,9 +209,7 @@
                 "identifier": "AliasedString",
                 "newPage": false,
                 "searchKey": "testdata.AliasedString",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -242,7 +232,9 @@
           "identifier": "var",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -260,9 +252,7 @@
                 "identifier": "Var",
                 "newPage": false,
                 "searchKey": "testdata.Var",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -282,7 +272,9 @@
                 "identifier": "unexportedVar",
                 "newPage": false,
                 "searchKey": "testdata.unexportedVar",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",
@@ -302,7 +294,9 @@
                 "identifier": "x",
                 "newPage": false,
                 "searchKey": "testdata.x",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",
@@ -322,9 +316,7 @@
                 "identifier": "BigVar",
                 "newPage": false,
                 "searchKey": "testdata.BigVar",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -344,9 +336,7 @@
                 "identifier": "VarBlock1",
                 "newPage": false,
                 "searchKey": "testdata.VarBlock1",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -366,9 +356,7 @@
                 "identifier": "VarBlock2",
                 "newPage": false,
                 "searchKey": "testdata.VarBlock2",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -391,7 +379,9 @@
           "identifier": "type",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -409,9 +399,7 @@
                 "identifier": "Embedded",
                 "newPage": false,
                 "searchKey": "testdata.Embedded",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -431,9 +419,7 @@
                 "identifier": "Struct",
                 "newPage": false,
                 "searchKey": "testdata.Struct",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -451,9 +437,7 @@
                       "identifier": "Struct.StructMethod",
                       "newPage": false,
                       "searchKey": "testdata.Struct.StructMethod",
-                      "tags": [
-                        "exported"
-                      ]
+                      "tags": null
                     },
                     "label": {
                       "kind": "plaintext",
@@ -473,9 +457,7 @@
                       "identifier": "Struct.ImplementsInterface",
                       "newPage": false,
                       "searchKey": "testdata.Struct.ImplementsInterface",
-                      "tags": [
-                        "exported"
-                      ]
+                      "tags": null
                     },
                     "label": {
                       "kind": "plaintext",
@@ -495,9 +477,7 @@
                       "identifier": "Struct.MachineLearning",
                       "newPage": false,
                       "searchKey": "testdata.Struct.MachineLearning",
-                      "tags": [
-                        "exported"
-                      ]
+                      "tags": null
                     },
                     "label": {
                       "kind": "plaintext",
@@ -520,9 +500,7 @@
                 "identifier": "Interface",
                 "newPage": false,
                 "searchKey": "testdata.Interface",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -540,9 +518,7 @@
                       "identifier": "NewInterface",
                       "newPage": false,
                       "searchKey": "testdata.NewInterface",
-                      "tags": [
-                        "exported"
-                      ]
+                      "tags": null
                     },
                     "label": {
                       "kind": "plaintext",
@@ -565,9 +541,7 @@
                 "identifier": "X",
                 "newPage": false,
                 "searchKey": "testdata.X",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -587,9 +561,7 @@
                 "identifier": "Y",
                 "newPage": false,
                 "searchKey": "testdata.Y",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -609,9 +581,7 @@
                 "identifier": "Inner",
                 "newPage": false,
                 "searchKey": "testdata.Inner",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -631,9 +601,7 @@
                 "identifier": "Outer",
                 "newPage": false,
                 "searchKey": "testdata.Outer",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -653,9 +621,7 @@
                 "identifier": "TestInterface",
                 "newPage": false,
                 "searchKey": "testdata.TestInterface",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -675,9 +641,7 @@
                 "identifier": "TestStruct",
                 "newPage": false,
                 "searchKey": "testdata.TestStruct",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -695,9 +659,7 @@
                       "identifier": "TestStruct.Doer",
                       "newPage": false,
                       "searchKey": "testdata.TestStruct.Doer",
-                      "tags": [
-                        "exported"
-                      ]
+                      "tags": null
                     },
                     "label": {
                       "kind": "plaintext",
@@ -720,9 +682,7 @@
                 "identifier": "TestEmptyStruct",
                 "newPage": false,
                 "searchKey": "testdata.TestEmptyStruct",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -742,9 +702,7 @@
                 "identifier": "StringAlias",
                 "newPage": false,
                 "searchKey": "testdata.StringAlias",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -764,9 +722,7 @@
                 "identifier": "StructTagRegression",
                 "newPage": false,
                 "searchKey": "testdata.StructTagRegression",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -786,9 +742,7 @@
                 "identifier": "TestEqualsStruct",
                 "newPage": false,
                 "searchKey": "testdata.TestEqualsStruct",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -808,9 +762,7 @@
                 "identifier": "ShellStruct",
                 "newPage": false,
                 "searchKey": "testdata.ShellStruct",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -830,9 +782,7 @@
                 "identifier": "InnerStruct",
                 "newPage": false,
                 "searchKey": "testdata.InnerStruct",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -852,9 +802,7 @@
                 "identifier": "ParallelizableFunc",
                 "newPage": false,
                 "searchKey": "testdata.ParallelizableFunc",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -874,9 +822,7 @@
                 "identifier": "SecretBurger",
                 "newPage": false,
                 "searchKey": "testdata.SecretBurger",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -896,9 +842,7 @@
                 "identifier": "BadBurger",
                 "newPage": false,
                 "searchKey": "testdata.BadBurger",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -921,7 +865,9 @@
           "identifier": "func",
           "newPage": false,
           "searchKey": "",
-          "tags": []
+          "tags": [
+            "private"
+          ]
         },
         "label": {
           "kind": "plaintext",
@@ -939,7 +885,9 @@
                 "identifier": "useOfCompositeStructs",
                 "newPage": false,
                 "searchKey": "testdata.useOfCompositeStructs",
-                "tags": null
+                "tags": [
+                  "private"
+                ]
               },
               "label": {
                 "kind": "plaintext",
@@ -959,9 +907,7 @@
                 "identifier": "Parallel",
                 "newPage": false,
                 "searchKey": "testdata.Parallel",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
@@ -981,9 +927,7 @@
                 "identifier": "Switch",
                 "newPage": false,
                 "searchKey": "testdata.Switch",
-                "tags": [
-                  "exported"
-                ]
+                "tags": null
               },
               "label": {
                 "kind": "plaintext",
