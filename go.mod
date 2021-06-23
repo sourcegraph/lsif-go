@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/lsif-static-doc v0.0.0-20210622190916-b0f2e78b9eb4
-	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210622231052-467e52d22f61
+	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210623200400-a0c9333770a7
 	golang.org/x/sys v0.0.0-20210616094352-59db8d763f22 // indirect
 	golang.org/x/tools v0.1.3
 	mvdan.cc/gofumpt v0.1.1 // indirect
