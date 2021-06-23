@@ -291,12 +291,12 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	rootPkgPath := d.rootPkgPath()
 	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(pkgPathStdStrip(p.PkgPath), rootPkgPath), "/")
 
-	pkgTags := []protocol.DocumentationTag{}
+	pkgTags := []protocol.Tag{}
 	if strings.Contains(p.PkgPath, "/internal/") || strings.HasSuffix(p.Name, "_test") {
-		pkgTags = append(pkgTags, protocol.DocumentationPrivate)
+		pkgTags = append(pkgTags, protocol.TagPrivate)
 	}
 	if isDeprecated(pkgDocsMarkdown) {
-		pkgTags = append(pkgTags, protocol.DocumentationDeprecated)
+		pkgTags = append(pkgTags, protocol.TagDeprecated)
 	}
 	pkgPathElements := strings.Split(pkgPathStdStrip(p.PkgPath), "/")
 	packageDocsID := (&documentationResult{
@@ -563,12 +563,12 @@ type constVarDocs struct {
 }
 
 func (t constVarDocs) result() *documentationResult {
-	var tags []protocol.DocumentationTag
+	var tags []protocol.Tag
 	if !t.exported {
-		tags = append(tags, protocol.DocumentationPrivate)
+		tags = append(tags, protocol.TagPrivate)
 	}
 	if t.deprecated {
-		tags = append(tags, protocol.DocumentationDeprecated)
+		tags = append(tags, protocol.TagDeprecated)
 	}
 
 	// Include the full type signature
@@ -649,12 +649,12 @@ type typeDocs struct {
 }
 
 func (t typeDocs) result() *documentationResult {
-	var tags []protocol.DocumentationTag
+	var tags []protocol.Tag
 	if !t.exported {
-		tags = append(tags, protocol.DocumentationPrivate)
+		tags = append(tags, protocol.TagPrivate)
 	}
 	if t.deprecated {
-		tags = append(tags, protocol.DocumentationDeprecated)
+		tags = append(tags, protocol.TagDeprecated)
 	}
 
 	// Include the full type signature
@@ -733,12 +733,12 @@ type funcDocs struct {
 }
 
 func (f funcDocs) result() *documentationResult {
-	var tags []protocol.DocumentationTag
+	var tags []protocol.Tag
 	if !f.exported {
-		tags = append(tags, protocol.DocumentationPrivate)
+		tags = append(tags, protocol.TagPrivate)
 	}
 	if f.deprecated {
-		tags = append(tags, protocol.DocumentationDeprecated)
+		tags = append(tags, protocol.TagDeprecated)
 	}
 
 	// Include the full type signature
