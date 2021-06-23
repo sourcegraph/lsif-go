@@ -8,6 +8,7 @@ testdata is a small package containing sample Go source code used for testing th
 
 * Subpages
   * [internal](internal.md)
+  * [duplicate_path_id](duplicate_path_id.md)
 * [Constants](#const)
     * [const Const](#Const)
     * [const ConstBlock1](#ConstBlock1)

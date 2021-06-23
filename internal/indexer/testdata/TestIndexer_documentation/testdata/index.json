@@ -942,6 +942,9 @@
           }
         ]
       }
+    },
+    {
+      "pathID": "/duplicate_path_id"
     }
   ]
 }
