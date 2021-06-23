@@ -20,7 +20,3 @@ require (
 	golang.org/x/tools v0.1.3
 	mvdan.cc/gofumpt v0.1.1 // indirect
 )
-
-replace github.com/sourcegraph/lsif-static-doc => ../lsif-static-doc
-
-replace github.com/sourcegraph/sourcegraph/lib => ../sourcegraph/lib
