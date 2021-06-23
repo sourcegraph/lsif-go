@@ -230,6 +230,7 @@ github.com/sourcegraph/jsonx v0.0.0-20200629203448-1a936bd500cf/go.mod h1:ppFaPm
 github.com/sourcegraph/lsif-static-doc v0.0.0-20210622190916-b0f2e78b9eb4 h1:p73W94RhEK9npeR2C7g9eKCXpKOQm/6NO9w0bcdBx50=
 github.com/sourcegraph/lsif-static-doc v0.0.0-20210622190916-b0f2e78b9eb4/go.mod h1:47Sfj+qivcqfyQhbpeWpV2LpR1Z51YIBU4LNt7UxPrw=
 github.com/sourcegraph/sourcegraph/lib v0.0.0-20210622190720-de278ea3dd5c/go.mod h1:0Df1LLzPHhuxInVdcV/eIR7BVl1+R0rch5fSIK8+w5Y=
+github.com/sourcegraph/sourcegraph/lib v0.0.0-20210622231052-467e52d22f61 h1:VkI9MfnGd9KcDz0Xw8bgypa3dLVVu6ysMgfN3Tpon8Q=
 github.com/sourcegraph/sourcegraph/lib v0.0.0-20210622231052-467e52d22f61/go.mod h1:0Df1LLzPHhuxInVdcV/eIR7BVl1+R0rch5fSIK8+w5Y=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=
