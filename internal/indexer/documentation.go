@@ -451,6 +451,10 @@ func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, fileName strin
 			result.types = append(result.types, genDeclDocs.types...)
 		case *ast.FuncDecl:
 			// Functions, methods
+			if node.Name.Name == "_" {
+				// Not only is it not exported, it cannot be referenced outside this package at all.
+				continue
+			}
 			result.funcs = append(result.funcs, d.indexFuncDecl(p.Fset, p, node, fileName, &initIndex, isTestFile))
 		}
 	}
@@ -519,6 +523,10 @@ func (d *docsIndexer) indexGenDecl(p *packages.Package, f *ast.File, node *ast.G
 				}
 			}
 		case *ast.TypeSpec:
+			if t.Name.Name == "_" {
+				// Not only is it not exported, it cannot be referenced outside this package at all.
+				continue
+			}
 			typeDocs := d.indexTypeSpec(p, t, isTestFile)
 			typeDocs.docsMarkdown = blockDocsMarkdown + typeDocs.docsMarkdown
 			result.types = append(result.types, typeDocs)
