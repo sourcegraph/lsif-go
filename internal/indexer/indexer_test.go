@@ -454,7 +454,8 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		}
 	}
 	autogold.Want("visited", map[string]bool{
-		"github.com/sourcegraph/lsif-go/internal/testdata": true,
+		"github.com/sourcegraph/lsif-go/internal/testdata":                   true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/duplicate_path_id": true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,
