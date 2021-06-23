@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"go/types"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -264,7 +265,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 			// because those are not externally accessible under any circumstance.
 			continue
 		}
-		fileDocs, err := d.indexFile(p, file, strings.HasSuffix(filename, "_test.go"))
+		fileDocs, err := d.indexFile(p, file, filepath.Base(filename), strings.HasSuffix(filename, "_test.go"))
 		if err != nil {
 			return docsPackage{}, errors.Wrap(err, "file "+filename)
 		}
@@ -435,11 +436,12 @@ type fileDocs struct {
 }
 
 // indexFile returns the documentation corresponding to the given file.
-func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, isTestFile bool) (fileDocs, error) {
+func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, fileName string, isTestFile bool) (fileDocs, error) {
 	var result fileDocs
 	result.pkgDocsMarkdown = godocToMarkdown(f.Doc.Text())
 
 	// Collect each top-level declaration.
+	var initIndex int = 1
 	for _, decl := range f.Decls {
 		switch node := decl.(type) {
 		case *ast.GenDecl:
@@ -449,7 +451,7 @@ func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, isTestFile boo
 			result.types = append(result.types, genDeclDocs.types...)
 		case *ast.FuncDecl:
 			// Functions, methods
-			result.funcs = append(result.funcs, d.indexFuncDecl(p.Fset, p, node, isTestFile))
+			result.funcs = append(result.funcs, d.indexFuncDecl(p.Fset, p, node, fileName, &initIndex, isTestFile))
 		}
 	}
 
@@ -757,9 +759,20 @@ func (f funcDocs) result() *documentationResult {
 }
 
 // indexFuncDecl returns the documentation corresponding to the given function declaration.
-func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in *ast.FuncDecl, isTestFile bool) funcDocs {
+func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in *ast.FuncDecl, fileName string, initIndex *int, isTestFile bool) funcDocs {
 	var result funcDocs
 	result.name = in.Name.String()
+	if result.name == "init" {
+		// In a single Go package (and even in a single file), there may be multiple `init` functions.
+		// We suffix them with the filename and a unique identifier number if there are more than one
+		// per file, e.g. `init.mux.go.2`
+		if *initIndex == 1 {
+			result.name = fmt.Sprintf("%s.%s", result.name, fileName)
+		} else {
+			result.name = fmt.Sprintf("%s.%s.%v", result.name, fileName, initIndex)
+		}
+		*initIndex++
+	}
 	result.searchKey = p.Name + "." + in.Name.String()
 	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
 	result.deprecated = isDeprecated(in.Doc.Text())
