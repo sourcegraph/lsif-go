@@ -299,6 +299,29 @@
           },
           {
             "node": {
+              "pathID": "/#SortExportedFirst",
+              "documentation": {
+                "identifier": "SortExportedFirst",
+                "newPage": false,
+                "searchKey": "testdata.SortExportedFirst",
+                "tags": [
+                  "variable",
+                  "number"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var SortExportedFirst"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar SortExportedFirst = 1\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#Var",
               "documentation": {
                 "identifier": "Var",
@@ -368,6 +391,30 @@
           },
           {
             "node": {
+              "pathID": "/#sortUnexportedSecond",
+              "documentation": {
+                "identifier": "sortUnexportedSecond",
+                "newPage": false,
+                "searchKey": "testdata.sortUnexportedSecond",
+                "tags": [
+                  "variable",
+                  "number",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var sortUnexportedSecond"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar sortUnexportedSecond = 2\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#unexportedVar",
               "documentation": {
                 "identifier": "unexportedVar",
@@ -410,6 +457,30 @@
               "detail": {
                 "kind": "markdown",
                 "value": "```Go\nvar x error\n```\n\nx has a builtin error type \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#_sortUnderscoreLast",
+              "documentation": {
+                "identifier": "_sortUnderscoreLast",
+                "newPage": false,
+                "searchKey": "testdata._sortUnderscoreLast",
+                "tags": [
+                  "variable",
+                  "number",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var _sortUnderscoreLast"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar _sortUnderscoreLast = 3\n```\n\n"
               },
               "children": null
             }

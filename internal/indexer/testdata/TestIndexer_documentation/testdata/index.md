@@ -21,11 +21,14 @@ testdata is a small package containing sample Go source code used for testing th
     * [const secretScore](#secretScore)
 * [Variables](#var)
     * [var BigVar](#BigVar)
+    * [var SortExportedFirst](#SortExportedFirst)
     * [var Var](#Var)
     * [var VarBlock1](#VarBlock1)
     * [var VarBlock2](#VarBlock2)
+    * [var sortUnexportedSecond](#sortUnexportedSecond)
     * [var unexportedVar](#unexportedVar)
     * [var x](#x)
+    * [var _sortUnderscoreLast](#_sortUnderscoreLast)
 * [Types](#type)
     * [type BadBurger struct](#BadBurger)
     * [type Embedded struct](#Embedded)
@@ -190,6 +193,17 @@ tags: [variable interface]
 var BigVar Interface = ...
 ```
 
+### <a id="SortExportedFirst" href="#SortExportedFirst">var SortExportedFirst</a>
+
+```
+searchKey: testdata.SortExportedFirst
+tags: [variable number]
+```
+
+```Go
+var SortExportedFirst = 1
+```
+
 ### <a id="Var" href="#Var">var Var</a>
 
 ```
@@ -249,6 +263,17 @@ ZZZzz /,`.-'`'    -.  ;-;;,_
 ```
 It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
 
+### <a id="sortUnexportedSecond" href="#sortUnexportedSecond">var sortUnexportedSecond</a>
+
+```
+searchKey: testdata.sortUnexportedSecond
+tags: [variable number private]
+```
+
+```Go
+var sortUnexportedSecond = 2
+```
+
 ### <a id="unexportedVar" href="#unexportedVar">var unexportedVar</a>
 
 ```
@@ -274,6 +299,17 @@ var x error
 ```
 
 x has a builtin error type 
+
+### <a id="_sortUnderscoreLast" href="#_sortUnderscoreLast">var _sortUnderscoreLast</a>
+
+```
+searchKey: testdata._sortUnderscoreLast
+tags: [variable number private]
+```
+
+```Go
+var _sortUnderscoreLast = 3
+```
 
 ## <a id="type" href="#type">Types</a>
 

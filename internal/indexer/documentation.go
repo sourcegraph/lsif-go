@@ -1017,11 +1017,20 @@ func sortName(aRecv, bRecv, a, b string) bool {
 
 func sortExportedNameFirst(a, b string) bool {
 	aExported, bExported := false, false
+	aUnderscore, bUnderscore := false, false
 	if a != "" {
 		aExported = !unicode.IsLower([]rune(a)[0])
+		aUnderscore = a[0] == '_'
 	}
 	if b != "" {
 		bExported = !unicode.IsLower([]rune(b)[0])
+		bUnderscore = b[0] == '_'
+	}
+	if aUnderscore != bUnderscore {
+		if !aUnderscore {
+			return true // Names not starting with "_" have higher importance
+		}
+		return false
 	}
 	if aExported != bExported {
 		if aExported {

@@ -113,6 +113,12 @@ type Interface interface {
 
 func NewInterface() Interface { return nil }
 
+var SortExportedFirst = 1
+
+var sortUnexportedSecond = 2
+
+var _sortUnderscoreLast = 3
+
 // Yeah this is some Go magic incantation which is common.
 //
 // 	 ,_     _
