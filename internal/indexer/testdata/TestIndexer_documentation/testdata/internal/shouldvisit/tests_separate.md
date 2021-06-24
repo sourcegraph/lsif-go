@@ -11,14 +11,14 @@ This package has tests, but in a separate _test package.
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="foo" href="#foo">func foo() bool</a>
 
 ```
 searchKey: pkg.foo
-tags: [private]
+tags: [function private]
 ```
 
 ```Go

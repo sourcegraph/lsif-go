@@ -5,6 +5,7 @@
     "newPage": true,
     "searchKey": "internal/shouldvisit/tests",
     "tags": [
+      "package",
       "private"
     ]
   },
@@ -25,6 +26,7 @@
           "newPage": false,
           "searchKey": "",
           "tags": [
+            "package",
             "private"
           ]
         },
@@ -45,6 +47,7 @@
                 "newPage": false,
                 "searchKey": "tests.foo",
                 "tags": [
+                  "function",
                   "private"
                 ]
               },
@@ -67,6 +70,7 @@
                 "newPage": false,
                 "searchKey": "tests.TestFoo",
                 "tags": [
+                  "method",
                   "private"
                 ]
               },

@@ -9,14 +9,14 @@
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="TestFoo" href="#TestFoo">func TestFoo(t *testing.T)</a>
 
 ```
 searchKey: pkg_test.TestFoo
-tags: [private]
+tags: [method private]
 ```
 
 ```Go
