@@ -291,7 +291,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	rootPkgPath := d.rootPkgPath()
 	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(pkgPathStdStrip(p.PkgPath), rootPkgPath), "/")
 
-	pkgTags := []protocol.Tag{}
+	pkgTags := []protocol.Tag{protocol.TagPackage}
 	if strings.Contains(p.PkgPath, "/internal/") || strings.HasSuffix(p.Name, "_test") {
 		pkgTags = append(pkgTags, protocol.TagPrivate)
 	}
@@ -555,22 +555,14 @@ type constVarDocs struct {
 	// Documentation strings in Markdown.
 	docsMarkdown string
 
-	// Is the type itself exported, deprecated?
-	exported, deprecated bool
-
 	// The definition object.
 	def types.Object
+
+	// Associated tags
+	tags []protocol.Tag
 }
 
 func (t constVarDocs) result() *documentationResult {
-	var tags []protocol.Tag
-	if !t.exported {
-		tags = append(tags, protocol.TagPrivate)
-	}
-	if t.deprecated {
-		tags = append(tags, protocol.TagDeprecated)
-	}
-
 	// Include the full type signature
 	var detail bytes.Buffer
 	fmt.Fprintf(&detail, "```Go\n")
@@ -583,7 +575,7 @@ func (t constVarDocs) result() *documentationResult {
 			Identifier: t.name,
 			SearchKey:  t.searchKey,
 			NewPage:    false,
-			Tags:       tags,
+			Tags:       t.tags,
 		},
 		Label:  protocol.NewMarkupContent(t.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -596,9 +588,20 @@ func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, name
 	result.label = fmt.Sprintf("%s %s", typ, name.String())
 	result.name = name.String()
 	result.searchKey = p.Name + "." + name.String()
-	result.exported = ast.IsExported(name.String()) && !isTestFile
-	result.deprecated = isDeprecated(in.Doc.Text())
 	result.def = p.TypesInfo.Defs[name]
+
+	if typ == "const" {
+		result.tags = append(result.tags, protocol.TagConstant)
+	} else {
+		result.tags = append(result.tags, protocol.TagVariable)
+	}
+	result.tags = append(result.tags, tagsForType(result.def.Type())...)
+	if !ast.IsExported(name.String()) || isTestFile {
+		result.tags = append(result.tags, protocol.TagPrivate)
+	}
+	if isDeprecated(in.Doc.Text()) {
+		result.tags = append(result.tags, protocol.TagDeprecated)
+	}
 
 	// Produce the full type signature with docs on e.g. methods and struct fields, but not on the
 	// type itself (we'll produce those as Markdown below.)
@@ -638,25 +641,17 @@ type typeDocs struct {
 	// Documentation strings in Markdown.
 	docsMarkdown string
 
-	// Is the type itself exported, deprecated?
-	exported, deprecated bool
-
 	// The type itself.
 	typ types.Type
 
 	// The definition object.
 	def types.Object
+
+	// Associated tags
+	tags []protocol.Tag
 }
 
 func (t typeDocs) result() *documentationResult {
-	var tags []protocol.Tag
-	if !t.exported {
-		tags = append(tags, protocol.TagPrivate)
-	}
-	if t.deprecated {
-		tags = append(tags, protocol.TagDeprecated)
-	}
-
 	// Include the full type signature
 	var detail bytes.Buffer
 	fmt.Fprintf(&detail, "```Go\n")
@@ -669,7 +664,7 @@ func (t typeDocs) result() *documentationResult {
 			Identifier: t.name,
 			SearchKey:  t.searchKey,
 			NewPage:    false,
-			Tags:       tags,
+			Tags:       t.tags,
 		},
 		Label:  protocol.NewMarkupContent(t.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -682,9 +677,15 @@ func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTes
 	result.name = in.Name.String()
 	result.searchKey = p.Name + "." + in.Name.String()
 	result.typ = p.TypesInfo.ObjectOf(in.Name).Type()
-	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
-	result.deprecated = isDeprecated(in.Doc.Text())
 	result.def = p.TypesInfo.Defs[in.Name]
+
+	result.tags = append(result.tags, tagsForType(result.typ)...)
+	if !ast.IsExported(in.Name.String()) || isTestFile {
+		result.tags = append(result.tags, protocol.TagPrivate)
+	}
+	if isDeprecated(in.Doc.Text()) {
+		result.tags = append(result.tags, protocol.TagDeprecated)
+	}
 
 	// Produce the full type signature with docs on e.g. methods and struct fields, but not on the
 	// type itself (we'll produce those as Markdown below.)
@@ -716,9 +717,6 @@ type funcDocs struct {
 	// Documentation strings in Markdown.
 	docsMarkdown string
 
-	// Is the type itself exported, deprecated?
-	exported, deprecated bool
-
 	// The type of the receiver, or nil.
 	recvType ast.Expr
 
@@ -730,17 +728,12 @@ type funcDocs struct {
 
 	// The definition object.
 	def types.Object
+
+	// Associated tags
+	tags []protocol.Tag
 }
 
 func (f funcDocs) result() *documentationResult {
-	var tags []protocol.Tag
-	if !f.exported {
-		tags = append(tags, protocol.TagPrivate)
-	}
-	if f.deprecated {
-		tags = append(tags, protocol.TagDeprecated)
-	}
-
 	// Include the full type signature
 	var detail strings.Builder
 	detail.Grow(6 + len(f.signature) + len(f.docsMarkdown) + 6)
@@ -759,7 +752,7 @@ func (f funcDocs) result() *documentationResult {
 			Identifier: identifier,
 			SearchKey:  f.searchKey,
 			NewPage:    false,
-			Tags:       tags,
+			Tags:       f.tags,
 		},
 		Label:  protocol.NewMarkupContent(f.label, protocol.PlainText),
 		Detail: protocol.NewMarkupContent(detail.String(), protocol.Markdown),
@@ -782,10 +775,10 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 		*initIndex++
 	}
 	result.searchKey = p.Name + "." + in.Name.String()
-	result.exported = ast.IsExported(in.Name.String()) && !isTestFile
-	result.deprecated = isDeprecated(in.Doc.Text())
 	result.docsMarkdown = godocToMarkdown(in.Doc.Text())
 	result.def = p.TypesInfo.Defs[in.Name]
+
+	private := !ast.IsExported(in.Name.String()) || isTestFile
 
 	// Create a brand new FuncDecl based on the parts of the input we care about,
 	// ignoring other aspects (e.g. docs and the function body, which are not needed to
@@ -811,10 +804,21 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 				result.recvTypeName = named.Obj().Name()
 				result.searchKey = p.Name + "." + result.recvTypeName + "." + in.Name.String()
 				if !named.Obj().Exported() {
-					result.exported = false
+					private = true
 				}
 			}
 		}
+	}
+	if len(in.Type.Params.List) == 0 {
+		result.tags = append(result.tags, protocol.TagFunction)
+	} else {
+		result.tags = append(result.tags, protocol.TagMethod)
+	}
+	if private {
+		result.tags = append(result.tags, protocol.TagPrivate)
+	}
+	if isDeprecated(in.Doc.Text()) {
+		result.tags = append(result.tags, protocol.TagDeprecated)
 	}
 
 	// Parameters.
@@ -853,6 +857,72 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 	result.signature = formatNode(fset, &cpy)
 
 	return result
+}
+
+func tagsForType(t types.Type) []protocol.Tag {
+	return doTagsForType(nil, t)
+}
+
+func doTagsForType(visited []types.Type, t types.Type) []protocol.Tag {
+	// Go types can be cyclic, make sure we don't get stuck in a loop by keeping track of what we've visited.
+	for _, visited := range visited {
+		if visited == t {
+			return nil
+		}
+	}
+	visited = append(visited, t)
+	switch v := t.(type) {
+	case *types.Array:
+		return append([]protocol.Tag{protocol.TagArray}, doTagsForType(visited, v.Elem())...)
+	case *types.Slice:
+		// TODO(slimsag): add a "slice" tag?
+		return append([]protocol.Tag{protocol.TagArray}, doTagsForType(visited, v.Elem())...)
+	case *types.Chan:
+		// TODO(slimsag): add a "channel" tag?
+		return nil
+	case *types.Interface:
+		return []protocol.Tag{protocol.TagInterface}
+	case *types.Map:
+		// TODO(slimsag): is "object" really a good tag for "map" or "dictionary"?
+		return []protocol.Tag{protocol.TagObject}
+	case *types.Pointer:
+		// TODO(slimsag): add a "pointer" tag?
+		return doTagsForType(visited, v.Elem()) // "***int32" is a "number" I guess
+	case *types.Struct:
+		return []protocol.Tag{protocol.TagStruct}
+	case *types.Named:
+		return doTagsForType(visited, v.Underlying())
+	case *types.Basic:
+		switch v.Kind() {
+		case types.Bool, types.UntypedBool:
+			return []protocol.Tag{protocol.TagBoolean}
+		case types.Int, types.Int8, types.Int16, types.Int32, types.Int64,
+			types.Uint, types.Uint8, types.Uint16, types.Uint32, types.Uint64,
+			types.Uintptr,
+			types.Float32, types.Float64,
+			types.Complex64, types.Complex128,
+			types.UnsafePointer,
+			types.UntypedInt, types.UntypedRune, types.UntypedFloat, types.UntypedComplex:
+			return []protocol.Tag{protocol.TagNumber}
+		case types.String, types.UntypedString:
+			return []protocol.Tag{protocol.TagString}
+		case types.UntypedNil:
+			return []protocol.Tag{protocol.TagNull}
+		case types.Invalid:
+			return nil
+		default:
+			panic(fmt.Sprintf("invariant: unknown kind %v", v))
+		}
+	case *types.Signature:
+		if v.Recv() != nil {
+			return []protocol.Tag{protocol.TagMethod}
+		}
+		return []protocol.Tag{protocol.TagFunction}
+	case *types.Tuple:
+		return nil // parameter arguments / receiver tuples
+	default:
+		panic(fmt.Sprintf("invariant: unknown type %T", t))
+	}
 }
 
 // formatNode turns an ast.Node into a string.
