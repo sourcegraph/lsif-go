@@ -41,6 +41,30 @@
         "children": [
           {
             "node": {
+              "pathID": "/internal/shouldvisit/tests#BenchmarkFoo",
+              "documentation": {
+                "identifier": "BenchmarkFoo",
+                "newPage": false,
+                "searchKey": "tests.BenchmarkFoo",
+                "tags": [
+                  "method",
+                  "private",
+                  "benchmark"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func BenchmarkFoo(b *testing.B)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc BenchmarkFoo(b *testing.B)\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/internal/shouldvisit/tests#TestFoo",
               "documentation": {
                 "identifier": "TestFoo",
@@ -48,7 +72,8 @@
                 "searchKey": "tests.TestFoo",
                 "tags": [
                   "method",
-                  "private"
+                  "private",
+                  "test"
                 ]
               },
               "label": {
