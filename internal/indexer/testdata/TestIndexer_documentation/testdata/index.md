@@ -10,56 +10,67 @@ testdata is a small package containing sample Go source code used for testing th
   * [internal](internal.md)
   * [duplicate_path_id](duplicate_path_id.md)
 * [Constants](#const)
+    * [const AliasedString](#AliasedString)
     * [const Const](#Const)
     * [const ConstBlock1](#ConstBlock1)
     * [const ConstBlock2](#ConstBlock2)
-    * [const Score](#Score)
-    * [const secretScore](#secretScore)
-    * [const SomeString](#SomeString)
-    * [const LongString](#LongString)
     * [const ConstMath](#ConstMath)
-    * [const AliasedString](#AliasedString)
+    * [const LongString](#LongString)
+    * [const Score](#Score)
+    * [const SomeString](#SomeString)
+    * [const secretScore](#secretScore)
 * [Variables](#var)
-    * [var Var](#Var)
-    * [var unexportedVar](#unexportedVar)
-    * [var x](#x)
     * [var BigVar](#BigVar)
+    * [var Var](#Var)
     * [var VarBlock1](#VarBlock1)
     * [var VarBlock2](#VarBlock2)
+    * [var unexportedVar](#unexportedVar)
+    * [var x](#x)
 * [Types](#type)
+    * [type BadBurger struct](#BadBurger)
     * [type Embedded struct](#Embedded)
-    * [type Struct struct](#Struct)
-        * [func (s *Struct) StructMethod()](#Struct.StructMethod)
-        * [func (s *Struct) ImplementsInterface() string](#Struct.ImplementsInterface)
-        * [func (s *Struct) MachineLearning(param1 float32,...](#Struct.MachineLearning)
+    * [type Inner struct](#Inner)
+    * [type InnerStruct struct{}](#InnerStruct)
     * [type Interface interface](#Interface)
         * [func NewInterface() Interface](#NewInterface)
-    * [type X struct](#X)
-    * [type Y struct](#Y)
-    * [type Inner struct](#Inner)
     * [type Outer struct](#Outer)
+    * [type ParallelizableFunc func(ctx context.Context) error](#ParallelizableFunc)
+    * [type SecretBurger secret.Burger](#SecretBurger)
+    * [type ShellStruct struct](#ShellStruct)
+    * [type StringAlias string](#StringAlias)
+    * [type Struct struct](#Struct)
+        * [func (s *Struct) ImplementsInterface() string](#Struct.ImplementsInterface)
+        * [func (s *Struct) MachineLearning(param1 float32,...](#Struct.MachineLearning)
+        * [func (s *Struct) StructMethod()](#Struct.StructMethod)
+    * [type StructTagRegression struct](#StructTagRegression)
+    * [type TestEmptyStruct struct{}](#TestEmptyStruct)
+    * [type TestEqualsStruct struct](#TestEqualsStruct)
     * [type TestInterface interface](#TestInterface)
     * [type TestStruct struct](#TestStruct)
         * [func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err error)](#TestStruct.Doer)
-    * [type TestEmptyStruct struct{}](#TestEmptyStruct)
-    * [type StringAlias string](#StringAlias)
-    * [type StructTagRegression struct](#StructTagRegression)
-    * [type TestEqualsStruct struct](#TestEqualsStruct)
-    * [type ShellStruct struct](#ShellStruct)
-    * [type InnerStruct struct{}](#InnerStruct)
-    * [type ParallelizableFunc func(ctx context.Context) error](#ParallelizableFunc)
-    * [type SecretBurger secret.Burger](#SecretBurger)
-    * [type BadBurger struct](#BadBurger)
+    * [type X struct](#X)
+    * [type Y struct](#Y)
 * [Functions](#func)
-    * [func useOfCompositeStructs()](#useOfCompositeStructs)
     * [func Parallel(ctx context.Context, fns ...ParallelizableFunc) error](#Parallel)
     * [func Switch(interfaceValue interface{}) bool](#Switch)
+    * [func useOfCompositeStructs()](#useOfCompositeStructs)
 
 
 ## <a id="const" href="#const">Constants</a>
 
 ```
 tags: [package private]
+```
+
+### <a id="AliasedString" href="#AliasedString">const AliasedString</a>
+
+```
+searchKey: testdata.AliasedString
+tags: [constant string]
+```
+
+```Go
+const AliasedString StringAlias = "foobar"
 ```
 
 ### <a id="Const" href="#Const">const Const</a>
@@ -105,39 +116,15 @@ Docs for the const block itself.
 
 ConstBlock2 is a constant in a block. 
 
-### <a id="Score" href="#Score">const Score</a>
+### <a id="ConstMath" href="#ConstMath">const ConstMath</a>
 
 ```
-searchKey: testdata.Score
+searchKey: testdata.ConstMath
 tags: [constant number]
 ```
 
 ```Go
-const Score = uint64(42)
-```
-
-Score is just a hardcoded number. 
-
-### <a id="secretScore" href="#secretScore">const secretScore</a>
-
-```
-searchKey: testdata.secretScore
-tags: [constant number private]
-```
-
-```Go
-const secretScore = secret.SecretScore
-```
-
-### <a id="SomeString" href="#SomeString">const SomeString</a>
-
-```
-searchKey: testdata.SomeString
-tags: [constant string]
-```
-
-```Go
-const SomeString = "foobar"
+const ConstMath = 1 + (2+3)*5
 ```
 
 ### <a id="LongString" href="#LongString">const LongString</a>
@@ -151,32 +138,56 @@ tags: [constant string]
 const LongString = ...
 ```
 
-### <a id="ConstMath" href="#ConstMath">const ConstMath</a>
+### <a id="Score" href="#Score">const Score</a>
 
 ```
-searchKey: testdata.ConstMath
+searchKey: testdata.Score
 tags: [constant number]
 ```
 
 ```Go
-const ConstMath = 1 + (2+3)*5
+const Score = uint64(42)
 ```
 
-### <a id="AliasedString" href="#AliasedString">const AliasedString</a>
+Score is just a hardcoded number. 
+
+### <a id="SomeString" href="#SomeString">const SomeString</a>
 
 ```
-searchKey: testdata.AliasedString
+searchKey: testdata.SomeString
 tags: [constant string]
 ```
 
 ```Go
-const AliasedString StringAlias = "foobar"
+const SomeString = "foobar"
+```
+
+### <a id="secretScore" href="#secretScore">const secretScore</a>
+
+```
+searchKey: testdata.secretScore
+tags: [constant number private]
+```
+
+```Go
+const secretScore = secret.SecretScore
 ```
 
 ## <a id="var" href="#var">Variables</a>
 
 ```
 tags: [package private]
+```
+
+### <a id="BigVar" href="#BigVar">var BigVar</a>
+
+```
+searchKey: testdata.BigVar
+tags: [variable interface]
+```
+
+```Go
+var BigVar Interface = ...
 ```
 
 ### <a id="Var" href="#Var">var Var</a>
@@ -191,43 +202,6 @@ var Var Interface = &Struct{Field: "bar!"}
 ```
 
 Var is a variable interface. 
-
-### <a id="unexportedVar" href="#unexportedVar">var unexportedVar</a>
-
-```
-searchKey: testdata.unexportedVar
-tags: [variable interface private]
-```
-
-```Go
-var unexportedVar Interface = &Struct{Field: "bar!"}
-```
-
-unexportedVar is an unexported variable interface. 
-
-### <a id="x" href="#x">var x</a>
-
-```
-searchKey: testdata.x
-tags: [variable interface private]
-```
-
-```Go
-var x error
-```
-
-x has a builtin error type 
-
-### <a id="BigVar" href="#BigVar">var BigVar</a>
-
-```
-searchKey: testdata.BigVar
-tags: [variable interface]
-```
-
-```Go
-var BigVar Interface = ...
-```
 
 ### <a id="VarBlock1" href="#VarBlock1">var VarBlock1</a>
 
@@ -275,10 +249,49 @@ ZZZzz /,`.-'`'    -.  ;-;;,_
 ```
 It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! 
 
+### <a id="unexportedVar" href="#unexportedVar">var unexportedVar</a>
+
+```
+searchKey: testdata.unexportedVar
+tags: [variable interface private]
+```
+
+```Go
+var unexportedVar Interface = &Struct{Field: "bar!"}
+```
+
+unexportedVar is an unexported variable interface. 
+
+### <a id="x" href="#x">var x</a>
+
+```
+searchKey: testdata.x
+tags: [variable interface private]
+```
+
+```Go
+var x error
+```
+
+x has a builtin error type 
+
 ## <a id="type" href="#type">Types</a>
 
 ```
 tags: [package private]
+```
+
+### <a id="BadBurger" href="#BadBurger">type BadBurger struct</a>
+
+```
+searchKey: testdata.BadBurger
+tags: [struct]
+```
+
+```Go
+type BadBurger = struct {
+	Field string
+}
 ```
 
 ### <a id="Embedded" href="#Embedded">type Embedded struct</a>
@@ -298,63 +311,30 @@ type Embedded struct {
 
 Embedded is a struct, to be embedded in another struct. 
 
-### <a id="Struct" href="#Struct">type Struct struct</a>
+### <a id="Inner" href="#Inner">type Inner struct</a>
 
 ```
-searchKey: testdata.Struct
+searchKey: testdata.Inner
 tags: [struct]
 ```
 
 ```Go
-type Struct struct {
-	*Embedded
-	Field     string
-	Anonymous struct {
-		FieldA int
-		FieldB int
-		FieldC int
-	}
+type Inner struct {
+	X int
+	Y int
+	Z int
 }
 ```
 
-#### <a id="Struct.StructMethod" href="#Struct.StructMethod">func (s *Struct) StructMethod()</a>
+### <a id="InnerStruct" href="#InnerStruct">type InnerStruct struct{}</a>
 
 ```
-searchKey: testdata.Struct.StructMethod
-tags: [function]
-```
-
-```Go
-func (s *Struct) StructMethod()
-```
-
-StructMethod has some docs! 
-
-#### <a id="Struct.ImplementsInterface" href="#Struct.ImplementsInterface">func (s *Struct) ImplementsInterface() string</a>
-
-```
-searchKey: testdata.Struct.ImplementsInterface
-tags: [function]
+searchKey: testdata.InnerStruct
+tags: [struct]
 ```
 
 ```Go
-func (s *Struct) ImplementsInterface() string
-```
-
-#### <a id="Struct.MachineLearning" href="#Struct.MachineLearning">func (s *Struct) MachineLearning(param1 float32,...</a>
-
-```
-searchKey: testdata.Struct.MachineLearning
-tags: [method]
-```
-
-```Go
-func (s *Struct) MachineLearning(
-	param1 float32,
-
-	hyperparam2 float32,
-	hyperparam3 float32,
-) float32
+type InnerStruct struct{}
 ```
 
 ### <a id="Interface" href="#Interface">type Interface interface</a>
@@ -383,53 +363,6 @@ tags: [function]
 func NewInterface() Interface
 ```
 
-### <a id="X" href="#X">type X struct</a>
-
-```
-searchKey: testdata.X
-tags: [struct]
-```
-
-```Go
-type X struct {
-	bar string
-}
-```
-
-Go can be fun 
-
-And confusing 
-
-### <a id="Y" href="#Y">type Y struct</a>
-
-```
-searchKey: testdata.Y
-tags: [struct]
-```
-
-```Go
-type Y struct {
-	baz float
-}
-```
-
-Go can be fun 
-
-### <a id="Inner" href="#Inner">type Inner struct</a>
-
-```
-searchKey: testdata.Inner
-tags: [struct]
-```
-
-```Go
-type Inner struct {
-	X int
-	Y int
-	Z int
-}
-```
-
 ### <a id="Outer" href="#Outer">type Outer struct</a>
 
 ```
@@ -441,6 +374,159 @@ tags: [struct]
 type Outer struct {
 	Inner
 	W int
+}
+```
+
+### <a id="ParallelizableFunc" href="#ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error</a>
+
+```
+searchKey: testdata.ParallelizableFunc
+tags: [function]
+```
+
+```Go
+type ParallelizableFunc func(ctx context.Context) error
+```
+
+ParallelizableFunc is a function that can be called concurrently with other instances of this function type. 
+
+### <a id="SecretBurger" href="#SecretBurger">type SecretBurger secret.Burger</a>
+
+```
+searchKey: testdata.SecretBurger
+tags: [struct]
+```
+
+```Go
+type SecretBurger = secret.Burger
+```
+
+Type aliased doc 
+
+### <a id="ShellStruct" href="#ShellStruct">type ShellStruct struct</a>
+
+```
+searchKey: testdata.ShellStruct
+tags: [struct]
+```
+
+```Go
+type ShellStruct struct {
+	// Ensure this field comes before the definition
+	// so that we grab the correct one in our unit
+	// tests.
+	InnerStruct
+}
+```
+
+### <a id="StringAlias" href="#StringAlias">type StringAlias string</a>
+
+```
+searchKey: testdata.StringAlias
+tags: [string]
+```
+
+```Go
+type StringAlias string
+```
+
+### <a id="Struct" href="#Struct">type Struct struct</a>
+
+```
+searchKey: testdata.Struct
+tags: [struct]
+```
+
+```Go
+type Struct struct {
+	*Embedded
+	Field     string
+	Anonymous struct {
+		FieldA int
+		FieldB int
+		FieldC int
+	}
+}
+```
+
+#### <a id="Struct.ImplementsInterface" href="#Struct.ImplementsInterface">func (s *Struct) ImplementsInterface() string</a>
+
+```
+searchKey: testdata.Struct.ImplementsInterface
+tags: [function]
+```
+
+```Go
+func (s *Struct) ImplementsInterface() string
+```
+
+#### <a id="Struct.MachineLearning" href="#Struct.MachineLearning">func (s *Struct) MachineLearning(param1 float32,...</a>
+
+```
+searchKey: testdata.Struct.MachineLearning
+tags: [method]
+```
+
+```Go
+func (s *Struct) MachineLearning(
+	param1 float32,
+
+	hyperparam2 float32,
+	hyperparam3 float32,
+) float32
+```
+
+#### <a id="Struct.StructMethod" href="#Struct.StructMethod">func (s *Struct) StructMethod()</a>
+
+```
+searchKey: testdata.Struct.StructMethod
+tags: [function]
+```
+
+```Go
+func (s *Struct) StructMethod()
+```
+
+StructMethod has some docs! 
+
+### <a id="StructTagRegression" href="#StructTagRegression">type StructTagRegression struct</a>
+
+```
+searchKey: testdata.StructTagRegression
+tags: [struct]
+```
+
+```Go
+type StructTagRegression struct {
+	Value int `key:",range=[:}"`
+}
+```
+
+StructTagRegression is a struct that caused panic in the wild. Added here to support a regression test. 
+
+See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). 
+
+### <a id="TestEmptyStruct" href="#TestEmptyStruct">type TestEmptyStruct struct{}</a>
+
+```
+searchKey: testdata.TestEmptyStruct
+tags: [struct]
+```
+
+```Go
+type TestEmptyStruct struct{}
+```
+
+### <a id="TestEqualsStruct" href="#TestEqualsStruct">type TestEqualsStruct struct</a>
+
+```
+searchKey: testdata.TestEqualsStruct
+tags: [struct]
+```
+
+```Go
+type TestEqualsStruct = struct {
+	Value int
 }
 ```
 
@@ -503,139 +589,42 @@ func (ts *TestStruct) Doer(ctx context.Context, data string) (score int, err err
 
 Doer is similar to the test interface (but not the same). 
 
-### <a id="TestEmptyStruct" href="#TestEmptyStruct">type TestEmptyStruct struct{}</a>
+### <a id="X" href="#X">type X struct</a>
 
 ```
-searchKey: testdata.TestEmptyStruct
+searchKey: testdata.X
 tags: [struct]
 ```
 
 ```Go
-type TestEmptyStruct struct{}
-```
-
-### <a id="StringAlias" href="#StringAlias">type StringAlias string</a>
-
-```
-searchKey: testdata.StringAlias
-tags: [string]
-```
-
-```Go
-type StringAlias string
-```
-
-### <a id="StructTagRegression" href="#StructTagRegression">type StructTagRegression struct</a>
-
-```
-searchKey: testdata.StructTagRegression
-tags: [struct]
-```
-
-```Go
-type StructTagRegression struct {
-	Value int `key:",range=[:}"`
+type X struct {
+	bar string
 }
 ```
 
-StructTagRegression is a struct that caused panic in the wild. Added here to support a regression test. 
+Go can be fun 
 
-See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). 
+And confusing 
 
-### <a id="TestEqualsStruct" href="#TestEqualsStruct">type TestEqualsStruct struct</a>
+### <a id="Y" href="#Y">type Y struct</a>
 
 ```
-searchKey: testdata.TestEqualsStruct
+searchKey: testdata.Y
 tags: [struct]
 ```
 
 ```Go
-type TestEqualsStruct = struct {
-	Value int
+type Y struct {
+	baz float
 }
 ```
 
-### <a id="ShellStruct" href="#ShellStruct">type ShellStruct struct</a>
-
-```
-searchKey: testdata.ShellStruct
-tags: [struct]
-```
-
-```Go
-type ShellStruct struct {
-	// Ensure this field comes before the definition
-	// so that we grab the correct one in our unit
-	// tests.
-	InnerStruct
-}
-```
-
-### <a id="InnerStruct" href="#InnerStruct">type InnerStruct struct{}</a>
-
-```
-searchKey: testdata.InnerStruct
-tags: [struct]
-```
-
-```Go
-type InnerStruct struct{}
-```
-
-### <a id="ParallelizableFunc" href="#ParallelizableFunc">type ParallelizableFunc func(ctx context.Context) error</a>
-
-```
-searchKey: testdata.ParallelizableFunc
-tags: [function]
-```
-
-```Go
-type ParallelizableFunc func(ctx context.Context) error
-```
-
-ParallelizableFunc is a function that can be called concurrently with other instances of this function type. 
-
-### <a id="SecretBurger" href="#SecretBurger">type SecretBurger secret.Burger</a>
-
-```
-searchKey: testdata.SecretBurger
-tags: [struct]
-```
-
-```Go
-type SecretBurger = secret.Burger
-```
-
-Type aliased doc 
-
-### <a id="BadBurger" href="#BadBurger">type BadBurger struct</a>
-
-```
-searchKey: testdata.BadBurger
-tags: [struct]
-```
-
-```Go
-type BadBurger = struct {
-	Field string
-}
-```
+Go can be fun 
 
 ## <a id="func" href="#func">Functions</a>
 
 ```
 tags: [package private]
-```
-
-### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>
-
-```
-searchKey: testdata.useOfCompositeStructs
-tags: [function private]
-```
-
-```Go
-func useOfCompositeStructs()
 ```
 
 ### <a id="Parallel" href="#Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error</a>
@@ -660,5 +649,16 @@ tags: [method]
 
 ```Go
 func Switch(interfaceValue interface{}) bool
+```
+
+### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>
+
+```
+searchKey: testdata.useOfCompositeStructs
+tags: [function private]
+```
+
+```Go
+func useOfCompositeStructs()
 ```
 

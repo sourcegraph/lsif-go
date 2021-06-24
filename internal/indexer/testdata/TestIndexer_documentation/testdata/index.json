@@ -44,6 +44,29 @@
         "children": [
           {
             "node": {
+              "pathID": "/#AliasedString",
+              "documentation": {
+                "identifier": "AliasedString",
+                "newPage": false,
+                "searchKey": "testdata.AliasedString",
+                "tags": [
+                  "constant",
+                  "string"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "const AliasedString"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nconst AliasedString StringAlias = \"foobar\"\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#Const",
               "documentation": {
                 "identifier": "Const",
@@ -113,11 +136,11 @@
           },
           {
             "node": {
-              "pathID": "/#Score",
+              "pathID": "/#ConstMath",
               "documentation": {
-                "identifier": "Score",
+                "identifier": "ConstMath",
                 "newPage": false,
-                "searchKey": "testdata.Score",
+                "searchKey": "testdata.ConstMath",
                 "tags": [
                   "constant",
                   "number"
@@ -125,58 +148,11 @@
               },
               "label": {
                 "kind": "plaintext",
-                "value": "const Score"
+                "value": "const ConstMath"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\nconst Score = uint64(42)\n```\n\nScore is just a hardcoded number. \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#secretScore",
-              "documentation": {
-                "identifier": "secretScore",
-                "newPage": false,
-                "searchKey": "testdata.secretScore",
-                "tags": [
-                  "constant",
-                  "number",
-                  "private"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "const secretScore"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nconst secretScore = secret.SecretScore\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#SomeString",
-              "documentation": {
-                "identifier": "SomeString",
-                "newPage": false,
-                "searchKey": "testdata.SomeString",
-                "tags": [
-                  "constant",
-                  "string"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "const SomeString"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nconst SomeString = \"foobar\"\n```\n\n"
+                "value": "```Go\nconst ConstMath = 1 + (2+3)*5\n```\n\n"
               },
               "children": null
             }
@@ -206,11 +182,11 @@
           },
           {
             "node": {
-              "pathID": "/#ConstMath",
+              "pathID": "/#Score",
               "documentation": {
-                "identifier": "ConstMath",
+                "identifier": "Score",
                 "newPage": false,
-                "searchKey": "testdata.ConstMath",
+                "searchKey": "testdata.Score",
                 "tags": [
                   "constant",
                   "number"
@@ -218,22 +194,22 @@
               },
               "label": {
                 "kind": "plaintext",
-                "value": "const ConstMath"
+                "value": "const Score"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\nconst ConstMath = 1 + (2+3)*5\n```\n\n"
+                "value": "```Go\nconst Score = uint64(42)\n```\n\nScore is just a hardcoded number. \n\n"
               },
               "children": null
             }
           },
           {
             "node": {
-              "pathID": "/#AliasedString",
+              "pathID": "/#SomeString",
               "documentation": {
-                "identifier": "AliasedString",
+                "identifier": "SomeString",
                 "newPage": false,
-                "searchKey": "testdata.AliasedString",
+                "searchKey": "testdata.SomeString",
                 "tags": [
                   "constant",
                   "string"
@@ -241,11 +217,35 @@
               },
               "label": {
                 "kind": "plaintext",
-                "value": "const AliasedString"
+                "value": "const SomeString"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\nconst AliasedString StringAlias = \"foobar\"\n```\n\n"
+                "value": "```Go\nconst SomeString = \"foobar\"\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#secretScore",
+              "documentation": {
+                "identifier": "secretScore",
+                "newPage": false,
+                "searchKey": "testdata.secretScore",
+                "tags": [
+                  "constant",
+                  "number",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "const secretScore"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nconst secretScore = secret.SecretScore\n```\n\n"
               },
               "children": null
             }
@@ -276,6 +276,29 @@
         "children": [
           {
             "node": {
+              "pathID": "/#BigVar",
+              "documentation": {
+                "identifier": "BigVar",
+                "newPage": false,
+                "searchKey": "testdata.BigVar",
+                "tags": [
+                  "variable",
+                  "interface"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var BigVar"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar BigVar Interface = ...\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#Var",
               "documentation": {
                 "identifier": "Var",
@@ -293,6 +316,52 @@
               "detail": {
                 "kind": "markdown",
                 "value": "```Go\nvar Var Interface = &Struct{Field: \"bar!\"}\n```\n\nVar is a variable interface. \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#VarBlock1",
+              "documentation": {
+                "identifier": "VarBlock1",
+                "newPage": false,
+                "searchKey": "testdata.VarBlock1",
+                "tags": [
+                  "variable",
+                  "string"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var VarBlock1"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar VarBlock1 = \"if you're reading this\"\n```\n\nWhat are docs, really? I can't say for sure, I don't write any. But look, a CAT! \n\n```\n      |\\      _,,,---,,_\nZZZzz /,`.-'`'    -.  ;-;;,_\n     |,4-  ) )-,_. ,\\ (  `'-'\n    '---''(_/--'  `-'\\_)\n\n```\nIt's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! \n\nThis has some docs \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#VarBlock2",
+              "documentation": {
+                "identifier": "VarBlock2",
+                "newPage": false,
+                "searchKey": "testdata.VarBlock2",
+                "tags": [
+                  "variable",
+                  "string"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var VarBlock2"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar VarBlock2 = \"hi\"\n```\n\nWhat are docs, really? I can't say for sure, I don't write any. But look, a CAT! \n\n```\n      |\\      _,,,---,,_\nZZZzz /,`.-'`'    -.  ;-;;,_\n     |,4-  ) )-,_. ,\\ (  `'-'\n    '---''(_/--'  `-'\\_)\n\n```\nIt's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! \n\n"
               },
               "children": null
             }
@@ -344,75 +413,6 @@
               },
               "children": null
             }
-          },
-          {
-            "node": {
-              "pathID": "/#BigVar",
-              "documentation": {
-                "identifier": "BigVar",
-                "newPage": false,
-                "searchKey": "testdata.BigVar",
-                "tags": [
-                  "variable",
-                  "interface"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "var BigVar"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nvar BigVar Interface = ...\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#VarBlock1",
-              "documentation": {
-                "identifier": "VarBlock1",
-                "newPage": false,
-                "searchKey": "testdata.VarBlock1",
-                "tags": [
-                  "variable",
-                  "string"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "var VarBlock1"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nvar VarBlock1 = \"if you're reading this\"\n```\n\nWhat are docs, really? I can't say for sure, I don't write any. But look, a CAT! \n\n```\n      |\\      _,,,---,,_\nZZZzz /,`.-'`'    -.  ;-;;,_\n     |,4-  ) )-,_. ,\\ (  `'-'\n    '---''(_/--'  `-'\\_)\n\n```\nIt's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! \n\nThis has some docs \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#VarBlock2",
-              "documentation": {
-                "identifier": "VarBlock2",
-                "newPage": false,
-                "searchKey": "testdata.VarBlock2",
-                "tags": [
-                  "variable",
-                  "string"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "var VarBlock2"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nvar VarBlock2 = \"hi\"\n```\n\nWhat are docs, really? I can't say for sure, I don't write any. But look, a CAT! \n\n```\n      |\\      _,,,---,,_\nZZZzz /,`.-'`'    -.  ;-;;,_\n     |,4-  ) )-,_. ,\\ (  `'-'\n    '---''(_/--'  `-'\\_)\n\n```\nIt's sleeping! Some people write that as `sleeping` but Markdown isn't allowed in Go docstrings, right? right?! \n\n"
-              },
-              "children": null
-            }
           }
         ]
       }
@@ -440,6 +440,28 @@
         "children": [
           {
             "node": {
+              "pathID": "/#BadBurger",
+              "documentation": {
+                "identifier": "BadBurger",
+                "newPage": false,
+                "searchKey": "testdata.BadBurger",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type BadBurger struct"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype BadBurger = struct {\n\tField string\n}\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#Embedded",
               "documentation": {
                 "identifier": "Embedded",
@@ -462,91 +484,46 @@
           },
           {
             "node": {
-              "pathID": "/#Struct",
+              "pathID": "/#Inner",
               "documentation": {
-                "identifier": "Struct",
+                "identifier": "Inner",
                 "newPage": false,
-                "searchKey": "testdata.Struct",
+                "searchKey": "testdata.Inner",
                 "tags": [
                   "struct"
                 ]
               },
               "label": {
                 "kind": "plaintext",
-                "value": "type Struct struct"
+                "value": "type Inner struct"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\ntype Struct struct {\n\t*Embedded\n\tField     string\n\tAnonymous struct {\n\t\tFieldA int\n\t\tFieldB int\n\t\tFieldC int\n\t}\n}\n```\n\n"
+                "value": "```Go\ntype Inner struct {\n\tX int\n\tY int\n\tZ int\n}\n```\n\n"
               },
-              "children": [
-                {
-                  "node": {
-                    "pathID": "/#Struct.StructMethod",
-                    "documentation": {
-                      "identifier": "Struct.StructMethod",
-                      "newPage": false,
-                      "searchKey": "testdata.Struct.StructMethod",
-                      "tags": [
-                        "function"
-                      ]
-                    },
-                    "label": {
-                      "kind": "plaintext",
-                      "value": "func (s *Struct) StructMethod()"
-                    },
-                    "detail": {
-                      "kind": "markdown",
-                      "value": "```Go\nfunc (s *Struct) StructMethod()\n```\n\nStructMethod has some docs! \n\n"
-                    },
-                    "children": null
-                  }
-                },
-                {
-                  "node": {
-                    "pathID": "/#Struct.ImplementsInterface",
-                    "documentation": {
-                      "identifier": "Struct.ImplementsInterface",
-                      "newPage": false,
-                      "searchKey": "testdata.Struct.ImplementsInterface",
-                      "tags": [
-                        "function"
-                      ]
-                    },
-                    "label": {
-                      "kind": "plaintext",
-                      "value": "func (s *Struct) ImplementsInterface() string"
-                    },
-                    "detail": {
-                      "kind": "markdown",
-                      "value": "```Go\nfunc (s *Struct) ImplementsInterface() string\n```\n\n"
-                    },
-                    "children": null
-                  }
-                },
-                {
-                  "node": {
-                    "pathID": "/#Struct.MachineLearning",
-                    "documentation": {
-                      "identifier": "Struct.MachineLearning",
-                      "newPage": false,
-                      "searchKey": "testdata.Struct.MachineLearning",
-                      "tags": [
-                        "method"
-                      ]
-                    },
-                    "label": {
-                      "kind": "plaintext",
-                      "value": "func (s *Struct) MachineLearning(param1 float32,..."
-                    },
-                    "detail": {
-                      "kind": "markdown",
-                      "value": "```Go\nfunc (s *Struct) MachineLearning(\n\tparam1 float32,\n\n\thyperparam2 float32,\n\thyperparam3 float32,\n) float32\n```\n\n"
-                    },
-                    "children": null
-                  }
-                }
-              ]
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#InnerStruct",
+              "documentation": {
+                "identifier": "InnerStruct",
+                "newPage": false,
+                "searchKey": "testdata.InnerStruct",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type InnerStruct struct{}"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype InnerStruct struct{}\n```\n\n"
+              },
+              "children": null
             }
           },
           {
@@ -596,72 +573,6 @@
           },
           {
             "node": {
-              "pathID": "/#X",
-              "documentation": {
-                "identifier": "X",
-                "newPage": false,
-                "searchKey": "testdata.X",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type X struct"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype X struct {\n\tbar string\n}\n```\n\nGo can be fun \n\nAnd confusing \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#Y",
-              "documentation": {
-                "identifier": "Y",
-                "newPage": false,
-                "searchKey": "testdata.Y",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type Y struct"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype Y struct {\n\tbaz float\n}\n```\n\nGo can be fun \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#Inner",
-              "documentation": {
-                "identifier": "Inner",
-                "newPage": false,
-                "searchKey": "testdata.Inner",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type Inner struct"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype Inner struct {\n\tX int\n\tY int\n\tZ int\n}\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
               "pathID": "/#Outer",
               "documentation": {
                 "identifier": "Outer",
@@ -678,6 +589,249 @@
               "detail": {
                 "kind": "markdown",
                 "value": "```Go\ntype Outer struct {\n\tInner\n\tW int\n}\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#ParallelizableFunc",
+              "documentation": {
+                "identifier": "ParallelizableFunc",
+                "newPage": false,
+                "searchKey": "testdata.ParallelizableFunc",
+                "tags": [
+                  "function"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type ParallelizableFunc func(ctx context.Context) error"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype ParallelizableFunc func(ctx context.Context) error\n```\n\nParallelizableFunc is a function that can be called concurrently with other instances of this function type. \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#SecretBurger",
+              "documentation": {
+                "identifier": "SecretBurger",
+                "newPage": false,
+                "searchKey": "testdata.SecretBurger",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type SecretBurger secret.Burger"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype SecretBurger = secret.Burger\n```\n\nType aliased doc \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#ShellStruct",
+              "documentation": {
+                "identifier": "ShellStruct",
+                "newPage": false,
+                "searchKey": "testdata.ShellStruct",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type ShellStruct struct"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype ShellStruct struct {\n\t// Ensure this field comes before the definition\n\t// so that we grab the correct one in our unit\n\t// tests.\n\tInnerStruct\n}\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#StringAlias",
+              "documentation": {
+                "identifier": "StringAlias",
+                "newPage": false,
+                "searchKey": "testdata.StringAlias",
+                "tags": [
+                  "string"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type StringAlias string"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype StringAlias string\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#Struct",
+              "documentation": {
+                "identifier": "Struct",
+                "newPage": false,
+                "searchKey": "testdata.Struct",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type Struct struct"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype Struct struct {\n\t*Embedded\n\tField     string\n\tAnonymous struct {\n\t\tFieldA int\n\t\tFieldB int\n\t\tFieldC int\n\t}\n}\n```\n\n"
+              },
+              "children": [
+                {
+                  "node": {
+                    "pathID": "/#Struct.ImplementsInterface",
+                    "documentation": {
+                      "identifier": "Struct.ImplementsInterface",
+                      "newPage": false,
+                      "searchKey": "testdata.Struct.ImplementsInterface",
+                      "tags": [
+                        "function"
+                      ]
+                    },
+                    "label": {
+                      "kind": "plaintext",
+                      "value": "func (s *Struct) ImplementsInterface() string"
+                    },
+                    "detail": {
+                      "kind": "markdown",
+                      "value": "```Go\nfunc (s *Struct) ImplementsInterface() string\n```\n\n"
+                    },
+                    "children": null
+                  }
+                },
+                {
+                  "node": {
+                    "pathID": "/#Struct.MachineLearning",
+                    "documentation": {
+                      "identifier": "Struct.MachineLearning",
+                      "newPage": false,
+                      "searchKey": "testdata.Struct.MachineLearning",
+                      "tags": [
+                        "method"
+                      ]
+                    },
+                    "label": {
+                      "kind": "plaintext",
+                      "value": "func (s *Struct) MachineLearning(param1 float32,..."
+                    },
+                    "detail": {
+                      "kind": "markdown",
+                      "value": "```Go\nfunc (s *Struct) MachineLearning(\n\tparam1 float32,\n\n\thyperparam2 float32,\n\thyperparam3 float32,\n) float32\n```\n\n"
+                    },
+                    "children": null
+                  }
+                },
+                {
+                  "node": {
+                    "pathID": "/#Struct.StructMethod",
+                    "documentation": {
+                      "identifier": "Struct.StructMethod",
+                      "newPage": false,
+                      "searchKey": "testdata.Struct.StructMethod",
+                      "tags": [
+                        "function"
+                      ]
+                    },
+                    "label": {
+                      "kind": "plaintext",
+                      "value": "func (s *Struct) StructMethod()"
+                    },
+                    "detail": {
+                      "kind": "markdown",
+                      "value": "```Go\nfunc (s *Struct) StructMethod()\n```\n\nStructMethod has some docs! \n\n"
+                    },
+                    "children": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#StructTagRegression",
+              "documentation": {
+                "identifier": "StructTagRegression",
+                "newPage": false,
+                "searchKey": "testdata.StructTagRegression",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type StructTagRegression struct"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype StructTagRegression struct {\n\tValue int `key:\",range=[:}\"`\n}\n```\n\nStructTagRegression is a struct that caused panic in the wild. Added here to support a regression test. \n\nSee [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#TestEmptyStruct",
+              "documentation": {
+                "identifier": "TestEmptyStruct",
+                "newPage": false,
+                "searchKey": "testdata.TestEmptyStruct",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type TestEmptyStruct struct{}"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype TestEmptyStruct struct{}\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#TestEqualsStruct",
+              "documentation": {
+                "identifier": "TestEqualsStruct",
+                "newPage": false,
+                "searchKey": "testdata.TestEqualsStruct",
+                "tags": [
+                  "struct"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "type TestEqualsStruct struct"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\ntype TestEqualsStruct = struct {\n\tValue int\n}\n```\n\n"
               },
               "children": null
             }
@@ -751,198 +905,44 @@
           },
           {
             "node": {
-              "pathID": "/#TestEmptyStruct",
+              "pathID": "/#X",
               "documentation": {
-                "identifier": "TestEmptyStruct",
+                "identifier": "X",
                 "newPage": false,
-                "searchKey": "testdata.TestEmptyStruct",
+                "searchKey": "testdata.X",
                 "tags": [
                   "struct"
                 ]
               },
               "label": {
                 "kind": "plaintext",
-                "value": "type TestEmptyStruct struct{}"
+                "value": "type X struct"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\ntype TestEmptyStruct struct{}\n```\n\n"
+                "value": "```Go\ntype X struct {\n\tbar string\n}\n```\n\nGo can be fun \n\nAnd confusing \n\n"
               },
               "children": null
             }
           },
           {
             "node": {
-              "pathID": "/#StringAlias",
+              "pathID": "/#Y",
               "documentation": {
-                "identifier": "StringAlias",
+                "identifier": "Y",
                 "newPage": false,
-                "searchKey": "testdata.StringAlias",
-                "tags": [
-                  "string"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type StringAlias string"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype StringAlias string\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#StructTagRegression",
-              "documentation": {
-                "identifier": "StructTagRegression",
-                "newPage": false,
-                "searchKey": "testdata.StructTagRegression",
+                "searchKey": "testdata.Y",
                 "tags": [
                   "struct"
                 ]
               },
               "label": {
                 "kind": "plaintext",
-                "value": "type StructTagRegression struct"
+                "value": "type Y struct"
               },
               "detail": {
                 "kind": "markdown",
-                "value": "```Go\ntype StructTagRegression struct {\n\tValue int `key:\",range=[:}\"`\n}\n```\n\nStructTagRegression is a struct that caused panic in the wild. Added here to support a regression test. \n\nSee [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272](https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1ada8e9c/core/mapping/unmarshaler_test.go#L2272). \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#TestEqualsStruct",
-              "documentation": {
-                "identifier": "TestEqualsStruct",
-                "newPage": false,
-                "searchKey": "testdata.TestEqualsStruct",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type TestEqualsStruct struct"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype TestEqualsStruct = struct {\n\tValue int\n}\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#ShellStruct",
-              "documentation": {
-                "identifier": "ShellStruct",
-                "newPage": false,
-                "searchKey": "testdata.ShellStruct",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type ShellStruct struct"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype ShellStruct struct {\n\t// Ensure this field comes before the definition\n\t// so that we grab the correct one in our unit\n\t// tests.\n\tInnerStruct\n}\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#InnerStruct",
-              "documentation": {
-                "identifier": "InnerStruct",
-                "newPage": false,
-                "searchKey": "testdata.InnerStruct",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type InnerStruct struct{}"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype InnerStruct struct{}\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#ParallelizableFunc",
-              "documentation": {
-                "identifier": "ParallelizableFunc",
-                "newPage": false,
-                "searchKey": "testdata.ParallelizableFunc",
-                "tags": [
-                  "function"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type ParallelizableFunc func(ctx context.Context) error"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype ParallelizableFunc func(ctx context.Context) error\n```\n\nParallelizableFunc is a function that can be called concurrently with other instances of this function type. \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#SecretBurger",
-              "documentation": {
-                "identifier": "SecretBurger",
-                "newPage": false,
-                "searchKey": "testdata.SecretBurger",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type SecretBurger secret.Burger"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype SecretBurger = secret.Burger\n```\n\nType aliased doc \n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#BadBurger",
-              "documentation": {
-                "identifier": "BadBurger",
-                "newPage": false,
-                "searchKey": "testdata.BadBurger",
-                "tags": [
-                  "struct"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "type BadBurger struct"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\ntype BadBurger = struct {\n\tField string\n}\n```\n\n"
+                "value": "```Go\ntype Y struct {\n\tbaz float\n}\n```\n\nGo can be fun \n\n"
               },
               "children": null
             }
@@ -971,29 +971,6 @@
           "value": ""
         },
         "children": [
-          {
-            "node": {
-              "pathID": "/#useOfCompositeStructs",
-              "documentation": {
-                "identifier": "useOfCompositeStructs",
-                "newPage": false,
-                "searchKey": "testdata.useOfCompositeStructs",
-                "tags": [
-                  "function",
-                  "private"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func useOfCompositeStructs()"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc useOfCompositeStructs()\n```\n\n"
-              },
-              "children": null
-            }
-          },
           {
             "node": {
               "pathID": "/#Parallel",
@@ -1034,6 +1011,29 @@
               "detail": {
                 "kind": "markdown",
                 "value": "```Go\nfunc Switch(interfaceValue interface{}) bool\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/#useOfCompositeStructs",
+              "documentation": {
+                "identifier": "useOfCompositeStructs",
+                "newPage": false,
+                "searchKey": "testdata.useOfCompositeStructs",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func useOfCompositeStructs()"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc useOfCompositeStructs()\n```\n\n"
               },
               "children": null
             }

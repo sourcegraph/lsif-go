@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -327,6 +328,9 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 
 	var sections []uint64
 	// Emit a "Constants" section
+	sort.Slice(consts, func(i, j int) bool {
+		return sortName("", "", consts[i].name, consts[j].name)
+	})
 	if len(consts) > 0 {
 		var children []uint64
 		for _, constDocs := range consts {
@@ -336,6 +340,9 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	}
 
 	// Emit a "Variables" section
+	sort.Slice(vars, func(i, j int) bool {
+		return sortName("", "", vars[i].name, vars[j].name)
+	})
 	if len(vars) > 0 {
 		var children []uint64
 		for _, varDocs := range vars {
@@ -346,6 +353,12 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 
 	// Emit methods as children of their receiver types, functions as children of the type they
 	// produce.
+	sort.Slice(types, func(i, j int) bool {
+		return sortName("", "", types[i].name, types[j].name)
+	})
+	sort.Slice(funcs, func(i, j int) bool {
+		return sortName(funcs[i].recvTypeName, funcs[j].recvTypeName, funcs[i].name, funcs[j].name)
+	})
 	emittedMethods := map[uint64]struct{}{}
 	for _, typeDocs := range types {
 		var children []uint64
@@ -993,6 +1006,30 @@ func isDeprecated(docstring string) bool {
 		}
 	}
 	return false
+}
+
+func sortName(aRecv, bRecv, a, b string) bool {
+	if aRecv != bRecv {
+		return sortExportedNameFirst(aRecv, bRecv)
+	}
+	return sortExportedNameFirst(a, b)
+}
+
+func sortExportedNameFirst(a, b string) bool {
+	aExported, bExported := false, false
+	if a != "" {
+		aExported = !unicode.IsLower([]rune(a)[0])
+	}
+	if b != "" {
+		bExported = !unicode.IsLower([]rune(b)[0])
+	}
+	if aExported != bExported {
+		if aExported {
+			return true
+		}
+		return false
+	}
+	return a < b
 }
 
 func dereference(t types.Type) types.Type {
