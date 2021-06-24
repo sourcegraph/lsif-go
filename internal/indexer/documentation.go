@@ -833,6 +833,12 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 	if isDeprecated(in.Doc.Text()) {
 		result.tags = append(result.tags, protocol.TagDeprecated)
 	}
+	if strings.HasPrefix(result.name, "Test") && isTestFile {
+		result.tags = append(result.tags, protocol.TagTest)
+	}
+	if strings.HasPrefix(result.name, "Benchmark") && isTestFile {
+		result.tags = append(result.tags, protocol.TagBenchmark)
+	}
 
 	// Parameters.
 	fn.Type = &ast.FuncType{}

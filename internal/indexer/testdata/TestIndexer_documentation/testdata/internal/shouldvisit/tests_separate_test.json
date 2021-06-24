@@ -48,7 +48,8 @@
                 "searchKey": "pkg_test.TestFoo",
                 "tags": [
                   "method",
-                  "private"
+                  "private",
+                  "test"
                 ]
               },
               "label": {

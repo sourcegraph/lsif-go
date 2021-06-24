@@ -16,7 +16,7 @@ tags: [package private]
 
 ```
 searchKey: pkg_test.TestFoo
-tags: [method private]
+tags: [method private test]
 ```
 
 ```Go
