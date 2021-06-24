@@ -5,6 +5,7 @@
     "newPage": true,
     "searchKey": "internal/shouldvisit/notests",
     "tags": [
+      "package",
       "private"
     ]
   },
@@ -25,6 +26,7 @@
           "newPage": false,
           "searchKey": "",
           "tags": [
+            "package",
             "private"
           ]
         },
@@ -45,6 +47,7 @@
                 "newPage": false,
                 "searchKey": "notests.foo",
                 "tags": [
+                  "function",
                   "private"
                 ]
               },

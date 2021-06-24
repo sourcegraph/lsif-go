@@ -59,13 +59,14 @@ testdata is a small package containing sample Go source code used for testing th
 ## <a id="const" href="#const">Constants</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="Const" href="#Const">const Const</a>
 
 ```
 searchKey: testdata.Const
+tags: [constant number]
 ```
 
 ```Go
@@ -78,6 +79,7 @@ Const is a constant equal to 5. It's the best constant I've ever written. 😹
 
 ```
 searchKey: testdata.ConstBlock1
+tags: [constant number]
 ```
 
 ```Go
@@ -92,6 +94,7 @@ ConstBlock1 is a constant in a block.
 
 ```
 searchKey: testdata.ConstBlock2
+tags: [constant number]
 ```
 
 ```Go
@@ -106,6 +109,7 @@ ConstBlock2 is a constant in a block.
 
 ```
 searchKey: testdata.Score
+tags: [constant number]
 ```
 
 ```Go
@@ -118,7 +122,7 @@ Score is just a hardcoded number.
 
 ```
 searchKey: testdata.secretScore
-tags: [private]
+tags: [constant number private]
 ```
 
 ```Go
@@ -129,6 +133,7 @@ const secretScore = secret.SecretScore
 
 ```
 searchKey: testdata.SomeString
+tags: [constant string]
 ```
 
 ```Go
@@ -139,6 +144,7 @@ const SomeString = "foobar"
 
 ```
 searchKey: testdata.LongString
+tags: [constant string]
 ```
 
 ```Go
@@ -149,6 +155,7 @@ const LongString = ...
 
 ```
 searchKey: testdata.ConstMath
+tags: [constant number]
 ```
 
 ```Go
@@ -159,6 +166,7 @@ const ConstMath = 1 + (2+3)*5
 
 ```
 searchKey: testdata.AliasedString
+tags: [constant string]
 ```
 
 ```Go
@@ -168,13 +176,14 @@ const AliasedString StringAlias = "foobar"
 ## <a id="var" href="#var">Variables</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="Var" href="#Var">var Var</a>
 
 ```
 searchKey: testdata.Var
+tags: [variable interface]
 ```
 
 ```Go
@@ -187,7 +196,7 @@ Var is a variable interface.
 
 ```
 searchKey: testdata.unexportedVar
-tags: [private]
+tags: [variable interface private]
 ```
 
 ```Go
@@ -200,7 +209,7 @@ unexportedVar is an unexported variable interface.
 
 ```
 searchKey: testdata.x
-tags: [private]
+tags: [variable interface private]
 ```
 
 ```Go
@@ -213,6 +222,7 @@ x has a builtin error type
 
 ```
 searchKey: testdata.BigVar
+tags: [variable interface]
 ```
 
 ```Go
@@ -223,6 +233,7 @@ var BigVar Interface = ...
 
 ```
 searchKey: testdata.VarBlock1
+tags: [variable string]
 ```
 
 ```Go
@@ -246,6 +257,7 @@ This has some docs
 
 ```
 searchKey: testdata.VarBlock2
+tags: [variable string]
 ```
 
 ```Go
@@ -266,13 +278,14 @@ It's sleeping! Some people write that as `sleeping` but Markdown isn't allowed i
 ## <a id="type" href="#type">Types</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="Embedded" href="#Embedded">type Embedded struct</a>
 
 ```
 searchKey: testdata.Embedded
+tags: [struct]
 ```
 
 ```Go
@@ -289,6 +302,7 @@ Embedded is a struct, to be embedded in another struct.
 
 ```
 searchKey: testdata.Struct
+tags: [struct]
 ```
 
 ```Go
@@ -307,6 +321,7 @@ type Struct struct {
 
 ```
 searchKey: testdata.Struct.StructMethod
+tags: [function]
 ```
 
 ```Go
@@ -319,6 +334,7 @@ StructMethod has some docs!
 
 ```
 searchKey: testdata.Struct.ImplementsInterface
+tags: [function]
 ```
 
 ```Go
@@ -329,6 +345,7 @@ func (s *Struct) ImplementsInterface() string
 
 ```
 searchKey: testdata.Struct.MachineLearning
+tags: [method]
 ```
 
 ```Go
@@ -344,6 +361,7 @@ func (s *Struct) MachineLearning(
 
 ```
 searchKey: testdata.Interface
+tags: [interface]
 ```
 
 ```Go
@@ -358,6 +376,7 @@ Interface has docs too
 
 ```
 searchKey: testdata.NewInterface
+tags: [function]
 ```
 
 ```Go
@@ -368,6 +387,7 @@ func NewInterface() Interface
 
 ```
 searchKey: testdata.X
+tags: [struct]
 ```
 
 ```Go
@@ -384,6 +404,7 @@ And confusing
 
 ```
 searchKey: testdata.Y
+tags: [struct]
 ```
 
 ```Go
@@ -398,6 +419,7 @@ Go can be fun
 
 ```
 searchKey: testdata.Inner
+tags: [struct]
 ```
 
 ```Go
@@ -412,6 +434,7 @@ type Inner struct {
 
 ```
 searchKey: testdata.Outer
+tags: [struct]
 ```
 
 ```Go
@@ -425,6 +448,7 @@ type Outer struct {
 
 ```
 searchKey: testdata.TestInterface
+tags: [interface]
 ```
 
 ```Go
@@ -440,6 +464,7 @@ TestInterface is an interface used for testing.
 
 ```
 searchKey: testdata.TestStruct
+tags: [struct]
 ```
 
 ```Go
@@ -469,6 +494,7 @@ TestStruct is a struct used for testing.
 
 ```
 searchKey: testdata.TestStruct.Doer
+tags: [method]
 ```
 
 ```Go
@@ -481,6 +507,7 @@ Doer is similar to the test interface (but not the same).
 
 ```
 searchKey: testdata.TestEmptyStruct
+tags: [struct]
 ```
 
 ```Go
@@ -491,6 +518,7 @@ type TestEmptyStruct struct{}
 
 ```
 searchKey: testdata.StringAlias
+tags: [string]
 ```
 
 ```Go
@@ -501,6 +529,7 @@ type StringAlias string
 
 ```
 searchKey: testdata.StructTagRegression
+tags: [struct]
 ```
 
 ```Go
@@ -517,6 +546,7 @@ See [https://github.com/tal-tech/go-zero/blob/11dd3d75ecceaa3f5772024fb3f26dec1a
 
 ```
 searchKey: testdata.TestEqualsStruct
+tags: [struct]
 ```
 
 ```Go
@@ -529,6 +559,7 @@ type TestEqualsStruct = struct {
 
 ```
 searchKey: testdata.ShellStruct
+tags: [struct]
 ```
 
 ```Go
@@ -544,6 +575,7 @@ type ShellStruct struct {
 
 ```
 searchKey: testdata.InnerStruct
+tags: [struct]
 ```
 
 ```Go
@@ -554,6 +586,7 @@ type InnerStruct struct{}
 
 ```
 searchKey: testdata.ParallelizableFunc
+tags: [function]
 ```
 
 ```Go
@@ -566,6 +599,7 @@ ParallelizableFunc is a function that can be called concurrently with other inst
 
 ```
 searchKey: testdata.SecretBurger
+tags: [struct]
 ```
 
 ```Go
@@ -578,6 +612,7 @@ Type aliased doc
 
 ```
 searchKey: testdata.BadBurger
+tags: [struct]
 ```
 
 ```Go
@@ -589,14 +624,14 @@ type BadBurger = struct {
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>
 
 ```
 searchKey: testdata.useOfCompositeStructs
-tags: [private]
+tags: [function private]
 ```
 
 ```Go
@@ -607,6 +642,7 @@ func useOfCompositeStructs()
 
 ```
 searchKey: testdata.Parallel
+tags: [method]
 ```
 
 ```Go
@@ -619,6 +655,7 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 
 ```
 searchKey: testdata.Switch
+tags: [method]
 ```
 
 ```Go

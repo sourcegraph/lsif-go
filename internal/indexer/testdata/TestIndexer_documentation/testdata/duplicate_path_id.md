@@ -14,14 +14,14 @@
 ## <a id="type" href="#type">Types</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="importMeta" href="#importMeta">type importMeta struct{}</a>
 
 ```
 searchKey: gosrc.importMeta
-tags: [private]
+tags: [struct private]
 ```
 
 ```Go
@@ -32,7 +32,7 @@ type importMeta struct{}
 
 ```
 searchKey: gosrc.fetchMeta
-tags: [private]
+tags: [function private]
 ```
 
 ```Go
@@ -43,7 +43,7 @@ func fetchMeta() (string, *importMeta, *sourceMeta)
 
 ```
 searchKey: gosrc.sourceMeta
-tags: [private]
+tags: [struct private]
 ```
 
 ```Go
@@ -53,14 +53,14 @@ type sourceMeta struct{}
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="init.main.go" href="#init.main.go">func init()</a>
 
 ```
 searchKey: gosrc.init
-tags: [private]
+tags: [function private]
 ```
 
 ```Go
@@ -71,7 +71,7 @@ func init()
 
 ```
 searchKey: gosrc.init
-tags: [private]
+tags: [function private]
 ```
 
 ```Go

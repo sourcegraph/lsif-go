@@ -12,14 +12,14 @@ This package has tests.
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="foo" href="#foo">func foo() bool</a>
 
 ```
 searchKey: tests.foo
-tags: [private]
+tags: [function private]
 ```
 
 ```Go
@@ -30,7 +30,7 @@ func foo() bool
 
 ```
 searchKey: tests.TestFoo
-tags: [private]
+tags: [method private]
 ```
 
 ```Go

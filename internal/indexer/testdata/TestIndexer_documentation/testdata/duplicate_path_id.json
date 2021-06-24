@@ -5,6 +5,7 @@
     "newPage": true,
     "searchKey": "duplicate_path_id",
     "tags": [
+      "package",
       "private"
     ]
   },
@@ -25,6 +26,7 @@
           "newPage": false,
           "searchKey": "",
           "tags": [
+            "package",
             "private"
           ]
         },
@@ -45,6 +47,7 @@
                 "newPage": false,
                 "searchKey": "gosrc.importMeta",
                 "tags": [
+                  "struct",
                   "private"
                 ]
               },
@@ -65,6 +68,7 @@
                       "newPage": false,
                       "searchKey": "gosrc.fetchMeta",
                       "tags": [
+                        "function",
                         "private"
                       ]
                     },
@@ -90,6 +94,7 @@
                 "newPage": false,
                 "searchKey": "gosrc.sourceMeta",
                 "tags": [
+                  "struct",
                   "private"
                 ]
               },
@@ -115,6 +120,7 @@
           "newPage": false,
           "searchKey": "",
           "tags": [
+            "package",
             "private"
           ]
         },
@@ -135,6 +141,7 @@
                 "newPage": false,
                 "searchKey": "gosrc.init",
                 "tags": [
+                  "function",
                   "private"
                 ]
               },
@@ -157,6 +164,7 @@
                 "newPage": false,
                 "searchKey": "gosrc.init",
                 "tags": [
+                  "function",
                   "private"
                 ]
               },

@@ -13,13 +13,14 @@ secret is a package that holds secrets.
 ## <a id="const" href="#const">Constants</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="SecretScore" href="#SecretScore">const SecretScore</a>
 
 ```
 searchKey: secret.SecretScore
+tags: [constant number]
 ```
 
 ```Go
@@ -31,13 +32,14 @@ SecretScore is like score but _secret_.
 ## <a id="type" href="#type">Types</a>
 
 ```
-tags: [private]
+tags: [package private]
 ```
 
 ### <a id="Burger" href="#Burger">type Burger struct</a>
 
 ```
 searchKey: secret.Burger
+tags: [struct]
 ```
 
 ```Go
