@@ -13,6 +13,29 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.6.0
+
+### Added
+
+- API docs now emit data linking `resultSet`s to `documentationResult`s, making it possible to go from hover/definition/references to API docs and vice-versa.
+- API docs now respect the latest Sourcegraph extension spec.
+- API docs now emit search keys for documentation to enable search indexing.
+
+### Changed
+
+- API docs index pages are now directory-structured, instead of a flat list of Go packages.
+- API docs symbols are now sorted (exported-first, alphabetical order.)
+
+### Fixed
+
+- API docs no longer include blank const/var declarations (`const _ = ...`)
+- API docs now only index top-level declarations, not e.g. variables inside functions.
+- API docs do a better job of trimming very long var/const declaration lines.
+- API docs no longer emit an empty "Functions" section if there are no functions in a package.
+- API docs no longer emit duplicate path IDs, which were forbidden in the spec.
+- API docs now emit many more tags for documentation sections: whether something is a function, const, var, public, etc.
+- API docs now tag benchmark/test functions as such properly.
+
 ## v1.5.0
 
 ### Added
