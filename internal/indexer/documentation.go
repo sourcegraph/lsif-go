@@ -822,10 +822,10 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 			}
 		}
 	}
-	if len(in.Type.Params.List) == 0 {
-		result.tags = append(result.tags, protocol.TagFunction)
-	} else {
+	if result.recvType != nil {
 		result.tags = append(result.tags, protocol.TagMethod)
+	} else {
+		result.tags = append(result.tags, protocol.TagFunction)
 	}
 	if private {
 		result.tags = append(result.tags, protocol.TagPrivate)

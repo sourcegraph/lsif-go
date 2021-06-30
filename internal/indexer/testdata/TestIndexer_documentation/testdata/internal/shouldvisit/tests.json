@@ -47,7 +47,7 @@
                 "newPage": false,
                 "searchKey": "tests.BenchmarkFoo",
                 "tags": [
-                  "method",
+                  "function",
                   "private",
                   "benchmark"
                 ]
@@ -71,7 +71,7 @@
                 "newPage": false,
                 "searchKey": "tests.TestFoo",
                 "tags": [
-                  "method",
+                  "function",
                   "private",
                   "test"
                 ]

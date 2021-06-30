@@ -47,7 +47,7 @@
                 "newPage": false,
                 "searchKey": "pkg_test.TestFoo",
                 "tags": [
-                  "method",
+                  "function",
                   "private",
                   "test"
                 ]

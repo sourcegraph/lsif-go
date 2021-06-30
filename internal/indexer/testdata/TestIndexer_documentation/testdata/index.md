@@ -489,7 +489,7 @@ type Struct struct {
 
 ```
 searchKey: testdata.Struct.ImplementsInterface
-tags: [function]
+tags: [method]
 ```
 
 ```Go
@@ -516,7 +516,7 @@ func (s *Struct) MachineLearning(
 
 ```
 searchKey: testdata.Struct.StructMethod
-tags: [function]
+tags: [method]
 ```
 
 ```Go
@@ -667,7 +667,7 @@ tags: [package private]
 
 ```
 searchKey: testdata.Parallel
-tags: [method]
+tags: [function]
 ```
 
 ```Go
@@ -680,7 +680,7 @@ Parallel invokes each of the given parallelizable functions in their own gorouti
 
 ```
 searchKey: testdata.Switch
-tags: [method]
+tags: [function]
 ```
 
 ```Go

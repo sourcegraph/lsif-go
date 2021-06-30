@@ -780,7 +780,7 @@
                       "newPage": false,
                       "searchKey": "testdata.Struct.ImplementsInterface",
                       "tags": [
-                        "function"
+                        "method"
                       ]
                     },
                     "label": {
@@ -824,7 +824,7 @@
                       "newPage": false,
                       "searchKey": "testdata.Struct.StructMethod",
                       "tags": [
-                        "function"
+                        "method"
                       ]
                     },
                     "label": {
@@ -1050,7 +1050,7 @@
                 "newPage": false,
                 "searchKey": "testdata.Parallel",
                 "tags": [
-                  "method"
+                  "function"
                 ]
               },
               "label": {
@@ -1072,7 +1072,7 @@
                 "newPage": false,
                 "searchKey": "testdata.Switch",
                 "tags": [
-                  "method"
+                  "function"
                 ]
               },
               "label": {
