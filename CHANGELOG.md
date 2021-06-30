@@ -13,6 +13,12 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.6.1
+
+## Fixed
+
+- API docs no longer incorrectly tags some methods as functions and vice-versa.
+
 ## v1.6.0
 
 ### Added
