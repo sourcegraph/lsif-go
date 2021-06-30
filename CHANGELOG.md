@@ -18,6 +18,7 @@ Nothing yet.
 ## Fixed
 
 - API docs no longer incorrectly tags Functions/Variables/etc sections as a package.
+- API docs no longer emits null tag lists in violation of the spec.
 
 ## v1.6.1
 
