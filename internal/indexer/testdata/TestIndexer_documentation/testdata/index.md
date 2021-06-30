@@ -62,7 +62,7 @@ testdata is a small package containing sample Go source code used for testing th
 ## <a id="const" href="#const">Constants</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="AliasedString" href="#AliasedString">const AliasedString</a>
@@ -179,7 +179,7 @@ const secretScore = secret.SecretScore
 ## <a id="var" href="#var">Variables</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="BigVar" href="#BigVar">var BigVar</a>
@@ -314,7 +314,7 @@ var _sortUnderscoreLast = 3
 ## <a id="type" href="#type">Types</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="BadBurger" href="#BadBurger">type BadBurger struct</a>
@@ -660,7 +660,7 @@ Go can be fun
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="Parallel" href="#Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error</a>

@@ -5,8 +5,8 @@
     "newPage": true,
     "searchKey": "internal/shouldvisit/tests",
     "tags": [
-      "package",
-      "private"
+      "private",
+      "package"
     ]
   },
   "label": {
@@ -26,7 +26,6 @@
           "newPage": false,
           "searchKey": "",
           "tags": [
-            "package",
             "private"
           ]
         },

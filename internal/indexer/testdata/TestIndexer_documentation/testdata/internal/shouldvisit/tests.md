@@ -13,7 +13,7 @@ This package has tests.
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="BenchmarkFoo" href="#BenchmarkFoo">func BenchmarkFoo(b *testing.B)</a>

@@ -292,13 +292,17 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	rootPkgPath := d.rootPkgPath()
 	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(pkgPathStdStrip(p.PkgPath), rootPkgPath), "/")
 
-	pkgTags := []protocol.Tag{protocol.TagPackage}
+	visibilityTags := []protocol.Tag{}
 	if strings.Contains(p.PkgPath, "/internal/") || strings.HasSuffix(p.Name, "_test") {
-		pkgTags = append(pkgTags, protocol.TagPrivate)
+		visibilityTags = append(visibilityTags, protocol.TagPrivate)
 	}
 	if isDeprecated(pkgDocsMarkdown) {
-		pkgTags = append(pkgTags, protocol.TagDeprecated)
+		visibilityTags = append(visibilityTags, protocol.TagDeprecated)
 	}
+	pkgTags := make([]protocol.Tag, len(visibilityTags))
+	copy(pkgTags, visibilityTags)
+	pkgTags = append(pkgTags, protocol.TagPackage)
+
 	pkgPathElements := strings.Split(pkgPathStdStrip(p.PkgPath), "/")
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
@@ -317,7 +321,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 				Identifier: identifier,
 				SearchKey:  "", // don't index sections of documentation for search
 				NewPage:    false,
-				Tags:       pkgTags,
+				Tags:       visibilityTags,
 			},
 			Label:  protocol.NewMarkupContent(label, protocol.PlainText),
 			Detail: protocol.NewMarkupContent("", protocol.PlainText),
