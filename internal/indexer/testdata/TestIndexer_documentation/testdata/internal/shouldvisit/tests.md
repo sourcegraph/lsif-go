@@ -20,7 +20,7 @@ tags: [package private]
 
 ```
 searchKey: tests.BenchmarkFoo
-tags: [method private benchmark]
+tags: [function private benchmark]
 ```
 
 ```Go
@@ -31,7 +31,7 @@ func BenchmarkFoo(b *testing.B)
 
 ```
 searchKey: tests.TestFoo
-tags: [method private test]
+tags: [function private test]
 ```
 
 ```Go
