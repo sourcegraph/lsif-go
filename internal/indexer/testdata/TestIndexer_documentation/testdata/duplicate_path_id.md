@@ -14,7 +14,7 @@
 ## <a id="type" href="#type">Types</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="importMeta" href="#importMeta">type importMeta struct{}</a>
@@ -53,7 +53,7 @@ type sourceMeta struct{}
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="init.main.go" href="#init.main.go">func init()</a>

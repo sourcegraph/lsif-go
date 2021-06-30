@@ -13,6 +13,13 @@ All notable changes to `lsif-go` are documented in this file.
 
 Nothing yet.
 
+## v1.6.2
+
+## Fixed
+
+- API docs no longer incorrectly tags Functions/Variables/etc sections as a package.
+- API docs no longer emits null tag lists in violation of the spec.
+
 ## v1.6.1
 
 ## Fixed

@@ -103,7 +103,7 @@ func (i *Indexer) indexDocumentation() error {
 				Identifier: "",
 				SearchKey:  "",
 				NewPage:    true,
-				Tags:       nil,
+				Tags:       []protocol.Tag{},
 			},
 			Label:  protocol.NewMarkupContent("", protocol.PlainText),
 			Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -155,7 +155,7 @@ func (i *Indexer) indexDocumentation() error {
 					Identifier: element,
 					SearchKey:  "", // don't index for search
 					NewPage:    true,
-					Tags:       nil,
+					Tags:       []protocol.Tag{},
 				},
 				Label:  protocol.NewMarkupContent("", protocol.PlainText),
 				Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -292,13 +292,17 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 	rootPkgPath := d.rootPkgPath()
 	shortestUniquePkgPath := strings.TrimPrefix(strings.TrimPrefix(pkgPathStdStrip(p.PkgPath), rootPkgPath), "/")
 
-	pkgTags := []protocol.Tag{protocol.TagPackage}
+	visibilityTags := []protocol.Tag{}
 	if strings.Contains(p.PkgPath, "/internal/") || strings.HasSuffix(p.Name, "_test") {
-		pkgTags = append(pkgTags, protocol.TagPrivate)
+		visibilityTags = append(visibilityTags, protocol.TagPrivate)
 	}
 	if isDeprecated(pkgDocsMarkdown) {
-		pkgTags = append(pkgTags, protocol.TagDeprecated)
+		visibilityTags = append(visibilityTags, protocol.TagDeprecated)
 	}
+	pkgTags := make([]protocol.Tag, len(visibilityTags))
+	copy(pkgTags, visibilityTags)
+	pkgTags = append(pkgTags, protocol.TagPackage)
+
 	pkgPathElements := strings.Split(pkgPathStdStrip(p.PkgPath), "/")
 	packageDocsID := (&documentationResult{
 		Documentation: protocol.Documentation{
@@ -317,7 +321,7 @@ func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
 				Identifier: identifier,
 				SearchKey:  "", // don't index sections of documentation for search
 				NewPage:    false,
-				Tags:       pkgTags,
+				Tags:       visibilityTags,
 			},
 			Label:  protocol.NewMarkupContent(label, protocol.PlainText),
 			Detail: protocol.NewMarkupContent("", protocol.PlainText),
@@ -603,6 +607,7 @@ func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, name
 	result.searchKey = p.Name + "." + name.String()
 	result.def = p.TypesInfo.Defs[name]
 
+	result.tags = []protocol.Tag{}
 	if typ == "const" {
 		result.tags = append(result.tags, protocol.TagConstant)
 	} else {
@@ -692,6 +697,7 @@ func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTes
 	result.typ = p.TypesInfo.ObjectOf(in.Name).Type()
 	result.def = p.TypesInfo.Defs[in.Name]
 
+	result.tags = []protocol.Tag{}
 	result.tags = append(result.tags, tagsForType(result.typ)...)
 	if !ast.IsExported(in.Name.String()) || isTestFile {
 		result.tags = append(result.tags, protocol.TagPrivate)
@@ -822,6 +828,7 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 			}
 		}
 	}
+	result.tags = []protocol.Tag{}
 	if result.recvType != nil {
 		result.tags = append(result.tags, protocol.TagMethod)
 	} else {

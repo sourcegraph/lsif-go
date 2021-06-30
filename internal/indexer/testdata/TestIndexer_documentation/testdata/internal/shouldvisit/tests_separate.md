@@ -11,7 +11,7 @@ This package has tests, but in a separate _test package.
 ## <a id="func" href="#func">Functions</a>
 
 ```
-tags: [package private]
+tags: [private]
 ```
 
 ### <a id="foo" href="#foo">func foo() bool</a>
