@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/lsif-go/internal/command"
+	"github.com/sourcegraph/lsif-go/internal/output"
 	"golang.org/x/tools/go/vcs"
 )
 
@@ -12,19 +13,23 @@ import (
 // directory usable for moniker identifiers. Note that this is distinct from the
 // declared module as this does not uniquely identify a project via its code host
 // coordinates in the presence of forks.
-func ModuleName(dir, repo string) (string, error) {
-	if !isModule(dir) {
-		log.Println("WARNING: No go.mod file found in current directory.")
-		return resolveModuleName(repo, repo)
+func ModuleName(dir, repo string, outputOptions output.Options) (moduleName string, err error) {
+	resolve := func() {
+		name := repo
+
+		if !isModule(dir) {
+			log.Println("WARNING: No go.mod file found in current directory.")
+		} else {
+			if name, err = command.Run(dir, "go", "list", "-mod=readonly", "-m"); err != nil {
+				return
+			}
+		}
+
+		moduleName, err = resolveModuleName(repo, name)
 	}
 
-	// Determine the declared name of the module
-	name, err := command.Run(dir, "go", "list", "-mod=readonly", "-m")
-	if err != nil {
-		return "", err
-	}
-
-	return resolveModuleName(repo, name)
+	output.WithProgress("Resolving module name", resolve, outputOptions)
+	return moduleName, err
 }
 
 // resolveModuleName converts the given repository and import path into a canonical

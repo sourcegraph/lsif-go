@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/sourcegraph/lsif-go/internal/command"
+	"github.com/sourcegraph/lsif-go/internal/output"
 	"golang.org/x/tools/go/vcs"
 )
 
@@ -25,30 +26,35 @@ type Module struct {
 // and version as declared by the go.mod file in the current directory. The given root module
 // and version are used to resolve replace directives with local file paths. The root module
 // is expected to be a resolved import path (a valid URL, including a scheme).
-func ListDependencies(dir, rootModule, rootVersion string) (map[string]Module, error) {
+func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.Options) (dependencies map[string]Module, err error) {
 	if !isModule(dir) {
 		log.Println("WARNING: No go.mod file found in current directory.")
 		return nil, nil
 	}
 
-	output, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json", "all")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list modules: %v\n%s", err, output)
+	resolve := func() {
+		output, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json", "all")
+		if err != nil {
+			err = fmt.Errorf("failed to list modules: %v\n%s", err, output)
+			return
+		}
+
+		dependencies, err = parseGoListOutput(output, rootVersion)
+		if err != nil {
+			return
+		}
+
+		modules := make([]string, 0, len(dependencies))
+		for _, module := range dependencies {
+			modules = append(modules, module.Name)
+		}
+
+		resolvedImportPaths := resolveImportPaths(rootModule, modules)
+		mapImportPaths(dependencies, resolvedImportPaths)
 	}
 
-	dependencies, err := parseGoListOutput(output, rootVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	modules := make([]string, 0, len(dependencies))
-	for _, module := range dependencies {
-		modules = append(modules, module.Name)
-	}
-
-	resolvedImportPaths := resolveImportPaths(rootModule, modules)
-	mapImportPaths(dependencies, resolvedImportPaths)
-	return dependencies, nil
+	output.WithProgress("Listing dependencies", resolve, outputOptions)
+	return dependencies, err
 }
 
 type jsonModule struct {
