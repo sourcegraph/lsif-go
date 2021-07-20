@@ -1,4 +1,4 @@
-package indexer
+package output
 
 import (
 	"fmt"
@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/efritz/pentimento"
+	"github.com/sourcegraph/lsif-go/internal/parallel"
 	"github.com/sourcegraph/lsif-go/internal/util"
 )
 
-type OutputOptions struct {
+type Options struct {
 	Verbosity      Verbosity
 	ShowAnimations bool
 }
@@ -45,10 +46,20 @@ var failurePrefix = "✗"
 // logger is used to log at the level -vv and above from multiple goroutines.
 var logger = log.New(os.Stdout, "", 0)
 
-// withProgress will continuously print progress to stdout until the given wait group counter
-// goes to zero. Progress is determined by the values of `c` (number of tasks completed) and
-// the value `n` (total number of tasks).
-func withProgress(wg *sync.WaitGroup, name string, outputOptions OutputOptions, c *uint64, n uint64) {
+// TODO - document
+func WithProgress(name string, fn func(), outputOptions Options) {
+	ch := make(chan func(), 1)
+	ch <- fn
+	close(ch)
+
+	wg, count := parallel.Run(ch)
+	WithProgressParallel(wg, name, outputOptions, count, 1)
+}
+
+// WithProgressParallel will continuously print progress to stdout until the given wait group
+// counter goes to zero. Progress is determined by the values of `c` (number of tasks completed)
+// and the value `n` (total number of tasks).
+func WithProgressParallel(wg *sync.WaitGroup, name string, outputOptions Options, c *uint64, n uint64) {
 	sync := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -69,7 +80,7 @@ func withProgress(wg *sync.WaitGroup, name string, outputOptions OutputOptions, 
 }
 
 // withTitle invokes withTitleAnimated withTitleStatic depending on the value of animated.
-func withTitle(name string, outputOptions OutputOptions, fn func(printer *pentimento.Printer)) {
+func withTitle(name string, outputOptions Options, fn func(printer *pentimento.Printer)) {
 	if outputOptions.Verbosity == NoOutput {
 		fn(nil)
 	} else if !outputOptions.ShowAnimations || outputOptions.Verbosity >= VeryVerboseOutput {

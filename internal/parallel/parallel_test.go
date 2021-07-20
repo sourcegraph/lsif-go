@@ -1,4 +1,4 @@
-package indexer
+package parallel
 
 import (
 	"sync/atomic"
@@ -13,7 +13,7 @@ func TestRunParallel(t *testing.T) {
 	ch <- func() {}
 	close(ch)
 
-	wg, n := runParallel(ch)
+	wg, n := Run(ch)
 	wg.Wait()
 
 	if *n != 3 {
@@ -32,7 +32,7 @@ func TestRunParallelProgress(t *testing.T) {
 	ch <- func() { <-sync3 }
 	close(ch)
 
-	wg, n := runParallel(ch)
+	wg, n := Run(ch)
 
 	checkValue := func(expected uint64) {
 		var v uint64

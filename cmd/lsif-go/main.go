@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/lsif-go/internal/output"
 )
 
 func init() {
@@ -26,6 +27,11 @@ func mainErr() error {
 		return err
 	}
 
+	outputOptions := output.Options{
+		Verbosity:      getVerbosity(),
+		ShowAnimations: !noAnimation,
+	}
+
 	moduleName, err := gomod.ModuleName(moduleRoot, repositoryRemote)
 	if err != nil {
 		return err
@@ -44,5 +50,6 @@ func mainErr() error {
 		moduleVersion,
 		dependencies,
 		outFile,
+		outputOptions,
 	)
 }

@@ -7,11 +7,12 @@ import (
 
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/indexer"
+	"github.com/sourcegraph/lsif-go/internal/output"
 	protocol "github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
-func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string) error {
+func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string, outputOptions output.Options) error {
 	start := time.Now()
 
 	out, err := os.Create(outFile)
@@ -41,10 +42,7 @@ func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, modul
 		dependencies,
 		writer.NewJSONWriter(out),
 		packageDataCache,
-		indexer.OutputOptions{
-			Verbosity:      getVerbosity(),
-			ShowAnimations: !noAnimation,
-		},
+		outputOptions,
 	)
 
 	if err := indexer.Index(); err != nil {
@@ -58,16 +56,16 @@ func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, modul
 	return nil
 }
 
-var verbosityLevels = map[int]indexer.Verbosity{
-	0: indexer.DefaultOutput,
-	1: indexer.VerboseOutput,
-	2: indexer.VeryVerboseOutput,
-	3: indexer.VeryVeryVerboseOutput,
+var verbosityLevels = map[int]output.Verbosity{
+	0: output.DefaultOutput,
+	1: output.VerboseOutput,
+	2: output.VeryVerboseOutput,
+	3: output.VeryVeryVerboseOutput,
 }
 
-func getVerbosity() indexer.Verbosity {
+func getVerbosity() output.Verbosity {
 	if noOutput {
-		return indexer.NoOutput
+		return output.NoOutput
 	}
 
 	if verbosity >= len(verbosityLevels) {
@@ -78,5 +76,5 @@ func getVerbosity() indexer.Verbosity {
 }
 
 func isVerbose() bool {
-	return getVerbosity() >= indexer.VerboseOutput
+	return getVerbosity() >= output.VerboseOutput
 }

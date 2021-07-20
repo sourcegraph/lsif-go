@@ -1,4 +1,4 @@
-package indexer
+package parallel
 
 import (
 	"runtime"
@@ -6,11 +6,11 @@ import (
 	"sync/atomic"
 )
 
-// runParallel will run the functions read from the given channel concurrently. This function
+// Run will run the functions read from the given channel concurrently. This function
 // returns a wait group synchronized on the invocation functions, a channel on which any error
 // values are written, and a pointer to the number of tasks that have completed, which is
 // updated atomically.
-func runParallel(ch <-chan func()) (*sync.WaitGroup, *uint64) {
+func Run(ch <-chan func()) (*sync.WaitGroup, *uint64) {
 	var count uint64
 	var wg sync.WaitGroup
 

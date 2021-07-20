@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hexops/autogold"
+	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/lsif-static-doc/staticdoc"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
@@ -29,7 +30,7 @@ func TestIndexer(t *testing.T) {
 		nil,
 		w,
 		NewPackageDataCache(),
-		OutputOptions{},
+		output.Options{},
 	)
 
 	if err := indexer.Index(); err != nil {
@@ -389,7 +390,7 @@ func TestIndexer_documentation(t *testing.T) {
 				nil,
 				writer.NewJSONWriter(&buf),
 				NewPackageDataCache(),
-				OutputOptions{},
+				output.Options{},
 			)
 			if err := indexer.Index(); err != nil {
 				t.Fatalf("unexpected error indexing testdata: %s", err.Error())
@@ -437,7 +438,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		nil,
 		w,
 		NewPackageDataCache(),
-		OutputOptions{},
+		output.Options{},
 	)
 
 	if err := indexer.loadPackages(false); err != nil {
