@@ -11,6 +11,8 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+## v1.6.3
+
 ## Changed
 
 - Improved error messages.
