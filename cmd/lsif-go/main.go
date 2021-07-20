@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/sourcegraph/lsif-go/internal/git"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
 )
@@ -25,6 +26,10 @@ func main() {
 func mainErr() error {
 	if err := parseArgs(os.Args[1:]); err != nil {
 		return err
+	}
+
+	if !git.Check(moduleRoot) {
+		return fmt.Errorf("module root is not a git repository")
 	}
 
 	outputOptions := output.Options{
