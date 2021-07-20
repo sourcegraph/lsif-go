@@ -46,7 +46,7 @@ var failurePrefix = "✗"
 // logger is used to log at the level -vv and above from multiple goroutines.
 var logger = log.New(os.Stdout, "", 0)
 
-// TODO - document
+// WithProgress prints a spinner while the given function is active.
 func WithProgress(name string, fn func(), outputOptions Options) {
 	ch := make(chan func(), 1)
 	ch <- fn
