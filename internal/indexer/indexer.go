@@ -13,6 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 	"golang.org/x/tools/go/packages"
@@ -27,7 +28,7 @@ type Indexer struct {
 	moduleVersion    string                  // version of this module
 	dependencies     map[string]gomod.Module // parsed module data
 	emitter          *writer.Emitter         // LSIF data emitter
-	outputOptions    OutputOptions           // What to print to stdout/stderr
+	outputOptions    output.Options          // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -73,7 +74,7 @@ func New(
 	dependencies map[string]gomod.Module,
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
-	outputOptions OutputOptions,
+	outputOptions output.Options,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:        repositoryRoot,
@@ -107,7 +108,7 @@ func New(
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
 	if err := i.loadPackages(true); err != nil {
-		return errors.Wrap(err, "loadPackages")
+		return errors.Wrap(err, "failed to load packages")
 	}
 
 	i.emitMetadataAndProjectVertex()
@@ -120,7 +121,7 @@ func (i *Indexer) Index() error {
 	i.emitContains()
 
 	if err := i.emitter.Flush(); err != nil {
-		return errors.Wrap(err, "emitter.Flush")
+		return errors.Wrap(err, "failed to write index to disk")
 	}
 
 	return nil
@@ -176,7 +177,7 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 		}
 	}()
 
-	withProgress(&wg, "Loading packages", i.outputOptions, nil, 0)
+	output.WithProgressParallel(&wg, "Loading packages", i.outputOptions, nil, 0)
 	return <-errs
 }
 
@@ -225,7 +226,7 @@ func (i *Indexer) shouldVisitPackage(p *packages.Package, allPackages []*package
 // unmarshal the fourth log argument value (a *bytes.Buffer of go list stdout)
 // as a stream of JSON objects representing loaded (or candidate) packages.
 func (i *Indexer) packagesLoadLogger(format string, args ...interface{}) {
-	if i.outputOptions.Verbosity < VeryVeryVerboseOutput || len(args) < 4 {
+	if i.outputOptions.Verbosity < output.VeryVeryVerboseOutput || len(args) < 4 {
 		return
 	}
 	stdoutBuf, ok := args[3].(*bytes.Buffer)

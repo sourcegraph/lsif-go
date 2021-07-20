@@ -5,6 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/sourcegraph/lsif-go/internal/output"
+	"github.com/sourcegraph/lsif-go/internal/parallel"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -25,14 +27,14 @@ func (i *Indexer) visitEachRawFile(name string, fn func(filename string)) {
 		defer wg.Done()
 
 		for _, p := range i.packages {
-			if i.outputOptions.Verbosity >= VeryVerboseOutput {
+			if i.outputOptions.Verbosity >= output.VeryVerboseOutput {
 				log.Printf("\tPackage %s", p.ID)
 			}
 
 			for _, f := range p.Syntax {
 				filename := p.Fset.Position(f.Package).Filename
 
-				if i.outputOptions.Verbosity >= VeryVeryVerboseOutput {
+				if i.outputOptions.Verbosity >= output.VeryVeryVerboseOutput {
 					log.Printf("\t\tFile %s", filename)
 				}
 
@@ -42,7 +44,7 @@ func (i *Indexer) visitEachRawFile(name string, fn func(filename string)) {
 		}
 	}()
 
-	withProgress(&wg, name, i.outputOptions, &count, n)
+	output.WithProgressParallel(&wg, name, i.outputOptions, &count, n)
 }
 
 // visitEachPackage invokes the given visitor function on each indexed package. This method prints the
@@ -56,7 +58,7 @@ func (i *Indexer) visitEachPackage(name string, fn func(p *packages.Package)) {
 		for _, p := range i.packages {
 			t := p
 			ch <- func() {
-				if i.outputOptions.Verbosity >= VeryVerboseOutput {
+				if i.outputOptions.Verbosity >= output.VeryVerboseOutput {
 					log.Printf("\tPackage %s", p.ID)
 				}
 
@@ -66,8 +68,8 @@ func (i *Indexer) visitEachPackage(name string, fn func(p *packages.Package)) {
 	}()
 
 	n := uint64(len(i.packages))
-	wg, count := runParallel(ch)
-	withProgress(wg, name, i.outputOptions, count, n)
+	wg, count := parallel.Run(ch)
+	output.WithProgressParallel(wg, name, i.outputOptions, count, n)
 }
 
 // visitEachDefinitionInfo invokes the given visitor function on each definition info value. This method
@@ -100,8 +102,8 @@ func (i *Indexer) visitEachDefinitionInfo(name string, fn func(d *DefinitionInfo
 		}
 	}()
 
-	wg, count := runParallel(ch)
-	withProgress(wg, name, i.outputOptions, count, n)
+	wg, count := parallel.Run(ch)
+	output.WithProgressParallel(wg, name, i.outputOptions, count, n)
 }
 
 // visitEachDocument invokes the given visitor function on each document. This method prints the
@@ -119,6 +121,6 @@ func (i *Indexer) visitEachDocument(name string, fn func(d *DocumentInfo)) {
 	}()
 
 	n := uint64(len(i.documents))
-	wg, count := runParallel(ch)
-	withProgress(wg, name, i.outputOptions, count, n)
+	wg, count := parallel.Run(ch)
+	output.WithProgressParallel(wg, name, i.outputOptions, count, n)
 }
