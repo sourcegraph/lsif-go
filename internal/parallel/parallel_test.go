@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestRunParallel(t *testing.T) {
+func TestRun(t *testing.T) {
 	ch := make(chan func(), 3)
 	ch <- func() {}
 	ch <- func() {}
@@ -21,7 +21,7 @@ func TestRunParallel(t *testing.T) {
 	}
 }
 
-func TestRunParallelProgress(t *testing.T) {
+func TestRunProgress(t *testing.T) {
 	sync1 := make(chan struct{})
 	sync2 := make(chan struct{})
 	sync3 := make(chan struct{})
