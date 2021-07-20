@@ -1,6 +1,7 @@
 package gomod
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -21,6 +22,7 @@ func ModuleName(dir, repo string, outputOptions output.Options) (moduleName stri
 			log.Println("WARNING: No go.mod file found in current directory.")
 		} else {
 			if name, err = command.Run(dir, "go", "list", "-mod=readonly", "-m"); err != nil {
+				err = fmt.Errorf("failed to list modules: %v\n%s", err, name)
 				return
 			}
 		}

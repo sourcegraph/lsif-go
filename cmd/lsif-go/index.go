@@ -17,7 +17,7 @@ func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, modul
 
 	out, err := os.Create(outFile)
 	if err != nil {
-		return fmt.Errorf("create dump file: %v", err)
+		return fmt.Errorf("failed to create dump file: %v", err)
 	}
 	defer out.Close()
 
@@ -46,7 +46,7 @@ func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, modul
 	)
 
 	if err := indexer.Index(); err != nil {
-		return fmt.Errorf("index: %v", err)
+		return err
 	}
 
 	if isVerbose() {

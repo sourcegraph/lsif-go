@@ -52,7 +52,7 @@ func init() {
 
 func parseArgs(args []string) (err error) {
 	if _, err := app.Parse(args); err != nil {
-		return err
+		return fmt.Errorf("failed to parse args: %v", err)
 	}
 
 	sanitizers := []func() error{sanitizeProjectRoot, sanitizeModuleRoot, sanitizeRepositoryRoot}
@@ -60,7 +60,7 @@ func parseArgs(args []string) (err error) {
 
 	for _, f := range append(sanitizers, validators...) {
 		if err := f(); err != nil {
-			return err
+			return fmt.Errorf("failed to parse args: %v", err)
 		}
 	}
 

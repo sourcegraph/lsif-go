@@ -108,7 +108,7 @@ func New(
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
 	if err := i.loadPackages(true); err != nil {
-		return errors.Wrap(err, "loadPackages")
+		return errors.Wrap(err, "failed to load packages")
 	}
 
 	i.emitMetadataAndProjectVertex()
@@ -121,7 +121,7 @@ func (i *Indexer) Index() error {
 	i.emitContains()
 
 	if err := i.emitter.Flush(); err != nil {
-		return errors.Wrap(err, "emitter.Flush")
+		return errors.Wrap(err, "failed to write index to disk")
 	}
 
 	return nil

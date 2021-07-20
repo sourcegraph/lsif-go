@@ -18,12 +18,12 @@ func init() {
 
 func main() {
 	if err := mainErr(); err != nil {
-		fmt.Fprint(os.Stderr, fmt.Sprintf("\nerror: %v\n", err))
+		fmt.Fprint(os.Stderr, fmt.Sprintf("error: %v\n", err))
 		os.Exit(1)
 	}
 }
 
-func mainErr() error {
+func mainErr() (err error) {
 	if err := parseArgs(os.Args[1:]); err != nil {
 		return err
 	}
@@ -32,6 +32,19 @@ func mainErr() error {
 		return fmt.Errorf("module root is not a git repository")
 	}
 
+	defer func() {
+		if err != nil {
+			// Add a new line to all errors except for ones that
+			// come from parsing invalid command line arguments
+			// and basic environment sanity checks.
+			//
+			// We will print progress unconditionally after this
+			// point and we want the error text to be clearly
+			// visible.
+			fmt.Fprintf(os.Stderr, "\n")
+		}
+	}()
+
 	outputOptions := output.Options{
 		Verbosity:      getVerbosity(),
 		ShowAnimations: !noAnimation,
@@ -39,15 +52,15 @@ func mainErr() error {
 
 	moduleName, err := gomod.ModuleName(moduleRoot, repositoryRemote, outputOptions)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to infer module name: %v", err)
 	}
 
 	dependencies, err := gomod.ListDependencies(moduleRoot, moduleName, moduleVersion, outputOptions)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list dependencies: %v", err)
 	}
 
-	return writeIndex(
+	if err := writeIndex(
 		repositoryRoot,
 		repositoryRemote,
 		projectRoot,
@@ -56,5 +69,9 @@ func mainErr() error {
 		dependencies,
 		outFile,
 		outputOptions,
-	)
+	); err != nil {
+		return fmt.Errorf("failed to index: %v", err)
+	}
+
+	return nil
 }
