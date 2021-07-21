@@ -56,6 +56,9 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 	pkg := monikerPackage(obj)
 
 	for _, moduleName := range packagePrefixes(pkg) {
+		if moduleName == "std" {
+			panic("AHH STD")
+		}
 		if module, ok := i.dependencies[moduleName]; ok {
 			// Lazily emit package information vertex
 			packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
@@ -66,8 +69,22 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 
 			// Attach moniker to source element and stop after first match
 			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-			break
+
+			return
 		}
+	}
+
+	if !strings.Contains(pkg, ".") {
+		module := i.dependencies["std"]
+		// Lazily emit package information vertex
+		packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
+
+		// Lazily emit moniker vertex
+		monikerIdentifier := joinMonikerParts(pkg, monikerIdentifier(i.packageDataCache, p, obj))
+		monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
+
+		// Attach moniker to source element and stop after first match
+		_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
 	}
 }
 

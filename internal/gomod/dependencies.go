@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/go/vcs"
 )
 
-type Module struct {
+type GoModule struct {
 	Name    string
 	Version string
 }
@@ -26,7 +26,7 @@ type Module struct {
 // and version as declared by the go.mod file in the current directory. The given root module
 // and version are used to resolve replace directives with local file paths. The root module
 // is expected to be a resolved import path (a valid URL, including a scheme).
-func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.Options) (dependencies map[string]Module, err error) {
+func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.Options) (dependencies map[string]GoModule, err error) {
 	if !isModule(dir) {
 		log.Println("WARNING: No go.mod file found in current directory.")
 		return nil, nil
@@ -58,9 +58,10 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 }
 
 type jsonModule struct {
-	Name    string      `json:"Path"`
-	Version string      `json:"Version"`
-	Replace *jsonModule `json:"Replace"`
+	Name      string      `json:"Path"`
+	Version   string      `json:"Version"`
+	GoVersion string      `json:"GoVersion"`
+	Replace   *jsonModule `json:"Replace"`
 }
 
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
@@ -68,10 +69,11 @@ type jsonModule struct {
 // replacement directives specified in go.mod. Replace directives indicating a local file path
 // will create a module with the given root version, which is expected to be the same version
 // as the module being indexed.
-func parseGoListOutput(output, rootVersion string) (map[string]Module, error) {
-	dependencies := map[string]Module{}
+func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) {
+	dependencies := map[string]GoModule{}
 	decoder := json.NewDecoder(strings.NewReader(output))
 
+	var goVersion string
 	for {
 		var module jsonModule
 		if err := decoder.Decode(&module); err != nil {
@@ -80,6 +82,10 @@ func parseGoListOutput(output, rootVersion string) (map[string]Module, error) {
 			}
 
 			return nil, err
+		}
+
+		if goVersion == "" {
+			goVersion = module.GoVersion
 		}
 
 		// Stash original name before applying replacement
@@ -95,10 +101,15 @@ func parseGoListOutput(output, rootVersion string) (map[string]Module, error) {
 			module.Version = rootVersion
 		}
 
-		dependencies[importPath] = Module{
+		dependencies[importPath] = GoModule{
 			Name:    module.Name,
 			Version: cleanVersion(module.Version),
 		}
+	}
+
+	dependencies["std"] = GoModule{
+		Name:    "std",
+		Version: goVersion,
 	}
 
 	return dependencies, nil
@@ -147,20 +158,26 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 				// Try to resolve the import path if it looks like a local path
 				name, err := resolveLocalPath(name, rootModule)
 				if err != nil {
-					log.Println(fmt.Sprintf("WARNING: Failed to resolve %s (%s).", name, err))
+					log.Println(fmt.Sprintf("WARNING: Failed to resolve local %s (%s).", name, err))
 					continue
 				}
 
-				// Determine path suffix relative to the import path
-				repoRoot, err := vcs.RepoRootForImportPath(name, false)
-				if err != nil {
-					log.Println(fmt.Sprintf("WARNING: Failed to resolve %s (%s).", name, err))
-					continue
+				var finalName string
+				if name == "std" {
+					finalName = name
+				} else {
+					// Determine path suffix relative to the import path
+					repoRoot, err := vcs.RepoRootForImportPath(name, false)
+					if err != nil {
+						log.Println(fmt.Sprintf("WARNING: Failed to resolve repo %s (%s).", name, err))
+						continue
+					}
+					suffix := strings.TrimPrefix(name, repoRoot.Root)
+					finalName = repoRoot.Repo + suffix
 				}
-				suffix := strings.TrimPrefix(name, repoRoot.Root)
 
 				m.Lock()
-				namesToResolve[originalName] = repoRoot.Repo + suffix
+				namesToResolve[originalName] = finalName
 				m.Unlock()
 			}
 		}()
@@ -193,10 +210,10 @@ func resolveLocalPath(name, rootModule string) (string, error) {
 
 // mapImportPaths replace each module name with the value in the given resolved import paths
 // map. If the module name is not present in the map, no change is made to the module value.
-func mapImportPaths(dependencies map[string]Module, resolvedImportPaths map[string]string) {
+func mapImportPaths(dependencies map[string]GoModule, resolvedImportPaths map[string]string) {
 	for importPath, module := range dependencies {
 		if name, ok := resolvedImportPaths[module.Name]; ok {
-			dependencies[importPath] = Module{
+			dependencies[importPath] = GoModule{
 				Name:    name,
 				Version: module.Version,
 			}

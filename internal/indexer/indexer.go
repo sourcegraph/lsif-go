@@ -26,7 +26,7 @@ type Indexer struct {
 	toolInfo         protocol.ToolInfo       // metadata vertex payload
 	moduleName       string                  // name of this module
 	moduleVersion    string                  // version of this module
-	dependencies     map[string]gomod.Module // parsed module data
+	dependencies     map[string]gomod.GoModule // parsed module data
 	emitter          *writer.Emitter         // LSIF data emitter
 	outputOptions    output.Options          // What to print to stdout/stderr
 
@@ -71,7 +71,7 @@ func New(
 	toolInfo protocol.ToolInfo,
 	moduleName string,
 	moduleVersion string,
-	dependencies map[string]gomod.Module,
+	dependencies map[string]gomod.GoModule,
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions output.Options,
