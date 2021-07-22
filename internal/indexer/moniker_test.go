@@ -117,7 +117,7 @@ func TestEmitImportMoniker(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		dependencies: map[string]gomod.Module{
+		dependencies: map[string]gomod.GoModule{
 			"github.com/test/pkg/sub1": {Name: "github.com/test/pkg/sub1", Version: "1.2.3-deadbeef"},
 		},
 		emitter:               writer.NewEmitter(w),
