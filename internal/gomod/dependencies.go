@@ -64,6 +64,8 @@ type jsonModule struct {
 	Replace   *jsonModule `json:"Replace"`
 }
 
+var StdLibraryName = "https://github.com/golang/go"
+
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
 // import paths to pairs of declared (unresolved) module names and version pairs that respect
 // replacement directives specified in go.mod. Replace directives indicating a local file path
@@ -108,8 +110,8 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 	}
 
 	dependencies["std"] = GoModule{
-		Name:    "std",
-		Version: goVersion,
+		Name:    StdLibraryName,
+		Version: "go" + goVersion,
 	}
 
 	return dependencies, nil
@@ -163,7 +165,7 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 				}
 
 				var finalName string
-				if name == "std" {
+				if name == StdLibraryName {
 					finalName = name
 				} else {
 					// Determine path suffix relative to the import path
