@@ -64,7 +64,7 @@ type jsonModule struct {
 	Replace   *jsonModule `json:"Replace"`
 }
 
-var StdLibraryName = "https://github.com/golang/go"
+var stdlibName = "github.com/golang/go"
 
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
 // import paths to pairs of declared (unresolved) module names and version pairs that respect
@@ -109,12 +109,33 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 		}
 	}
 
-	dependencies["std"] = GoModule{
-		Name:    StdLibraryName,
+	setGolangDependency(dependencies, goVersion)
+
+	return dependencies, nil
+}
+
+func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
+	// TODO: Should probalby do some check like: "does this look like a commit"
+	dependencies[stdlibName] = GoModule{
+		Name:    stdlibName,
 		Version: "go" + goVersion,
 	}
 
-	return dependencies, nil
+}
+
+func GetGolangDependency(dependencies map[string]GoModule) GoModule {
+	return dependencies[stdlibName]
+}
+
+func IsStandardlibPackge(pkg string) bool {
+	// TODO: Any other considerations?
+	// Could also hardcode the result
+
+	if strings.Contains(pkg, ".") {
+		return false
+	}
+
+	return true
 }
 
 // versionPattern matches a versioning ending in a 12-digit sha, e.g., vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
@@ -165,7 +186,7 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 				}
 
 				var finalName string
-				if name == StdLibraryName {
+				if name == stdlibName {
 					finalName = name
 				} else {
 					// Determine path suffix relative to the import path

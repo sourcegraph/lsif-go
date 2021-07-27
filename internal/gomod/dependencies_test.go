@@ -65,7 +65,7 @@ func TestParseGoListOutput(t *testing.T) {
 	}
 
 	expected := map[string]GoModule{
-		"std":                                               {Name: "std", Version: "1.14"},
+		"github.com/golang/go":                              {Name: "github.com/golang/go", Version: "go1.14"},
 		"github.com/gavv/httpexpect":                        {Name: "github.com/gavv/httpexpect", Version: "v2.0.0"},
 		"github.com/getsentry/raven-go":                     {Name: "github.com/getsentry/raven-go", Version: "v0.2.0"},
 		"github.com/gfleury/go-bitbucket-v1":                {Name: "github.com/gfleury/go-bitbucket-v1", Version: "e5170e3280fb"},

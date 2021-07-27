@@ -5,6 +5,7 @@ import (
 	"go/types"
 	"strings"
 
+	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -25,7 +26,7 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ty
 	// Emit export moniker (uncached as these are on unique definitions)
 	monikerID := i.emitter.EmitMoniker("export", "gomod", joinMonikerParts(
 		packageName,
-		monikerIdentifier(i.packageDataCache, p, obj),
+		getMonikerIdentifier(i.packageDataCache, p, obj),
 	))
 
 	// Lazily emit package information vertex and attach it to moniker
@@ -48,40 +49,39 @@ func joinMonikerParts(parts ...string) string {
 	return strings.Join(nonEmpty, ":")
 }
 
+func (i *Indexer) emitImportMonikerWithModule(sourceID uint64, module gomod.GoModule, monikerIdentifier string) {
+	// Lazily emit package information vertex
+	packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
+
+	// Lazily emit moniker vertex
+	monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
+
+	// Attach moniker to source element and stop after first match
+	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+
+}
+
 // emitImportMoniker emits an import moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
 func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj types.Object) {
 	pkg := monikerPackage(obj)
+	monikerIdentifier := joinMonikerParts(pkg, getMonikerIdentifier(i.packageDataCache, p, obj))
 
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
-			// Lazily emit package information vertex
-			packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
-
-			// Lazily emit moniker vertex
-			monikerIdentifier := joinMonikerParts(pkg, monikerIdentifier(i.packageDataCache, p, obj))
-			monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
-
-			// Attach moniker to source element and stop after first match
-			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+			i.emitImportMonikerWithModule(sourceID, module, monikerIdentifier)
 
 			return
 		}
 	}
 
-	if !strings.Contains(pkg, ".") {
-		module := i.dependencies["std"]
-		// Lazily emit package information vertex
-		packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
+	if gomod.IsStandardlibPackge(pkg) {
+		module := gomod.GetGolangDependency(i.dependencies)
+		i.emitImportMonikerWithModule(sourceID, module, monikerIdentifier)
 
-		// Lazily emit moniker vertex
-		monikerIdentifier := joinMonikerParts("std/"+pkg, monikerIdentifier(i.packageDataCache, p, obj))
-		monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
-
-		// Attach moniker to source element and stop after first match
-		_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+		return
 	}
 }
 
@@ -157,10 +157,10 @@ func monikerPackage(obj types.Object) string {
 	return obj.Pkg().Path()
 }
 
-// monikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
+// getMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`. The identifier is meant to act as a
 // qualified type path to the given object (e.g. `StructName.FieldName` or `StructName.MethodName`).
-func monikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj types.Object) string {
+func getMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj types.Object) string {
 	if _, ok := obj.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
 		return ""
