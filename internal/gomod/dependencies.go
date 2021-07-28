@@ -178,6 +178,10 @@ func IsStandardlibPackge(pkg string) bool {
 		return false
 	}
 
+	if strings.HasPrefix(pkg, "_") {
+		return false
+	}
+
 	return true
 }
 
