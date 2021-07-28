@@ -151,10 +151,11 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 // A full moniker has the form `{package prefix}:{identifier suffix}`.
 func monikerPackage(obj types.Object) string {
 	if v, ok := obj.(*types.PkgName); ok {
-		return strings.Trim(v.Name(), `"`)
+		name := strings.Trim(v.Name(), `"`)
+		return gomod.NormalizeMonikerPackage(name)
 	}
 
-	return obj.Pkg().Path()
+	return gomod.NormalizeMonikerPackage(obj.Pkg().Path())
 }
 
 // getMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.

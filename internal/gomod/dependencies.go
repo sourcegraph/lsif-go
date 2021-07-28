@@ -2,6 +2,7 @@ package gomod
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -65,6 +67,7 @@ type jsonModule struct {
 }
 
 var stdlibName = "github.com/golang/go"
+var validGoVersion = regexp.MustCompile(`(\d+)\.(\d+)`)
 
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
 // import paths to pairs of declared (unresolved) module names and version pairs that respect
@@ -75,7 +78,7 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 	dependencies := map[string]GoModule{}
 	decoder := json.NewDecoder(strings.NewReader(output))
 
-	var goVersion string
+	var goVersion parsedGoVersion
 	for {
 		var module jsonModule
 		if err := decoder.Decode(&module); err != nil {
@@ -86,8 +89,20 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 			return nil, err
 		}
 
-		if goVersion == "" {
-			goVersion = module.GoVersion
+		if validGoVersion.MatchString(module.GoVersion) {
+			currentVersion, err := getGoVersion(module.GoVersion)
+			if err != nil {
+				continue
+			}
+
+			// Pick the latest go version.
+			//    This probably should be the first one, but this just ensures that we pick
+			//    the latest go version and only a go version that we can understand
+			if goVersion.Version == "" {
+				goVersion = currentVersion
+			} else if goVersion.Major < currentVersion.Major && goVersion.Minor < currentVersion.Minor {
+				goVersion = currentVersion
+			}
 		}
 
 		// Stash original name before applying replacement
@@ -109,16 +124,44 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 		}
 	}
 
+	if goVersion.Version == "" {
+		return nil, errors.New("Must have a valid go version in go mod file")
+	}
 	setGolangDependency(dependencies, goVersion)
 
 	return dependencies, nil
 }
 
-func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
-	// TODO: Should probalby do some check like: "does this look like a commit"
+type parsedGoVersion struct {
+	Version string
+	Major   int
+	Minor   int
+}
+
+func getGoVersion(version string) (parsedGoVersion, error) {
+	splitVersion := strings.Split(version, ".")
+
+	major, err := strconv.Atoi(splitVersion[0])
+	if err != nil {
+		return parsedGoVersion{}, err
+	}
+
+	minor, err := strconv.Atoi(splitVersion[1])
+	if err != nil {
+		return parsedGoVersion{}, err
+	}
+
+	return parsedGoVersion{
+		Version: version,
+		Major:   major,
+		Minor:   minor,
+	}, nil
+}
+
+func setGolangDependency(dependencies map[string]GoModule, goVersion parsedGoVersion) {
 	dependencies[stdlibName] = GoModule{
 		Name:    stdlibName,
-		Version: "go" + goVersion,
+		Version: "go" + goVersion.Version,
 	}
 
 }
@@ -136,6 +179,19 @@ func IsStandardlibPackge(pkg string) bool {
 	}
 
 	return true
+}
+
+func NormalizeMonikerPackage(path string) string {
+	if !IsStandardlibPackge(path) {
+		return path
+	}
+
+	var stdPrefix string
+	if !strings.HasPrefix(path, "std/") {
+		stdPrefix = "std/"
+	}
+
+	return fmt.Sprintf("%s/%s%s", stdlibName, stdPrefix, path)
 }
 
 // versionPattern matches a versioning ending in a 12-digit sha, e.g., vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
@@ -186,7 +242,8 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 				}
 
 				var finalName string
-				if name == stdlibName {
+				if name == "std" {
+					// fmt.Println("STD CHECK HERE", rootModule, modules)
 					finalName = name
 				} else {
 					// Determine path suffix relative to the import path
