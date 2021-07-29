@@ -49,7 +49,7 @@ func joinMonikerParts(parts ...string) string {
 	return strings.Join(nonEmpty, ":")
 }
 
-func (i *Indexer) emitImportMonikerWithModule(sourceID uint64, module gomod.GoModule, monikerIdentifier string) {
+func (i *Indexer) emitImportMonikerForModule(sourceID uint64, module gomod.GoModule, monikerIdentifier string) {
 	// Lazily emit package information vertex
 	packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
 
@@ -58,7 +58,6 @@ func (i *Indexer) emitImportMonikerWithModule(sourceID uint64, module gomod.GoMo
 
 	// Attach moniker to source element and stop after first match
 	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-
 }
 
 // emitImportMoniker emits an import moniker for the given object linked to the given source
@@ -71,16 +70,14 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
-			i.emitImportMonikerWithModule(sourceID, module, monikerIdentifier)
-
+			i.emitImportMonikerForModule(sourceID, module, monikerIdentifier)
 			return
 		}
 	}
 
 	if gomod.IsStandardlibPackge(pkg) {
-		module := gomod.GetGolangDependency(i.dependencies)
-		i.emitImportMonikerWithModule(sourceID, module, monikerIdentifier)
-
+		panic("OH NO STANDARD LIB")
+		i.emitImportMonikerForModule(sourceID, gomod.GetGolangDependency(i.dependencies), monikerIdentifier)
 		return
 	}
 }
