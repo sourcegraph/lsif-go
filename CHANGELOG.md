@@ -11,22 +11,26 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+### Fixed
+
+- An issue where indexing would fail if `package main` contained exported data types. [#185](https://github.com/sourcegraph/lsif-go/pull/185)
+
 ## v1.6.3
 
-## Changed
+### Changed
 
 - Improved error messages.
 
 ## v1.6.2
 
-## Fixed
+### Fixed
 
 - API docs no longer incorrectly tags Functions/Variables/etc sections as a package.
 - API docs no longer emits null tag lists in violation of the spec.
 
 ## v1.6.1
 
-## Fixed
+### Fixed
 
 - API docs no longer incorrectly tags some methods as functions and vice-versa.
 
