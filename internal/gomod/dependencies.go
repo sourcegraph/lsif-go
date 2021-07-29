@@ -10,12 +10,12 @@ import (
 	"path"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/sourcegraph/lsif-go/internal/command"
 	"github.com/sourcegraph/lsif-go/internal/output"
+	"golang.org/x/mod/semver"
 	"golang.org/x/tools/go/vcs"
 )
 
@@ -68,9 +68,6 @@ type jsonModule struct {
 	GoVersion string `json:"GoVersion"`
 }
 
-var golangRepository = "github.com/golang/go"
-var validGolangVersion = regexp.MustCompile(`(\d+)\.(\d+)`)
-
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
 // import paths to pairs of declared (unresolved) module names and version pairs that respect
 // replacement directives specified in go.mod. Replace directives indicating a local file path
@@ -80,7 +77,7 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 	dependencies := map[string]GoModule{}
 	decoder := json.NewDecoder(strings.NewReader(output))
 
-	var goVersion parsedGoVersion
+	var goVersion string
 	for {
 		var module jsonModule
 		if err := decoder.Decode(&module); err != nil {
@@ -91,19 +88,9 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 			return nil, err
 		}
 
-		if validGolangVersion.MatchString(module.GoVersion) {
-			moduleGoVersion, err := getGoVersion(module.GoVersion)
-			if err != nil {
-				continue
-			}
-
-			// Pick the latest go version.
-			//    In general, the first version should be equal to the highest dependency,
-			//    but this keeps us safe from picking an old go version.
-			if goVersion.Version == "" {
-				goVersion = moduleGoVersion
-			} else if goVersion.Major < moduleGoVersion.Major && goVersion.Minor < moduleGoVersion.Minor {
-				goVersion = moduleGoVersion
+		if !semver.IsValid(module.GoVersion) {
+			if goVersion == "" || 1 == semver.Compare(module.GoVersion, goVersion) {
+				goVersion = module.GoVersion
 			}
 		}
 
@@ -126,44 +113,26 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 		}
 	}
 
-	if goVersion.Version == "" {
-		return nil, errors.New("Must have a valid go version in go mod file")
+	if goVersion == "" {
+		return nil, errors.New("must have a valid go version in go mod file.")
 	}
 	setGolangDependency(dependencies, goVersion)
 
 	return dependencies, nil
 }
 
-type parsedGoVersion struct {
-	Version string
-	Major   int
-	Minor   int
-}
+// The repository to find the source code for golang.
+var golangRepository = "github.com/golang/go"
 
-func getGoVersion(version string) (parsedGoVersion, error) {
-	splitVersion := strings.Split(version, ".")
-
-	major, err := strconv.Atoi(splitVersion[0])
-	if err != nil {
-		return parsedGoVersion{}, err
-	}
-
-	minor, err := strconv.Atoi(splitVersion[1])
-	if err != nil {
-		return parsedGoVersion{}, err
-	}
-
-	return parsedGoVersion{
-		Version: version,
-		Major:   major,
-		Minor:   minor,
-	}, nil
-}
-
-func setGolangDependency(dependencies map[string]GoModule, goVersion parsedGoVersion) {
+func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 	dependencies[golangRepository] = GoModule{
-		Name:    golangRepository,
-		Version: "go" + goVersion.Version,
+		Name: golangRepository,
+
+		// The reason we prefix version with "go" is because in golang/go, all the release
+		// tags are prefixed with "go".
+		//
+		// The corresponding tag of Golang 1.16 is "go1.16"
+		Version: "go" + goVersion,
 	}
 
 }
@@ -175,10 +144,16 @@ func GetGolangDependency(dependencies map[string]GoModule) GoModule {
 // IsStandardlibPackge checks whether a particular package is a standard
 // library package.
 func IsStandardlibPackge(pkg string) bool {
+	// No standard library packages have a domain name associated with them.
+	//
+	// So if we see any "." in the package name, then we know that they
+	// represent some non-standard library package.
 	if strings.Contains(pkg, ".") {
 		return false
 	}
 
+	// No standard library packages are prefixed with "_".
+	// This can be used to denote testing packages.
 	if strings.HasPrefix(pkg, "_") {
 		return false
 	}
