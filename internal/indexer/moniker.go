@@ -49,17 +49,6 @@ func joinMonikerParts(parts ...string) string {
 	return strings.Join(nonEmpty, ":")
 }
 
-func (i *Indexer) emitImportMonikerForModule(sourceID uint64, module gomod.GoModule, monikerIdentifier string) {
-	// Lazily emit package information vertex
-	packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
-
-	// Lazily emit moniker vertex
-	monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
-
-	// Attach moniker to source element and stop after first match
-	_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-}
-
 // emitImportMoniker emits an import moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
@@ -70,15 +59,16 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
-			i.emitImportMonikerForModule(sourceID, module, monikerIdentifier)
-			return
-		}
-	}
+			// Lazily emit package information vertex
+			packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
 
-	if gomod.IsStandardlibPackge(pkg) {
-		panic("OH NO STANDARD LIB")
-		i.emitImportMonikerForModule(sourceID, gomod.GetGolangDependency(i.dependencies), monikerIdentifier)
-		return
+			// Lazily emit moniker vertex
+			monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
+
+			// Attach moniker to source element and stop after first match
+			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
+			break
+		}
 	}
 }
 
@@ -147,12 +137,14 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 // monikerPackage returns the package prefix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`.
 func monikerPackage(obj types.Object) string {
+	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
-		name := strings.Trim(v.Name(), `"`)
-		return gomod.NormalizeMonikerPackage(name)
+		pkgName = strings.Trim(v.Name(), `"`)
+	} else {
+		pkgName = obj.Pkg().Path()
 	}
 
-	return gomod.NormalizeMonikerPackage(obj.Pkg().Path())
+	return gomod.NormalizeMonikerPackage(pkgName)
 }
 
 // getMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.

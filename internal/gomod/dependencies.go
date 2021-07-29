@@ -269,8 +269,8 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 // resolveRepoRootForImportPath will get the resolved name after handling vsc RepoRoots and any
 // necessary handling of the standard library
 func resolveRepoRootForImportPath(name string) (string, bool) {
-	// When indexining golang/go, there are some references to the package "std" itself.
-	//    Generally, this not referenced directly (it is just assumed when you have "fmt" or similar
+	// When indexing golang/go, there are some references to the package "std" itself.
+	//    Generally, "std/" is not referenced directly (it is just assumed when you have "fmt" or similar
 	//    in your imports), but inside of golang/go, it is directly referenced.
 	//
 	//    In that case, we just return it directly, there is no other resolving to do.
