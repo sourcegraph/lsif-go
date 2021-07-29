@@ -56,6 +56,7 @@ testdata is a small package containing sample Go source code used for testing th
 * [Functions](#func)
     * [func Parallel(ctx context.Context, fns ...ParallelizableFunc) error](#Parallel)
     * [func Switch(interfaceValue interface{}) bool](#Switch)
+    * [func main()](#main)
     * [func useOfCompositeStructs()](#useOfCompositeStructs)
 
 
@@ -685,6 +686,17 @@ tags: [function]
 
 ```Go
 func Switch(interfaceValue interface{}) bool
+```
+
+### <a id="main" href="#main">func main()</a>
+
+```
+searchKey: testdata.main
+tags: [function private]
+```
+
+```Go
+func main()
 ```
 
 ### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>

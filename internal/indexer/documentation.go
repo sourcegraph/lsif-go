@@ -544,9 +544,11 @@ func (d *docsIndexer) indexGenDecl(p *packages.Package, f *ast.File, node *ast.G
 				// Not only is it not exported, it cannot be referenced outside this package at all.
 				continue
 			}
-			typeDocs := d.indexTypeSpec(p, t, isTestFile)
-			typeDocs.docsMarkdown = blockDocsMarkdown + typeDocs.docsMarkdown
-			result.types = append(result.types, typeDocs)
+			typeDocs, ok := d.indexTypeSpec(p, t, isTestFile)
+			if ok {
+				typeDocs.docsMarkdown = blockDocsMarkdown + typeDocs.docsMarkdown
+				result.types = append(result.types, typeDocs)
+			}
 		}
 	}
 	return result
@@ -689,7 +691,17 @@ func (t typeDocs) result() *documentationResult {
 	}
 }
 
-func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTestFile bool) typeDocs {
+func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTestFile bool) (typeDocs, bool) {
+	if p.TypesInfo.TypeOf(in.Type) == nil || p.TypesInfo.ObjectOf(in.Name) == nil {
+		// TODO(slimsag): It's unclear why, but exported types declared in a `package main` - such
+		// as `type User struct` in minimal_main.go - do not have type information and would result
+		// in a nil pointer deref below.
+		//
+		// Will need to investigate/fix this at a later point - it may be a bug in go/packages.
+		// But, for now, at least don't panic - just discard it. This is a pretty rare occurrence
+		// anyway, as an exported type from package main is also a linter error / non-idiomatic.
+		return typeDocs{}, false
+	}
 	var result typeDocs
 	result.label = fmt.Sprintf("type %s %s", in.Name.String(), formatTypeLabel(p.TypesInfo.TypeOf(in.Type)))
 	result.name = in.Name.String()
@@ -713,7 +725,7 @@ func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTes
 	result.signature = "type " + formatNode(p.Fset, &cpy)
 
 	result.docsMarkdown = godocToMarkdown(in.Doc.Text())
-	return result
+	return result, true
 }
 
 type funcDocs struct {
