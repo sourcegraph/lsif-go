@@ -1084,6 +1084,29 @@
           },
           {
             "node": {
+              "pathID": "/#main",
+              "documentation": {
+                "identifier": "main",
+                "newPage": false,
+                "searchKey": "testdata.main",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func main()"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc main()\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#useOfCompositeStructs",
               "documentation": {
                 "identifier": "useOfCompositeStructs",
