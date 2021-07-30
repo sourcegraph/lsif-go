@@ -123,6 +123,7 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 
 // The repository to find the source code for golang.
 var golangRepository = "github.com/golang/go"
+var golangVersion string
 
 func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 	dependencies[golangRepository] = GoModule{
@@ -135,30 +136,12 @@ func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 		Version: "go" + goVersion,
 	}
 
+	golangVersion = goVersion
+
 }
 
 func GetGolangDependency(dependencies map[string]GoModule) GoModule {
 	return dependencies[golangRepository]
-}
-
-// IsStandardlibPackge checks whether a particular package is a standard
-// library package.
-func IsStandardlibPackge(pkg string) bool {
-	// No standard library packages have a domain name associated with them.
-	//
-	// So if we see any "." in the package name, then we know that they
-	// represent some non-standard library package.
-	if strings.Contains(pkg, ".") {
-		return false
-	}
-
-	// No standard library packages are prefixed with "_".
-	// This can be used to denote testing packages.
-	if strings.HasPrefix(pkg, "_") {
-		return false
-	}
-
-	return true
 }
 
 // NormalizeMonikerPackage returns a normalized path to ensure that all
