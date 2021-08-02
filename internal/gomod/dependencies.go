@@ -123,7 +123,6 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 
 // The repository to find the source code for golang.
 var golangRepository = "github.com/golang/go"
-var golangVersion string
 
 func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 	dependencies[golangRepository] = GoModule{
@@ -135,9 +134,6 @@ func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 		// The corresponding tag of Golang 1.16 is "go1.16"
 		Version: "go" + goVersion,
 	}
-
-	golangVersion = goVersion
-
 }
 
 func GetGolangDependency(dependencies map[string]GoModule) GoModule {

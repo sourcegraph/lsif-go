@@ -54,7 +54,7 @@ func TestEmitExportMoniker(t *testing.T) {
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find package information")
 	}
-	if packmakeMonikerPackage[0].Name != "https://github.com/sourcegraph/lsif-go" {
+	if packageInformation[0].Name != "https://github.com/sourcegraph/lsif-go" {
 		t.Errorf("incorrect moniker name. want=%q have=%q", "https://github.com/sourcegraph/lsif-go", monikers[0].Kind)
 	}
 	if packageInformation[0].Version != "3.14.159" {
