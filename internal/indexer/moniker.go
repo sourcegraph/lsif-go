@@ -18,7 +18,7 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ty
 		return
 	}
 
-	packageName := monikerPackage(obj)
+	packageName := makeMonikerPackage(obj)
 	if strings.HasPrefix(packageName, "_"+i.projectRoot) {
 		packageName = i.repositoryRemote + strings.TrimSuffix(packageName[len(i.projectRoot)+1:], "_test")
 	}
@@ -26,7 +26,7 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ty
 	// Emit export moniker (uncached as these are on unique definitions)
 	monikerID := i.emitter.EmitMoniker("export", "gomod", joinMonikerParts(
 		packageName,
-		getMonikerIdentifier(i.packageDataCache, p, obj),
+		makeMonikerIdentifier(i.packageDataCache, p, obj),
 	))
 
 	// Lazily emit package information vertex and attach it to moniker
@@ -54,8 +54,8 @@ func joinMonikerParts(parts ...string) string {
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
 func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj types.Object) {
-	pkg := monikerPackage(obj)
-	monikerIdentifier := joinMonikerParts(pkg, getMonikerIdentifier(i.packageDataCache, p, obj))
+	pkg := makeMonikerPackage(obj)
+	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
 
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
@@ -134,9 +134,9 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 	return monikerID
 }
 
-// monikerPackage returns the package prefix used to construct a unique moniker for the given object.
+// makeMonikerPackage returns the package prefix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`.
-func monikerPackage(obj types.Object) string {
+func makeMonikerPackage(obj types.Object) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
 		pkgName = strings.Trim(v.Name(), `"`)
@@ -147,10 +147,10 @@ func monikerPackage(obj types.Object) string {
 	return gomod.NormalizeMonikerPackage(pkgName)
 }
 
-// getMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
+// makeMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`. The identifier is meant to act as a
 // qualified type path to the given object (e.g. `StructName.FieldName` or `StructName.MethodName`).
-func getMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj types.Object) string {
+func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj types.Object) string {
 	if _, ok := obj.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
 		return ""
