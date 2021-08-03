@@ -1,3 +1,4 @@
+// THIS FILE IS GENERATED. SEE ./scripts/gen_stdlib_map.sh
 package gomod
 
 // IsStandardlibPackge determines whether a package is in the standard library
@@ -8,16 +9,9 @@ func IsStandardlibPackge(pkg string) bool {
 	return ok
 }
 
-var contained interface{}
+var contained = struct{}{}
 
 // This list is calculated from "go list std".
-//
-// You can get a formattable golang snippet by:
-//
-//    $ echo "var standardLibraryMap = map[string]interface{}{" \
-//       && go list std | awk '{ print "\""$0"\": contained,"}' \
-//       && echo "}"
-//
 var standardLibraryMap = map[string]interface{}{
 	"archive/tar":                          contained,
 	"archive/zip":                          contained,
