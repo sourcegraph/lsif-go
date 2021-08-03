@@ -59,13 +59,23 @@ func TestParseGoListOutput(t *testing.T) {
 		}
 	`
 
-	modules, err := parseGoListOutput(output, "v1.2.3")
+	modOutput := `
+		{
+				"Path": "github.com/sourcegraph/lsif-go",
+				"Main": true,
+				"Dir": "/home/tjdevries/sourcegraph/lsif-go.git/asdf",
+				"GoMod": "/home/tjdevries/sourcegraph/lsif-go.git/asdf/go.mod",
+				"GoVersion": "1.15"
+		}
+	`
+
+	modules, err := parseGoListOutput(output, modOutput, "v1.2.3")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
 	expected := map[string]GoModule{
-		"github.com/golang/go":                              {Name: "github.com/golang/go", Version: "go1.14"},
+		"github.com/golang/go":                              {Name: "github.com/golang/go", Version: "go1.15"},
 		"github.com/gavv/httpexpect":                        {Name: "github.com/gavv/httpexpect", Version: "v2.0.0"},
 		"github.com/getsentry/raven-go":                     {Name: "github.com/getsentry/raven-go", Version: "v0.2.0"},
 		"github.com/gfleury/go-bitbucket-v1":                {Name: "github.com/gfleury/go-bitbucket-v1", Version: "e5170e3280fb"},

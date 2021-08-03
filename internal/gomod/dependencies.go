@@ -15,7 +15,6 @@ import (
 
 	"github.com/sourcegraph/lsif-go/internal/command"
 	"github.com/sourcegraph/lsif-go/internal/output"
-	"golang.org/x/mod/semver"
 	"golang.org/x/tools/go/vcs"
 )
 
@@ -41,7 +40,13 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 			return
 		}
 
-		dependencies, err = parseGoListOutput(output, rootVersion)
+		modOutput, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
+		if err != nil {
+			err = fmt.Errorf("failed to list module info: %v\n%s", err, output)
+			return
+		}
+
+		dependencies, err = parseGoListOutput(output, modOutput, rootVersion)
 		if err != nil {
 			return
 		}
@@ -73,11 +78,10 @@ type jsonModule struct {
 // replacement directives specified in go.mod. Replace directives indicating a local file path
 // will create a module with the given root version, which is expected to be the same version
 // as the module being indexed.
-func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) {
+func parseGoListOutput(output, modOutput, rootVersion string) (map[string]GoModule, error) {
 	dependencies := map[string]GoModule{}
 	decoder := json.NewDecoder(strings.NewReader(output))
 
-	var goVersion string
 	for {
 		var module jsonModule
 		if err := decoder.Decode(&module); err != nil {
@@ -86,12 +90,6 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 			}
 
 			return nil, err
-		}
-
-		if !semver.IsValid(module.GoVersion) {
-			if goVersion == "" || 1 == semver.Compare(module.GoVersion, goVersion) {
-				goVersion = module.GoVersion
-			}
 		}
 
 		// Stash original name before applying replacement
@@ -113,10 +111,16 @@ func parseGoListOutput(output, rootVersion string) (map[string]GoModule, error) 
 		}
 	}
 
-	if goVersion == "" {
-		return nil, errors.New("must have a valid go version in go mod file.")
+	var thisModule jsonModule
+	if err := json.NewDecoder(strings.NewReader(modOutput)).Decode(&thisModule); err != nil {
+		return nil, err
 	}
-	setGolangDependency(dependencies, goVersion)
+
+	if thisModule.GoVersion == "" {
+		return nil, errors.New("could not find GoVersion for current module")
+	}
+
+	setGolangDependency(dependencies, thisModule.GoVersion)
 
 	return dependencies, nil
 }
@@ -129,10 +133,8 @@ func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 		Name: golangRepository,
 
 		// The reason we prefix version with "go" is because in golang/go, all the release
-		// tags are prefixed with "go".
-		//
-		// The corresponding tag of Golang 1.16 is "go1.16"
-		Version: "go" + goVersion,
+		// tags are prefixed with "go". So turn "1.15" -> "go1.15"
+		Version: fmt.Sprintf("go%s", goVersion),
 	}
 }
 
