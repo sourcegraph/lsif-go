@@ -11,6 +11,8 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+## v1.6.4
+
 ### Fixed
 
 - An issue where indexing would fail if `package main` contained exported data types. [#185](https://github.com/sourcegraph/lsif-go/pull/185)
