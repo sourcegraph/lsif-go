@@ -2,6 +2,7 @@ package gomod
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,7 +18,7 @@ import (
 	"golang.org/x/tools/go/vcs"
 )
 
-type Module struct {
+type GoModule struct {
 	Name    string
 	Version string
 }
@@ -26,7 +27,7 @@ type Module struct {
 // and version as declared by the go.mod file in the current directory. The given root module
 // and version are used to resolve replace directives with local file paths. The root module
 // is expected to be a resolved import path (a valid URL, including a scheme).
-func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.Options) (dependencies map[string]Module, err error) {
+func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.Options) (dependencies map[string]GoModule, err error) {
 	if !isModule(dir) {
 		log.Println("WARNING: No go.mod file found in current directory.")
 		return nil, nil
@@ -39,7 +40,21 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 			return
 		}
 
-		dependencies, err = parseGoListOutput(output, rootVersion)
+		// The reason we run this command separate is because we want the
+		// information about this package specifically. Currently, it seems
+		// that "go list all" will place the current modules information first
+		// in the list, but we don't know that that is guaranteed.
+		//
+		// Because of that, we do a separate execution to guarantee we get only
+		// this package information to use to determine the corresponding
+		// goVersion.
+		modOutput, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
+		if err != nil {
+			err = fmt.Errorf("failed to list module info: %v\n%s", err, output)
+			return
+		}
+
+		dependencies, err = parseGoListOutput(output, modOutput, rootVersion)
 		if err != nil {
 			return
 		}
@@ -61,6 +76,9 @@ type jsonModule struct {
 	Name    string      `json:"Path"`
 	Version string      `json:"Version"`
 	Replace *jsonModule `json:"Replace"`
+
+	// The Golang version required for this module
+	GoVersion string `json:"GoVersion"`
 }
 
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
@@ -68,8 +86,8 @@ type jsonModule struct {
 // replacement directives specified in go.mod. Replace directives indicating a local file path
 // will create a module with the given root version, which is expected to be the same version
 // as the module being indexed.
-func parseGoListOutput(output, rootVersion string) (map[string]Module, error) {
-	dependencies := map[string]Module{}
+func parseGoListOutput(output, modOutput, rootVersion string) (map[string]GoModule, error) {
+	dependencies := map[string]GoModule{}
 	decoder := json.NewDecoder(strings.NewReader(output))
 
 	for {
@@ -95,13 +113,58 @@ func parseGoListOutput(output, rootVersion string) (map[string]Module, error) {
 			module.Version = rootVersion
 		}
 
-		dependencies[importPath] = Module{
+		dependencies[importPath] = GoModule{
 			Name:    module.Name,
 			Version: cleanVersion(module.Version),
 		}
 	}
 
+	var thisModule jsonModule
+	if err := json.NewDecoder(strings.NewReader(modOutput)).Decode(&thisModule); err != nil {
+		return nil, err
+	}
+
+	if thisModule.GoVersion == "" {
+		return nil, errors.New("could not find GoVersion for current module")
+	}
+
+	setGolangDependency(dependencies, thisModule.GoVersion)
+
 	return dependencies, nil
+}
+
+// The repository to find the source code for golang.
+var golangRepository = "github.com/golang/go"
+
+func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
+	dependencies[golangRepository] = GoModule{
+		Name: golangRepository,
+
+		// The reason we prefix version with "go" is because in golang/go, all the release
+		// tags are prefixed with "go". So turn "1.15" -> "go1.15"
+		Version: fmt.Sprintf("go%s", goVersion),
+	}
+}
+
+func GetGolangDependency(dependencies map[string]GoModule) GoModule {
+	return dependencies[golangRepository]
+}
+
+// NormalizeMonikerPackage returns a normalized path to ensure that all
+// standard library paths are handled the same. Primarily to make sure
+// that both the golangRepository and "std/" paths are normalized.
+func NormalizeMonikerPackage(path string) string {
+	// When indexing _within_ the golang/go repository, `std/` is prefixed
+	// to packages. So we trim that here just to be sure that we keep
+	// consistent names.
+	normalizedPath := strings.TrimPrefix(path, "std/")
+
+	if !isStandardlibPackge(normalizedPath) {
+		return path
+	}
+
+	// Make sure we don't see double "std/" in the package for the moniker
+	return fmt.Sprintf("%s/std/%s", golangRepository, normalizedPath)
 }
 
 // versionPattern matches a versioning ending in a 12-digit sha, e.g., vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
@@ -147,20 +210,18 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 				// Try to resolve the import path if it looks like a local path
 				name, err := resolveLocalPath(name, rootModule)
 				if err != nil {
-					log.Println(fmt.Sprintf("WARNING: Failed to resolve %s (%s).", name, err))
+					log.Println(fmt.Sprintf("WARNING: Failed to resolve local %s (%s).", name, err))
 					continue
 				}
 
 				// Determine path suffix relative to the import path
-				repoRoot, err := vcs.RepoRootForImportPath(name, false)
-				if err != nil {
-					log.Println(fmt.Sprintf("WARNING: Failed to resolve %s (%s).", name, err))
+				resolved, ok := resolveRepoRootForImportPath(name)
+				if !ok {
 					continue
 				}
-				suffix := strings.TrimPrefix(name, repoRoot.Root)
 
 				m.Lock()
-				namesToResolve[originalName] = repoRoot.Repo + suffix
+				namesToResolve[originalName] = resolved
 				m.Unlock()
 			}
 		}()
@@ -168,6 +229,28 @@ func resolveImportPaths(rootModule string, modules []string) map[string]string {
 
 	wg.Wait()
 	return namesToResolve
+}
+
+// resolveRepoRootForImportPath will get the resolved name after handling vsc RepoRoots and any
+// necessary handling of the standard library
+func resolveRepoRootForImportPath(name string) (string, bool) {
+	// When indexing golang/go, there are some references to the package "std" itself.
+	//    Generally, "std/" is not referenced directly (it is just assumed when you have "fmt" or similar
+	//    in your imports), but inside of golang/go, it is directly referenced.
+	//
+	//    In that case, we just return it directly, there is no other resolving to do.
+	if name == "std" {
+		return name, true
+	}
+
+	repoRoot, err := vcs.RepoRootForImportPath(name, false)
+	if err != nil {
+		log.Println(fmt.Sprintf("WARNING: Failed to resolve repo %s (%s) %s.", name, err, repoRoot))
+		return "", false
+	}
+
+	suffix := strings.TrimPrefix(name, repoRoot.Root)
+	return repoRoot.Repo + suffix, true
 }
 
 // resolveLocalPath converts the given name to an import path if it looks like a local path based on
@@ -193,10 +276,10 @@ func resolveLocalPath(name, rootModule string) (string, error) {
 
 // mapImportPaths replace each module name with the value in the given resolved import paths
 // map. If the module name is not present in the map, no change is made to the module value.
-func mapImportPaths(dependencies map[string]Module, resolvedImportPaths map[string]string) {
+func mapImportPaths(dependencies map[string]GoModule, resolvedImportPaths map[string]string) {
 	for importPath, module := range dependencies {
 		if name, ok := resolvedImportPaths[module.Name]; ok {
-			dependencies[importPath] = Module{
+			dependencies[importPath] = GoModule{
 				Name:    name,
 				Version: module.Version,
 			}

@@ -12,7 +12,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
-func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.Module, outFile string, outputOptions output.Options) error {
+func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.GoModule, outFile string, outputOptions output.Options) error {
 	start := time.Now()
 
 	out, err := os.Create(outFile)

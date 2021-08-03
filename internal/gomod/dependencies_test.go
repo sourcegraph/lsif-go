@@ -59,12 +59,23 @@ func TestParseGoListOutput(t *testing.T) {
 		}
 	`
 
-	modules, err := parseGoListOutput(output, "v1.2.3")
+	modOutput := `
+		{
+				"Path": "github.com/sourcegraph/lsif-go",
+				"Main": true,
+				"Dir": "/home/tjdevries/sourcegraph/lsif-go.git/asdf",
+				"GoMod": "/home/tjdevries/sourcegraph/lsif-go.git/asdf/go.mod",
+				"GoVersion": "1.15"
+		}
+	`
+
+	modules, err := parseGoListOutput(output, modOutput, "v1.2.3")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	expected := map[string]Module{
+	expected := map[string]GoModule{
+		"github.com/golang/go":                              {Name: "github.com/golang/go", Version: "go1.15"},
 		"github.com/gavv/httpexpect":                        {Name: "github.com/gavv/httpexpect", Version: "v2.0.0"},
 		"github.com/getsentry/raven-go":                     {Name: "github.com/getsentry/raven-go", Version: "v0.2.0"},
 		"github.com/gfleury/go-bitbucket-v1":                {Name: "github.com/gfleury/go-bitbucket-v1", Version: "e5170e3280fb"},
@@ -123,5 +134,26 @@ func TestResolveImportPaths(t *testing.T) {
 	}
 	if diff := cmp.Diff(expected, resolveImportPaths("https://github.com/sourcegraph/sourcegraph", modules)); diff != "" {
 		t.Errorf("unexpected import paths (-want +got): %s", diff)
+	}
+}
+
+func TestNormalizeMonikerPackage(t *testing.T) {
+	testCases := map[string]string{
+		"fmt": "github.com/golang/go/std/fmt",
+
+		// This happens sometimes in the standard library, that we have "std/" prefixed.
+		"std/hash": "github.com/golang/go/std/hash",
+
+		// User libs should be unchanged.
+		"github.com/sourcegraph/sourcegraph/lib": "github.com/sourcegraph/sourcegraph/lib",
+
+		// Unknown libs should not be changed (for example, custom proxy)
+		"myCustomPackage": "myCustomPackage",
+	}
+
+	for path, expected := range testCases {
+		if diff := cmp.Diff(expected, NormalizeMonikerPackage(path)); diff != "" {
+			t.Errorf("unexpected normalized moniker package (-want +got): %s", diff)
+		}
 	}
 }

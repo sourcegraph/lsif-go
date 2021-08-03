@@ -117,7 +117,7 @@ func TestEmitImportMoniker(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		dependencies: map[string]gomod.Module{
+		dependencies: map[string]gomod.GoModule{
 			"github.com/test/pkg/sub1": {Name: "github.com/test/pkg/sub1", Version: "1.2.3-deadbeef"},
 		},
 		emitter:               writer.NewEmitter(w),
@@ -182,7 +182,7 @@ func TestMonikerIdentifierBasic(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "Score")
 
-	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "Score" {
+	if identifier := makeMonikerIdentifier(NewPackageDataCache(), p, obj); identifier != "Score" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "Score", identifier)
 	}
 }
@@ -191,7 +191,7 @@ func TestMonikerIdentifierPackageName(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findUseByName(t, packages, "sync")
 
-	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "" {
+	if identifier := makeMonikerIdentifier(NewPackageDataCache(), p, obj); identifier != "" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "", identifier)
 	}
 }
@@ -200,7 +200,7 @@ func TestMonikerIdentifierSignature(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "Doer")
 
-	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "TestStruct.Doer" {
+	if identifier := makeMonikerIdentifier(NewPackageDataCache(), p, obj); identifier != "TestStruct.Doer" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.Doer", identifier)
 	}
 }
@@ -209,7 +209,7 @@ func TestMonikerIdentifierField(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "NestedB")
 
-	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
+	if identifier := makeMonikerIdentifier(NewPackageDataCache(), p, obj); identifier != "TestStruct.FieldWithAnonymousType.NestedB" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "TestStruct.FieldWithAnonymousType.NestedB", identifier)
 	}
 }
@@ -218,7 +218,7 @@ func TestMonikerEmbeddedField(t *testing.T) {
 	packages := getTestPackages(t)
 	p, obj := findDefinitionByName(t, packages, "InnerStruct")
 
-	if identifier := monikerIdentifier(NewPackageDataCache(), p, obj); identifier != "ShellStruct.InnerStruct" {
+	if identifier := makeMonikerIdentifier(NewPackageDataCache(), p, obj); identifier != "ShellStruct.InnerStruct" {
 		t.Errorf("unexpected moniker identifier. want=%q have=%q", "ShellStruct.InnerStruct", identifier)
 	}
 }
