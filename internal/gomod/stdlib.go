@@ -1,10 +1,10 @@
 // THIS FILE IS GENERATED. SEE ./scripts/gen_stdlib_map.sh
 package gomod
 
-// IsStandardlibPackge determines whether a package is in the standard library
+// isStandardlibPackge determines whether a package is in the standard library
 // or not. At this point, it checks whether the package name is one of those
 // that is found from running "go list std" in the latest released go version.
-func IsStandardlibPackge(pkg string) bool {
+func isStandardlibPackge(pkg string) bool {
 	_, ok := standardLibraryMap[pkg]
 	return ok
 }

@@ -146,16 +146,17 @@ func GetGolangDependency(dependencies map[string]GoModule) GoModule {
 // standard library paths are handled the same. Primarily to make sure
 // that both the golangRepository and "std/" paths are normalized.
 func NormalizeMonikerPackage(path string) string {
-	if !IsStandardlibPackge(path) {
+	// When indexing _within_ the golang/go repository, `std/` is prefixed
+	// to packages. So we trim that here just to be sure that we keep
+	// consistent names.
+	normalizedPath := strings.TrimPrefix(path, "std/")
+
+	if !isStandardlibPackge(normalizedPath) {
 		return path
 	}
 
-	var stdPrefix string
-	if !strings.HasPrefix(path, "std/") {
-		stdPrefix = "std/"
-	}
-
-	return fmt.Sprintf("%s/%s%s", golangRepository, stdPrefix, path)
+	// Make sure we don't see double "std/" in the package for the moniker
+	return fmt.Sprintf("%s/std/%s", golangRepository, normalizedPath)
 }
 
 // versionPattern matches a versioning ending in a 12-digit sha, e.g., vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef
