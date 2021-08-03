@@ -40,6 +40,14 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 			return
 		}
 
+		// The reason we run this command separate is because we want the
+		// information about this package specifically. Currently, it seems
+		// that "go list all" will place the current modules information first
+		// in the list, but we don't know that that is guaranteed.
+		//
+		// Because of that, we do a separate execution to guarantee we get only
+		// this package information to use to determine the corresponding
+		// goVersion.
 		modOutput, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
 		if err != nil {
 			err = fmt.Errorf("failed to list module info: %v\n%s", err, output)
