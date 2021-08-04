@@ -11,12 +11,14 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
-## v1.6.4
+## v1.6.5
 
 ### Fixed
 
 - Fixed generation of standard library monikers. [#184](https://github.com/sourcegraph/lsif-go/pull/184)
 - An issue where indexing would fail if `package main` contained exported data types. [#185](https://github.com/sourcegraph/lsif-go/pull/185)
+
+(v1.6.4 had issues in our release process, it did not correctly release: v1.6.5 corrects this.)
 
 ## v1.6.3
 
