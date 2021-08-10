@@ -65,6 +65,19 @@ func TestIndexer(t *testing.T) {
 	})
 
 	// TODO(efritz) - support "package testdata" identifiers
+	t.Run("declares definitions for 'package testdata' identifiers", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 0, 8)
+		// r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
+		if !ok {
+			t.Errorf("Could not find range for 'package testdata'")
+		}
+
+		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		t.Errorf("Definitions: %+v\n", definitions)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		t.Errorf("Monikers: %+v\n", monikers)
+	})
 
 	t.Run("check external package hover text", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)

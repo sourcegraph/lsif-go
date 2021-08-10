@@ -20,15 +20,15 @@ import (
 )
 
 type Indexer struct {
-	repositoryRoot   string                  // path to repository
-	repositoryRemote string                  // import path inferred by git remote
-	projectRoot      string                  // path to package
-	toolInfo         protocol.ToolInfo       // metadata vertex payload
-	moduleName       string                  // name of this module
-	moduleVersion    string                  // version of this module
+	repositoryRoot   string                    // path to repository
+	repositoryRemote string                    // import path inferred by git remote
+	projectRoot      string                    // path to package
+	toolInfo         protocol.ToolInfo         // metadata vertex payload
+	moduleName       string                    // name of this module
+	moduleVersion    string                    // version of this module
 	dependencies     map[string]gomod.GoModule // parsed module data
-	emitter          *writer.Emitter         // LSIF data emitter
-	outputOptions    output.Options          // What to print to stdout/stderr
+	emitter          *writer.Emitter           // LSIF data emitter
+	outputOptions    output.Options            // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -49,8 +49,8 @@ type Indexer struct {
 	packages                                 []*packages.Package         // index target packages
 	projectID                                uint64                      // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
-	emittedDocumentationResults              map[types.Object]uint64 // type object -> documentationResult vertex ID
-	emittedDocumentationResultsByPackagePath map[string]uint64       // package path -> documentationResult vertex ID
+	emittedDocumentationResults              map[NoahObject]uint64 // type object -> documentationResult vertex ID
+	emittedDocumentationResultsByPackagePath map[string]uint64     // package path -> documentationResult vertex ID
 
 	constsMutex                sync.Mutex
 	funcsMutex                 sync.Mutex
@@ -114,6 +114,7 @@ func (i *Indexer) Index() error {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
+	i.indexPackages()
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
@@ -298,7 +299,11 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 
 			name := importSpecName(spec)
 			ident := &ast.Ident{NamePos: spec.Pos(), Name: name, Obj: ast.NewObj(ast.Pkg, name)}
-			p.TypesInfo.Defs[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
+			// p.TypesInfo.Defs[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
+			p.TypesInfo.Uses[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
+			// fmt.Println("Import", p.Types, name, pkg.Types, "->", types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types))
+			// fmt.Println("Import", ident)
+			// p.TypesInfo.Uses
 		}
 	}
 }
@@ -345,7 +350,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	// implicit object for each case clause of a type switch (including default), and they all
 	// share the same position. This creates a map with one arbitrarily chosen argument for
 	// each distinct type switch.
-	caseClauses := map[token.Pos]types.Object{}
+	caseClauses := map[token.Pos]NoahObject{}
 	for node, obj := range p.TypesInfo.Implicits {
 		if _, ok := node.(*ast.CaseClause); ok {
 			caseClauses[obj.Pos()] = obj
@@ -380,7 +385,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
+		rangeID, _ := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
 
 		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -432,7 +437,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) (uint64, DefinitionInfo) {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
 	rangeID, _ := i.ensureRangeFor(pos, obj)
@@ -474,16 +479,17 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
 	}
 
-	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
+	definitionInfo := &DefinitionInfo{
 		DocumentID:         document.DocumentID,
 		RangeID:            rangeID,
 		ResultSetID:        resultSetID,
 		DefinitionResultID: defResultID,
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 		TypeSwitchHeader:   typeSwitchHeader,
-	})
+	}
+	i.setDefinitionInfo(obj, ident, definitionInfo)
 
-	return rangeID
+	return rangeID, *definitionInfo
 }
 
 // setDefinitionInfo stashes the given definition info indexed by the given object type and name.
@@ -612,7 +618,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 	d.m.Unlock()
 
 	if d.TypeSwitchHeader {
-		// Attache a hover text result _directly_ to the given range so that it "overwrites" the
+		// Attach a hover text result _directly_ to the given range so that it "overwrites" the
 		// hover result of the type switch header for this use. Each reference of such a variable
 		// will need a more specific hover text, as the type of the variable is refined in the body
 		// of case clauses of the type switch.
@@ -720,6 +726,60 @@ func (i *Indexer) emitContainsForProject() {
 
 	if len(documentIDs) > 0 {
 		_ = i.emitter.EmitContains(i.projectID, documentIDs)
+	}
+}
+
+func (i *Indexer) indexPackages() {
+	i.visitEachPackage("Indexing packages", i.indexPackageForPackage)
+}
+
+func (i *Indexer) indexPackageForPackage(p *packages.Package) {
+	// if p != nil {
+	// 	return
+	// }
+	// fmt.Printf("\nGetting called for package: %+v\n", p)
+
+	// fmt.Println("Indexing Package... ", f.Name, p.Fset.Position(f.Package))
+	for _, f := range p.Syntax {
+		pkgKeywordPosition := p.Fset.Position(f.Package)
+
+		pos := token.Position{
+			Filename: pkgKeywordPosition.Filename,
+			Line:     pkgKeywordPosition.Line,
+			Column:   pkgKeywordPosition.Column + len("package "),
+
+			// TODO: ?? Is this right ??
+			// Offset: pkgKeywordPosition.Offset + len("package "),
+		}
+
+		name := f.Name.Name
+
+		// TODO(packages): Is this the right package information here? I'm not sure.
+		obj := types.NewPkgName(f.Package, p.Types, name, types.NewPackage(p.PkgPath, name))
+
+		_, d, ok := i.positionAndDocument(p, obj.Pos())
+		if !ok {
+			continue
+		}
+
+		ident := &ast.Ident{
+			NamePos: obj.Pos(),
+			Name:    name,
+			Obj:     nil,
+		}
+
+		rangeID, def := i.indexDefinition(p, pos.Filename, d, pos, obj, false, ident)
+
+		i.stripedMutex.LockKey(pos.Filename)
+		i.ranges[pos.Filename][pos.Offset] = rangeID
+		i.stripedMutex.UnlockKey(pos.Filename)
+
+		d.m.Lock()
+		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
+		d.m.Unlock()
+
+		fmt.Printf("P %+v || Obj %+v\n", p, obj)
+		i.emitExportMoniker(def.ResultSetID, p, obj)
 	}
 }
 

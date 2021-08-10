@@ -57,6 +57,8 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ty
 	pkg := makeMonikerPackage(obj)
 	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
 
+	// fmt.Println("import moniker", p, "|", obj, "|", obj.Pkg())
+
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
 			// Lazily emit package information vertex
@@ -153,6 +155,7 @@ func makeMonikerPackage(obj types.Object) string {
 func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj types.Object) string {
 	if _, ok := obj.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
+		fmt.Println("We are short circuiting here")
 		return ""
 	}
 
