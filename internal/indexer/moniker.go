@@ -12,7 +12,7 @@ import (
 // emitExportMoniker emits an export moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the current module.
-func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj types.Object) {
+func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj NoahObject) {
 	if i.moduleName == "" {
 		// Unknown dependencies, skip export monikers
 		return
@@ -53,11 +53,9 @@ func joinMonikerParts(parts ...string) string {
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj types.Object) {
+func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj NoahObject) {
 	pkg := makeMonikerPackage(obj)
 	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
-
-	// fmt.Println("import moniker", p, "|", obj, "|", obj.Pkg())
 
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
@@ -138,7 +136,7 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 
 // makeMonikerPackage returns the package prefix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`.
-func makeMonikerPackage(obj types.Object) string {
+func makeMonikerPackage(obj NoahObject) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
 		pkgName = strings.Trim(v.Name(), `"`)
@@ -152,10 +150,13 @@ func makeMonikerPackage(obj types.Object) string {
 // makeMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`. The identifier is meant to act as a
 // qualified type path to the given object (e.g. `StructName.FieldName` or `StructName.MethodName`).
-func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj types.Object) string {
+func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj NoahObject) string {
 	if _, ok := obj.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
-		fmt.Println("We are short circuiting here")
+		return ""
+	}
+
+	if _, ok := obj.(*PkgDeclaration); ok {
 		return ""
 	}
 

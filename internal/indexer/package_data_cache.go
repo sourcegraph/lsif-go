@@ -215,7 +215,7 @@ func childrenOf(n ast.Node) (children []ast.Node) {
 }
 
 // isField returns true if the given object is a field.
-func isField(obj types.Object) bool {
+func isField(obj NoahObject) bool {
 	if v, ok := obj.(*types.Var); ok && v.IsField() {
 		return true
 	}
@@ -226,7 +226,7 @@ func isField(obj types.Object) bool {
 // is similar but distinct from the set of types from which we _extract_ hover text. See canExtractHoverText
 // for those types. This function returns true for the set of objects for which we actually call the methods
 // findHoverContents  or findExternalHoverContents (see hover.go).
-func shouldHaveHoverText(obj types.Object) bool {
+func shouldHaveHoverText(obj NoahObject) bool {
 	switch obj.(type) {
 	case *types.Const:
 		return true

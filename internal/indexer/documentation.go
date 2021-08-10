@@ -37,9 +37,9 @@ import (
 //
 
 // A mapping of types -> documentationResult vertex ID
-type emittedDocumentationResults map[types.Object]uint64
+type emittedDocumentationResults map[NoahObject]uint64
 
-func (e emittedDocumentationResults) addAll(other emittedDocumentationResults) map[types.Object]uint64 {
+func (e emittedDocumentationResults) addAll(other emittedDocumentationResults) map[NoahObject]uint64 {
 	for associatedType, documentationResultID := range other {
 		e[associatedType] = documentationResultID
 	}
@@ -580,7 +580,7 @@ type constVarDocs struct {
 	docsMarkdown string
 
 	// The definition object.
-	def types.Object
+	def NoahObject
 
 	// Associated tags
 	tags []protocol.Tag
@@ -684,7 +684,7 @@ type typeDocs struct {
 	typ types.Type
 
 	// The definition object.
-	def types.Object
+	def NoahObject
 
 	// Associated tags
 	tags []protocol.Tag
@@ -777,7 +777,7 @@ type funcDocs struct {
 	resultTypes []ast.Expr
 
 	// The definition object.
-	def types.Object
+	def NoahObject
 
 	// Associated tags
 	tags []protocol.Tag

@@ -73,10 +73,24 @@ func TestIndexer(t *testing.T) {
 		}
 
 		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
-		t.Errorf("Definitions: %+v\n", definitions)
+		if len(definitions) != 1 {
+			t.Errorf("Definitions: %+v\n", definitions)
+		}
+
+		def := definitions[0]
+		compareRange(t, def, 0, 8, 0, 16)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
-		t.Errorf("Monikers: %+v\n", monikers)
+		if len(monikers) != 1 {
+			t.Errorf("Monikers: %+v\n", monikers)
+		}
+
+		moniker := monikers[0]
+		value := moniker.Identifier
+		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata"
+		if value != expectedLabel {
+			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedLabel, value)
+		}
 	})
 
 	t.Run("check external package hover text", func(t *testing.T) {
@@ -90,6 +104,8 @@ func TestIndexer(t *testing.T) {
 		if !ok || len(markupContentSegments) < 2 {
 			t.Fatalf("could not find hover text")
 		}
+
+		t.Errorf("Hello %v", markupContentSegments)
 
 		expectedType := `package "sync"`
 		if value := unCodeFence(markupContentSegments[0]); value != expectedType {

@@ -11,7 +11,7 @@ import (
 const indent = "    "
 
 // typeString returns the string representation fo the given object's type.
-func typeString(obj types.Object) (signature string, extra string) {
+func typeString(obj NoahObject) (signature string, extra string) {
 	switch v := obj.(type) {
 	case *types.PkgName:
 		return fmt.Sprintf("package %s", v.Name()), ""
@@ -26,10 +26,16 @@ func typeString(obj types.Object) (signature string, extra string) {
 		}
 
 	case *types.Const:
-		return fmt.Sprintf("%s = %s", types.ObjectString(obj, packageQualifier), v.Val()), ""
+		return fmt.Sprintf("%s = %s", types.ObjectString(v, packageQualifier), v.Val()), ""
+
 	}
 
-	return types.ObjectString(obj, packageQualifier), ""
+	// Fall back to types.Object if possible
+	if v, ok := obj.(types.Object); ok {
+		return types.ObjectString(v, packageQualifier), ""
+	}
+
+	return "TODO DONT LET TJ MERGE THIS", ""
 }
 
 // packageQualifier returns an empty string in order to remove the leading package

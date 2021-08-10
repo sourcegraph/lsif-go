@@ -357,7 +357,9 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 	}
 
-	for ident, obj := range p.TypesInfo.Defs {
+	for ident, typeObj := range p.TypesInfo.Defs {
+		var obj NoahObject = typeObj
+
 		typeSwitchHeader := false
 		if obj == nil {
 			// The definitions map contains nil objects for symbolic variables t in t := x.(type)
@@ -385,7 +387,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID, _ := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
+		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
 
 		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -437,7 +439,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj types.Object, typeSwitchHeader bool, ident *ast.Ident) (uint64, DefinitionInfo) {
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj NoahObject, typeSwitchHeader bool, ident *ast.Ident) uint64 {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
 	rangeID, _ := i.ensureRangeFor(pos, obj)
@@ -479,23 +481,22 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
 	}
 
-	definitionInfo := &DefinitionInfo{
+	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
 		DocumentID:         document.DocumentID,
 		RangeID:            rangeID,
 		ResultSetID:        resultSetID,
 		DefinitionResultID: defResultID,
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 		TypeSwitchHeader:   typeSwitchHeader,
-	}
-	i.setDefinitionInfo(obj, ident, definitionInfo)
+	})
 
-	return rangeID, *definitionInfo
+	return rangeID
 }
 
 // setDefinitionInfo stashes the given definition info indexed by the given object type and name.
 // This definition info will be accessible by invoking getDefinitionInfo with the same type and
 // name values (but not necessarily the same object).
-func (i *Indexer) setDefinitionInfo(obj types.Object, ident *ast.Ident, d *DefinitionInfo) {
+func (i *Indexer) setDefinitionInfo(obj NoahObject, ident *ast.Ident, d *DefinitionInfo) {
 	switch v := obj.(type) {
 	case *types.Const:
 		i.constsMutex.Lock()
@@ -563,7 +564,7 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, ident *ast.Ident) (uint64, bool) {
+func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj NoahObject, ident *ast.Ident) (uint64, bool) {
 	if def := i.getDefinitionInfo(definitionObj, ident); def != nil {
 		return i.indexReferenceToDefinition(p, document, pos, definitionObj, def)
 	}
@@ -574,7 +575,7 @@ func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, po
 // getDefinitionInfo returns the definition info object for the given object. This requires that
 // setDefinitionInfo was previously called an object that can be resolved in the same way. This
 // will only return definitions which are defined in an index target (not a dependency).
-func (i *Indexer) getDefinitionInfo(obj types.Object, ident *ast.Ident) *DefinitionInfo {
+func (i *Indexer) getDefinitionInfo(obj NoahObject, ident *ast.Ident) *DefinitionInfo {
 	switch v := obj.(type) {
 	case *types.Const:
 		return i.consts[v.Pos()]
@@ -595,7 +596,7 @@ func (i *Indexer) getDefinitionInfo(obj types.Object, ident *ast.Ident) *Definit
 
 // indexReferenceToDefinition emits data for the given reference object that is defined within
 // an index target package.
-func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object, d *DefinitionInfo) (uint64, bool) {
+func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj NoahObject, d *DefinitionInfo) (uint64, bool) {
 	rangeID, ok := i.ensureRangeFor(pos, definitionObj)
 	if !ok {
 		// Not a new range result; this occurs when the definition and reference
@@ -633,7 +634,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj types.Object) (uint64, bool) {
+func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj NoahObject) (uint64, bool) {
 	definitionPkg := definitionObj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
@@ -662,7 +663,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
-func (i *Indexer) ensureRangeFor(pos token.Position, obj types.Object) (uint64, bool) {
+func (i *Indexer) ensureRangeFor(pos token.Position, obj NoahObject) (uint64, bool) {
 	i.stripedMutex.RLockKey(pos.Filename)
 	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
 	i.stripedMutex.RUnlockKey(pos.Filename)
@@ -734,12 +735,6 @@ func (i *Indexer) indexPackages() {
 }
 
 func (i *Indexer) indexPackageForPackage(p *packages.Package) {
-	// if p != nil {
-	// 	return
-	// }
-	// fmt.Printf("\nGetting called for package: %+v\n", p)
-
-	// fmt.Println("Indexing Package... ", f.Name, p.Fset.Position(f.Package))
 	for _, f := range p.Syntax {
 		pkgKeywordPosition := p.Fset.Position(f.Package)
 
@@ -755,20 +750,24 @@ func (i *Indexer) indexPackageForPackage(p *packages.Package) {
 		name := f.Name.Name
 
 		// TODO(packages): Is this the right package information here? I'm not sure.
-		obj := types.NewPkgName(f.Package, p.Types, name, types.NewPackage(p.PkgPath, name))
+		// obj := types.NewPkgName(f.Package, p.Types, name, types.NewPackage(p.PkgPath, name))
+		obj := &PkgDeclaration{
+			// TODO wrong :)
+			pos:  f.Package,
+			pkg:  types.NewPackage(p.PkgPath, name),
+			name: name,
+		}
 
 		_, d, ok := i.positionAndDocument(p, obj.Pos())
 		if !ok {
 			continue
 		}
 
-		ident := &ast.Ident{
+		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, false, &ast.Ident{
 			NamePos: obj.Pos(),
 			Name:    name,
 			Obj:     nil,
-		}
-
-		rangeID, def := i.indexDefinition(p, pos.Filename, d, pos, obj, false, ident)
+		})
 
 		i.stripedMutex.LockKey(pos.Filename)
 		i.ranges[pos.Filename][pos.Offset] = rangeID
@@ -777,9 +776,6 @@ func (i *Indexer) indexPackageForPackage(p *packages.Package) {
 		d.m.Lock()
 		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
 		d.m.Unlock()
-
-		fmt.Printf("P %+v || Obj %+v\n", p, obj)
-		i.emitExportMoniker(def.ResultSetID, p, obj)
 	}
 }
 
