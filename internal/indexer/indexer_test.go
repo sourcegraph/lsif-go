@@ -101,11 +101,9 @@ func TestIndexer(t *testing.T) {
 
 		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
 		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
-		if !ok || len(markupContentSegments) < 2 {
+		if !ok || len(markupContentSegments) != 1 {
 			t.Fatalf("could not find hover text")
 		}
-
-		t.Errorf("Hello %v", markupContentSegments)
 
 		expectedType := `package "sync"`
 		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
