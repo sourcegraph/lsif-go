@@ -1,6 +1,5 @@
 // From https://github.com/moby/moby/blob/master/libnetwork/osl/sandbox_unsupported.go
-
-// +build !linux,!windows,!freebsd
+// Build tag constraints removed here to ensure this code is tested on CI.
 
 package osl
 
