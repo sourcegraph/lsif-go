@@ -455,8 +455,11 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		}
 	}
 	autogold.Want("visited", map[string]bool{
-		"github.com/sourcegraph/lsif-go/internal/testdata":                   true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/duplicate_path_id": true,
+		"github.com/sourcegraph/lsif-go/internal/testdata":                          true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols": false,
+		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols [github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test]": true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test":                                                                             false,
+		"github.com/sourcegraph/lsif-go/internal/testdata/duplicate_path_id":                                                                                         true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,

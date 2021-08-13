@@ -1,0 +1,181 @@
+{
+  "pathID": "/conflicting_test_symbols",
+  "documentation": {
+    "identifier": "conflicting_test_symbols",
+    "newPage": true,
+    "searchKey": "conflicting_test_symbols",
+    "tags": [
+      "private",
+      "package"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": "Package osl"
+  },
+  "detail": {
+    "kind": "markdown",
+    "value": ""
+  },
+  "children": [
+    {
+      "node": {
+        "pathID": "/conflicting_test_symbols#var",
+        "documentation": {
+          "identifier": "var",
+          "newPage": false,
+          "searchKey": "",
+          "tags": [
+            "private"
+          ]
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Variables"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/conflicting_test_symbols#ErrNotImplemented",
+              "documentation": {
+                "identifier": "ErrNotImplemented",
+                "newPage": false,
+                "searchKey": "osl.ErrNotImplemented",
+                "tags": [
+                  "variable",
+                  "interface"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "var ErrNotImplemented"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nvar ErrNotImplemented = errors.New(\"not implemented\")\n```\n\nErrNotImplemented is for platforms which don't implement sandbox \n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "node": {
+        "pathID": "/conflicting_test_symbols#func",
+        "documentation": {
+          "identifier": "func",
+          "newPage": false,
+          "searchKey": "",
+          "tags": [
+            "private"
+          ]
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Functions"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/conflicting_test_symbols#GenerateKey",
+              "documentation": {
+                "identifier": "GenerateKey",
+                "newPage": false,
+                "searchKey": "osl.GenerateKey",
+                "tags": [
+                  "function"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func GenerateKey(containerID string) string"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc GenerateKey(containerID string) string\n```\n\nGenerateKey generates a sandbox key based on the passed container id. \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/conflicting_test_symbols#NewSandbox",
+              "documentation": {
+                "identifier": "NewSandbox",
+                "newPage": false,
+                "searchKey": "osl.NewSandbox",
+                "tags": [
+                  "function"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error)\n```\n\nNewSandbox provides a new sandbox instance created in an os specific way provided a key which uniquely identifies the sandbox \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/conflicting_test_symbols#newKey",
+              "documentation": {
+                "identifier": "newKey",
+                "newPage": false,
+                "searchKey": "osl.newKey",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func newKey(t *testing.T) (string, error)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc newKey(t *testing.T) (string, error)\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/conflicting_test_symbols#verifySandbox",
+              "documentation": {
+                "identifier": "verifySandbox",
+                "newPage": false,
+                "searchKey": "osl.verifySandbox",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func verifySandbox(t *testing.T, s Sandbox)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc verifySandbox(t *testing.T, s Sandbox)\n```\n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
