@@ -11,6 +11,12 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+## v1.6.6
+
+### Fixed
+
+- An issue where illegal code (conflicting test/non-test symbol names, such as in some moby/moby packages) would fail to index. [#186](https://github.com/sourcegraph/lsif-go/pull/186)
+
 ## v1.6.5
 
 ### Fixed
