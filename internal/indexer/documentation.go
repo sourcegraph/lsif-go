@@ -530,13 +530,17 @@ func (d *docsIndexer) indexGenDecl(p *packages.Package, f *ast.File, node *ast.G
 				}
 				switch node.Tok {
 				case token.CONST:
-					constDocs := d.indexConstVar(p, t, i, "const", isTestFile)
-					constDocs.docsMarkdown = blockDocsMarkdown + constDocs.docsMarkdown
-					result.consts = append(result.consts, constDocs)
+					constDocs, ok := d.indexConstVar(p, t, i, "const", isTestFile)
+					if ok {
+						constDocs.docsMarkdown = blockDocsMarkdown + constDocs.docsMarkdown
+						result.consts = append(result.consts, constDocs)
+					}
 				case token.VAR:
-					varDocs := d.indexConstVar(p, t, i, "var", isTestFile)
-					varDocs.docsMarkdown = blockDocsMarkdown + varDocs.docsMarkdown
-					result.vars = append(result.vars, varDocs)
+					varDocs, ok := d.indexConstVar(p, t, i, "var", isTestFile)
+					if ok {
+						varDocs.docsMarkdown = blockDocsMarkdown + varDocs.docsMarkdown
+						result.vars = append(result.vars, varDocs)
+					}
 				}
 			}
 		case *ast.TypeSpec:
@@ -601,13 +605,27 @@ func (t constVarDocs) result() *documentationResult {
 	}
 }
 
-func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, nameIndex int, typ string, isTestFile bool) constVarDocs {
+func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, nameIndex int, typ string, isTestFile bool) (constVarDocs, bool) {
 	var result constVarDocs
 	name := in.Names[nameIndex]
 	result.label = fmt.Sprintf("%s %s", typ, name.String())
 	result.name = name.String()
 	result.searchKey = p.Name + "." + name.String()
 	result.def = p.TypesInfo.Defs[name]
+	if result.def == nil {
+		// TODO(slimsag): some packages have illegally conflicting symbols, like:
+		//
+		// * testdata/conflicting_test_symbols/sandbox_unsupported.go:ErrNotImplemented
+		// * testdata/conflicting_test_symbols/sandbox_unsupported_test.go:ErrNotImplemented
+		//
+		// These examples were pulled from the moby/moby project in the wild (so yes, it really
+		// happens.) In such cases, p.TypesInfo.Defs here would be `nil`. One could argue this is
+		// a bug in go/packages in which, because both files are analyzed, one identifier "wins"
+		// (say, the test file's) while the other becomes `nil` - but I would argue it's not
+		// go/packages responsibility necessarily to handle analyzing illegal Go code aside from in
+		// a best-effort way, so we should handle this in a best-effort way, too: drop the symbol.
+		return constVarDocs{}, false
+	}
 
 	result.tags = []protocol.Tag{}
 	if typ == "const" {
@@ -638,7 +656,7 @@ func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, name
 	}
 
 	result.docsMarkdown = godocToMarkdown(in.Doc.Text())
-	return result
+	return result, true
 }
 
 type typeDocs struct {

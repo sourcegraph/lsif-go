@@ -1132,6 +1132,9 @@
       }
     },
     {
+      "pathID": "/conflicting_test_symbols"
+    },
+    {
       "pathID": "/duplicate_path_id"
     }
   ]
