@@ -139,7 +139,8 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 func makeMonikerPackage(obj NoahObject) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
-		pkgName = strings.Trim(v.Name(), `"`)
+		// pkgName = strings.Trim(v.Name(), `"`)
+		pkgName = v.Imported().Path()
 	} else {
 		pkgName = obj.Pkg().Path()
 	}

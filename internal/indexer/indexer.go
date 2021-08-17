@@ -1,5 +1,8 @@
 package indexer
 
+// todo: gotta handle import (. "strings") whatever that is...?
+// todo: the env.go -> package env, doesn't seem to be working exactly right.
+
 import (
 	"bytes"
 	"encoding/json"
@@ -8,6 +11,8 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"path"
+	"sort"
 	"strings"
 	"sync"
 
@@ -37,6 +42,9 @@ type Indexer struct {
 	labels  map[interface{}]*DefinitionInfo // position -> info
 	types   map[interface{}]*DefinitionInfo // name -> info
 	vars    map[interface{}]*DefinitionInfo // position -> info
+	// TODO: I don't think we need a lock for this because we only write to this once per name
+	// and it's always in the same thread and it's always only once per package. So I think it's safe.
+	pkgs map[interface{}]*DefinitionInfo // name -> info
 
 	// LSIF data cache
 	documents                                map[string]*DocumentInfo    // filename -> info
@@ -58,6 +66,7 @@ type Indexer struct {
 	labelsMutex                sync.Mutex
 	typesMutex                 sync.Mutex
 	varsMutex                  sync.Mutex
+	pkgMutex                   sync.Mutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
 	importMonikerIDsMutex      sync.RWMutex
@@ -92,6 +101,7 @@ func New(
 		labels:                map[interface{}]*DefinitionInfo{},
 		types:                 map[interface{}]*DefinitionInfo{},
 		vars:                  map[interface{}]*DefinitionInfo{},
+		pkgs:                  map[interface{}]*DefinitionInfo{},
 		documents:             map[string]*DocumentInfo{},
 		ranges:                map[string]map[int]uint64{},
 		defined:               map[string]map[int]struct{}{},
@@ -297,13 +307,16 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 				continue
 			}
 
-			name := importSpecName(spec)
-			ident := &ast.Ident{NamePos: spec.Pos(), Name: name, Obj: ast.NewObj(ast.Pkg, name)}
-			// p.TypesInfo.Defs[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
-			p.TypesInfo.Uses[ident] = types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types)
-			// fmt.Println("Import", p.Types, name, pkg.Types, "->", types.NewPkgName(spec.Pos(), p.Types, name, pkg.Types))
-			// fmt.Println("Import", ident)
-			// p.TypesInfo.Uses
+			pos, d, _ := i.positionAndDocument(p, spec.Pos())
+			obj := types.NewPkgName(spec.Pos(), p.Types, importSpecName(spec), pkg.Types)
+			rangeID, _ := i.ensureRangeFor(pos, obj)
+
+			resultSetID := i.emitter.EmitResultSet()
+
+			_ = i.emitter.EmitNext(rangeID, resultSetID)
+			i.emitImportMoniker(resultSetID, p, obj)
+
+			d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
 		}
 	}
 }
@@ -311,9 +324,11 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 // importSpecName extracts the name from the given import spec.
 func importSpecName(spec *ast.ImportSpec) string {
 	if spec.Name != nil {
+		fmt.Println("Spec.Name:", spec, spec.Name.String())
 		return spec.Name.String()
 	}
 
+	fmt.Println("Spec.Value:", spec, spec.Path.Value)
 	return spec.Path.Value
 }
 
@@ -529,6 +544,11 @@ func (i *Indexer) setDefinitionInfo(obj NoahObject, ident *ast.Ident, d *Definit
 		i.varsMutex.Lock()
 		i.vars[obj.Pos()] = d
 		i.varsMutex.Unlock()
+
+	case *PkgDeclaration:
+		i.pkgMutex.Lock()
+		i.pkgs[v.Pkg().Path()] = d
+		i.pkgMutex.Unlock()
 	}
 }
 
@@ -589,6 +609,12 @@ func (i *Indexer) getDefinitionInfo(obj NoahObject, ident *ast.Ident) *Definitio
 		return i.types[ident.String()+"="+obj.Type().String()]
 	case *types.Var:
 		return i.vars[v.Pos()]
+	case *PkgDeclaration:
+		i.pkgMutex.Lock()
+		val := i.pkgs[v.Pkg().Path()]
+		i.pkgMutex.Unlock()
+
+		return val
 	}
 
 	return nil
@@ -649,9 +675,9 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	})
 
 	rangeID, _ := i.ensureRangeFor(pos, definitionObj)
-	refResultID := i.emitter.EmitReferenceResult()
-	_ = i.emitter.EmitTextDocumentReferences(rangeID, refResultID)
-	_ = i.emitter.EmitItemOfReferences(refResultID, []uint64{rangeID}, document.DocumentID)
+	// refResultID := i.emitter.EmitReferenceResult()
+	// _ = i.emitter.EmitTextDocumentReferences(rangeID, refResultID)
+	// _ = i.emitter.EmitItemOfReferences(refResultID, []uint64{rangeID}, document.DocumentID)
 
 	if hoverResultID != 0 {
 		_ = i.emitter.EmitTextDocumentHover(rangeID, hoverResultID)
@@ -734,11 +760,19 @@ func (i *Indexer) indexPackages() {
 	i.visitEachPackage("Indexing packages", i.indexPackageForPackage)
 }
 
-func (i *Indexer) indexPackageForPackage(p *packages.Package) {
-	for _, f := range p.Syntax {
-		pkgKeywordPosition := p.Fset.Position(f.Package)
+func newPkgDeclaration(p *packages.Package, f *ast.File) (*PkgDeclaration, token.Position) {
+	pkgKeywordPosition := p.Fset.Position(f.Package)
 
-		pos := token.Position{
+	name := f.Name.Name
+
+	// TODO(packages): Is this the right package information here? I'm not sure.
+	// obj := types.NewPkgName(f.Package, p.Types, name, types.NewPackage(p.PkgPath, name))
+	return &PkgDeclaration{
+			// TODO wrong :)
+			pos:  f.Package,
+			pkg:  types.NewPackage(p.PkgPath, name),
+			name: name,
+		}, token.Position{
 			Filename: pkgKeywordPosition.Filename,
 			Line:     pkgKeywordPosition.Line,
 			Column:   pkgKeywordPosition.Column + len("package "),
@@ -746,35 +780,100 @@ func (i *Indexer) indexPackageForPackage(p *packages.Package) {
 			// TODO: ?? Is this right ??
 			// Offset: pkgKeywordPosition.Offset + len("package "),
 		}
+}
 
-		name := f.Name.Name
+type DeclInfo struct {
+	HasDoc bool
+	Path   string
+}
 
-		// TODO(packages): Is this the right package information here? I'm not sure.
-		// obj := types.NewPkgName(f.Package, p.Types, name, types.NewPackage(p.PkgPath, name))
-		obj := &PkgDeclaration{
-			// TODO wrong :)
-			pos:  f.Package,
-			pkg:  types.NewPackage(p.PkgPath, name),
-			name: name,
-		}
+func (i *Indexer) indexPackageForPackage(p *packages.Package) {
+	// need to:
+	// - emit a range
+	// - create a resultset for the range
+	// - add reference to a moniker?
 
-		_, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok {
+	// Pick the filename that is the most idiomatic for the defintion of the package.
+	// This will make jump to def always send you to a better go file than the $PKG_test.go, for example.
+	packageDeclarations := []DeclInfo{}
+	for _, f := range p.Syntax {
+		_, position := newPkgDeclaration(p, f)
+		packageDeclarations = append(packageDeclarations, DeclInfo{
+			HasDoc: f.Doc != nil,
+			Path:   position.Filename,
+		})
+	}
+
+	best, err := findBestPackageDefinitionPath(p.Name, packageDeclarations)
+	if err != nil {
+		return
+	}
+
+	// First, index the defition, which is the best package info.
+	for _, f := range p.Syntax {
+		obj, position := newPkgDeclaration(p, f)
+
+		// Skip everything that isn't the best
+		if position.Filename != best {
 			continue
 		}
 
-		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, false, &ast.Ident{
+		name := obj.Name()
+		_, d, ok := i.positionAndDocument(p, obj.Pos())
+		if !ok {
+			panic("hmmm, probably should not merge this code")
+		}
+
+		rangeID := i.indexDefinition(p, position.Filename, d, position, obj, false, &ast.Ident{
 			NamePos: obj.Pos(),
 			Name:    name,
 			Obj:     nil,
 		})
 
-		i.stripedMutex.LockKey(pos.Filename)
-		i.ranges[pos.Filename][pos.Offset] = rangeID
-		i.stripedMutex.UnlockKey(pos.Filename)
+		i.stripedMutex.LockKey(position.Filename)
+		i.ranges[position.Filename][position.Offset] = rangeID
+		i.stripedMutex.UnlockKey(position.Filename)
 
 		d.m.Lock()
 		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
+		d.m.Unlock()
+
+		// Once we've indexed the best one, we can quit this loop
+		break
+	}
+
+	// Then, index the rest of the files, which are references to that package info.
+	for _, f := range p.Syntax {
+		obj, position := newPkgDeclaration(p, f)
+
+		// Skip the definition, it is already indexed
+		if position.Filename == best {
+			continue
+		}
+
+		name := obj.Name()
+
+		_, d, ok := i.positionAndDocument(p, obj.Pos())
+		if !ok {
+			continue
+		}
+		ident := &ast.Ident{
+			NamePos: obj.Pos(),
+			Name:    name,
+			Obj:     nil,
+		}
+		rangeID, ok := i.indexReference(p, d, position, obj, ident)
+
+		if !ok {
+			continue
+		}
+
+		i.stripedMutex.LockKey(position.Filename)
+		i.ranges[position.Filename][position.Offset] = rangeID
+		i.stripedMutex.UnlockKey(position.Filename)
+
+		d.m.Lock()
+		d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
 		d.m.Unlock()
 	}
 }
@@ -787,4 +886,62 @@ func (i *Indexer) Stats() IndexerStats {
 		NumDefs:     uint(len(i.consts) + len(i.funcs) + len(i.imports) + len(i.labels) + len(i.types) + len(i.vars)),
 		NumElements: i.emitter.NumElements(),
 	}
+}
+
+func findBestPackageDefinitionPath(packageName string, possiblePaths []DeclInfo) (string, error) {
+	if len(possiblePaths) == 0 {
+		return "", errors.New("must have at least one possible path")
+	}
+
+	pathsWithDocs := []DeclInfo{}
+	for _, v := range possiblePaths {
+		if v.HasDoc {
+			pathsWithDocs = append(pathsWithDocs, v)
+		}
+	}
+
+	// The idiomatic way is to _only_ have one .go file per package that has a docstring
+	// for the package. This should generally return here.
+	if len(pathsWithDocs) == 1 {
+		return pathsWithDocs[0].Path, nil
+	}
+
+	// If we for some reason have more than one .go file per package that has a docstring,
+	// only consider returning paths that contain the docstring (instead of any of the possible
+	// paths).
+	if len(pathsWithDocs) > 1 {
+		possiblePaths = pathsWithDocs
+	}
+
+	sort.Slice(possiblePaths, func(i, j int) bool {
+		return possiblePaths[i].Path < possiblePaths[j].Path
+	})
+
+	// If we have "package mylib" and the file "mylib.go", pick "mylib.go"
+	for _, v := range possiblePaths {
+		if packageName == fileNameWithoutExtension(v.Path) {
+			return v.Path, nil
+		}
+
+		if "doc.go" == path.Base(v.Path) {
+			return v.Path, nil
+		}
+	}
+
+	if !strings.HasSuffix(packageName, "_test") {
+		nonTestFiles := []DeclInfo{}
+		for _, v := range possiblePaths {
+			if !strings.HasSuffix(v.Path, "_test") {
+				nonTestFiles = append(nonTestFiles, v)
+			}
+		}
+
+		possiblePaths = nonTestFiles
+	}
+
+	return possiblePaths[0].Path, nil
+}
+
+func fileNameWithoutExtension(fileName string) string {
+	return strings.TrimSuffix(fileName, path.Ext(fileName))
 }

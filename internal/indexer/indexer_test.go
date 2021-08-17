@@ -64,10 +64,8 @@ func TestIndexer(t *testing.T) {
 		}
 	})
 
-	// TODO(efritz) - support "package testdata" identifiers
 	t.Run("declares definitions for 'package testdata' identifiers", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 0, 8)
-		// r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
 		if !ok {
 			t.Errorf("Could not find range for 'package testdata'")
 		}
@@ -88,6 +86,33 @@ func TestIndexer(t *testing.T) {
 		moniker := monikers[0]
 		value := moniker.Identifier
 		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata"
+		if value != expectedLabel {
+			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedLabel, value)
+		}
+	})
+
+	t.Run("declares definitions for nested 'package *' identifiers", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "internal", "secret", "secret.go"), 0, 8)
+		if !ok {
+			t.Errorf("Could not find range for 'package secret'")
+		}
+
+		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		if len(definitions) != 1 {
+			t.Errorf("Definitions: %+v\n", definitions)
+		}
+
+		def := definitions[0]
+		compareRange(t, def, 0, 8, 0, 14)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Errorf("Monikers: %+v\n", monikers)
+		}
+
+		moniker := monikers[0]
+		value := moniker.Identifier
+		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata/internal/secret"
 		if value != expectedLabel {
 			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedLabel, value)
 		}
@@ -497,4 +522,45 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"…/shouldvisit/tests_separate.test":                                     false,
 		"…/shouldvisit/tests_separate_test […/shouldvisit/tests_separate.test]": true,
 	}).Equal(t, visited)
+}
+
+func TestIndexer_findBestPackageDefinitionPath(t *testing.T) {
+	t.Run("Should find exact name match", func(t *testing.T) {
+		packageName := "smol"
+		possibleFilepaths := []DeclInfo{
+			{false, "smol.go"},
+			{false, "other.go"},
+		}
+
+		pkgDefinitionPath, _ := findBestPackageDefinitionPath(packageName, possibleFilepaths)
+		if pkgDefinitionPath != "smol.go" {
+			t.Errorf("incorrect hover text documentation. want=%q have=%q", "smol.go", pkgDefinitionPath)
+		}
+	})
+
+	t.Run("Should not pick _test files if package is not a test package", func(t *testing.T) {
+		packageName := "mylib"
+		possibleFilepaths := []DeclInfo{
+			{false, "smol.go"},
+			{false, "smol_test.go"},
+		}
+
+		pkgDefinitionPath, _ := findBestPackageDefinitionPath(packageName, possibleFilepaths)
+		if pkgDefinitionPath != "smol.go" {
+			t.Errorf("incorrect hover text documentation. want=%q have=%q", "smol.go", pkgDefinitionPath)
+		}
+	})
+
+	t.Run("should always pick whatever has the documentation", func(t *testing.T) {
+		packageName := "mylib"
+		possibleFilepaths := []DeclInfo{
+			{true, "smol.go"},
+			{false, "mylib.go"},
+		}
+
+		pkgDefinitionPath, _ := findBestPackageDefinitionPath(packageName, possibleFilepaths)
+		if pkgDefinitionPath != "smol.go" {
+			t.Errorf("incorrect hover text documentation. want=%q have=%q", "smol.go", pkgDefinitionPath)
+		}
+	})
 }
