@@ -124,7 +124,7 @@ func (i *Indexer) Index() error {
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.addImports()
-	i.indexPackages()
+	i.indexPackageDeclarations()
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
@@ -324,11 +324,9 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 // importSpecName extracts the name from the given import spec.
 func importSpecName(spec *ast.ImportSpec) string {
 	if spec.Name != nil {
-		fmt.Println("Spec.Name:", spec, spec.Name.String())
 		return spec.Name.String()
 	}
 
-	fmt.Println("Spec.Value:", spec, spec.Path.Value)
 	return spec.Path.Value
 }
 
@@ -394,6 +392,17 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		if !ok {
 			continue
 		}
+
+		if pos.Line == 7 && pos.Column == 2 {
+			fmt.Println("Hello, we here?")
+		}
+
+		_, isPkgName := typeObj.(*types.PkgName)
+		if isPkgName {
+			// TODO: Dont merge
+			continue
+		}
+
 		if !i.markRange(pos) {
 			// This performs a quick assignment to a map that will ensure that
 			// we don't race against another routine indexing the same definition
@@ -756,8 +765,8 @@ func (i *Indexer) emitContainsForProject() {
 	}
 }
 
-func (i *Indexer) indexPackages() {
-	i.visitEachPackage("Indexing packages", i.indexPackageForPackage)
+func (i *Indexer) indexPackageDeclarations() {
+	i.visitEachPackage("Indexing packages", i.indexPackageDeclarationForPackage)
 }
 
 func newPkgDeclaration(p *packages.Package, f *ast.File) (*PkgDeclaration, token.Position) {
@@ -787,7 +796,7 @@ type DeclInfo struct {
 	Path   string
 }
 
-func (i *Indexer) indexPackageForPackage(p *packages.Package) {
+func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 	// need to:
 	// - emit a range
 	// - create a resultset for the range
