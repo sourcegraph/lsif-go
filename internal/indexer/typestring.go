@@ -11,7 +11,7 @@ import (
 const indent = "    "
 
 // typeString returns the string representation fo the given object's type.
-func typeString(obj NoahObject) (signature string, extra string) {
+func typeString(obj ObjectLike) (signature string, extra string) {
 	switch v := obj.(type) {
 	case *types.PkgName:
 		return fmt.Sprintf("package %s", v.Name()), ""

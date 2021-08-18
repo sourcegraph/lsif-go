@@ -12,7 +12,7 @@ import (
 // emitExportMoniker emits an export moniker for the given object linked to the given source
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the current module.
-func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj NoahObject) {
+func (i *Indexer) emitExportMoniker(sourceID uint64, p *packages.Package, obj ObjectLike) {
 	if i.moduleName == "" {
 		// Unknown dependencies, skip export monikers
 		return
@@ -53,7 +53,7 @@ func joinMonikerParts(parts ...string) string {
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj NoahObject) {
+func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ObjectLike) {
 	pkg := makeMonikerPackage(obj)
 	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
 
@@ -136,7 +136,7 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 
 // makeMonikerPackage returns the package prefix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`.
-func makeMonikerPackage(obj NoahObject) string {
+func makeMonikerPackage(obj ObjectLike) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
 		// pkgName = strings.Trim(v.Name(), `"`)
@@ -151,7 +151,7 @@ func makeMonikerPackage(obj NoahObject) string {
 // makeMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`. The identifier is meant to act as a
 // qualified type path to the given object (e.g. `StructName.FieldName` or `StructName.MethodName`).
-func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj NoahObject) string {
+func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Package, obj ObjectLike) string {
 	if _, ok := obj.(*types.PkgName); ok {
 		// Packages are identified uniquely by their package prefix
 		return ""

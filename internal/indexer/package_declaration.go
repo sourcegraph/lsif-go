@@ -7,7 +7,7 @@ import (
 
 // TODO: Handle testing packages differently.
 
-type NoahObject interface {
+type ObjectLike interface {
 	Pos() token.Pos
 	Pkg() *types.Package
 	Name() string

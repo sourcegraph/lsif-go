@@ -57,7 +57,7 @@ type Indexer struct {
 	packages                                 []*packages.Package         // index target packages
 	projectID                                uint64                      // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
-	emittedDocumentationResults              map[NoahObject]uint64 // type object -> documentationResult vertex ID
+	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
 	emittedDocumentationResultsByPackagePath map[string]uint64     // package path -> documentationResult vertex ID
 
 	constsMutex                sync.Mutex
@@ -398,7 +398,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	// implicit object for each case clause of a type switch (including default), and they all
 	// share the same position. This creates a map with one arbitrarily chosen argument for
 	// each distinct type switch.
-	caseClauses := map[token.Pos]NoahObject{}
+	caseClauses := map[token.Pos]ObjectLike{}
 	for node, obj := range p.TypesInfo.Implicits {
 		if _, ok := node.(*ast.CaseClause); ok {
 			caseClauses[obj.Pos()] = obj
@@ -406,7 +406,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	}
 
 	for ident, typeObj := range p.TypesInfo.Defs {
-		var obj NoahObject = typeObj
+		var obj ObjectLike = typeObj
 
 		typeSwitchHeader := false
 		if obj == nil {
@@ -496,7 +496,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj NoahObject, typeSwitchHeader bool, ident *ast.Ident) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) uint64 {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
 	rangeID, _ := i.ensureRangeFor(pos, obj)
@@ -553,7 +553,7 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 // setDefinitionInfo stashes the given definition info indexed by the given object type and name.
 // This definition info will be accessible by invoking getDefinitionInfo with the same type and
 // name values (but not necessarily the same object).
-func (i *Indexer) setDefinitionInfo(obj NoahObject, ident *ast.Ident, d *DefinitionInfo) {
+func (i *Indexer) setDefinitionInfo(obj ObjectLike, ident *ast.Ident, d *DefinitionInfo) {
 	switch v := obj.(type) {
 	case *types.Const:
 		i.constsMutex.Lock()
@@ -626,7 +626,7 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj NoahObject, ident *ast.Ident) (uint64, bool) {
+func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident) (uint64, bool) {
 	if def := i.getDefinitionInfo(definitionObj, ident); def != nil {
 		return i.indexReferenceToDefinition(p, document, pos, definitionObj, def)
 	}
@@ -637,7 +637,7 @@ func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, po
 // getDefinitionInfo returns the definition info object for the given object. This requires that
 // setDefinitionInfo was previously called an object that can be resolved in the same way. This
 // will only return definitions which are defined in an index target (not a dependency).
-func (i *Indexer) getDefinitionInfo(obj NoahObject, ident *ast.Ident) *DefinitionInfo {
+func (i *Indexer) getDefinitionInfo(obj ObjectLike, ident *ast.Ident) *DefinitionInfo {
 	switch v := obj.(type) {
 	case *types.Const:
 		return i.consts[v.Pos()]
@@ -664,7 +664,7 @@ func (i *Indexer) getDefinitionInfo(obj NoahObject, ident *ast.Ident) *Definitio
 
 // indexReferenceToDefinition emits data for the given reference object that is defined within
 // an index target package.
-func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj NoahObject, d *DefinitionInfo) (uint64, bool) {
+func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, d *DefinitionInfo) (uint64, bool) {
 	rangeID, ok := i.ensureRangeFor(pos, definitionObj)
 	if !ok {
 		// Not a new range result; this occurs when the definition and reference
@@ -702,7 +702,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj NoahObject) (uint64, bool) {
+func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike) (uint64, bool) {
 	definitionPkg := definitionObj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
@@ -731,7 +731,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
 // not been emitted, a new vertex is created.
-func (i *Indexer) ensureRangeFor(pos token.Position, obj NoahObject) (uint64, bool) {
+func (i *Indexer) ensureRangeFor(pos token.Position, obj ObjectLike) (uint64, bool) {
 	i.stripedMutex.RLockKey(pos.Filename)
 	rangeID, ok := i.ranges[pos.Filename][pos.Offset]
 	i.stripedMutex.RUnlockKey(pos.Filename)

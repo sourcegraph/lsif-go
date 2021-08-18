@@ -10,7 +10,7 @@ import (
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj NoahObject) protocol.MarkupContent {
+func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) protocol.MarkupContent {
 	signature, extra := typeString(obj)
 	docstring := findDocstring(packageDataCache, pkgs, p, obj)
 	return toMarkupContent(signature, docstring, extra)
@@ -18,7 +18,7 @@ func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Pack
 
 // findExternalHoverContents returns the hover contents of the given object defined in the given
 // package. This method is not cached and should only be called wrapped in a call to makeCachedHoverResult.
-func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj NoahObject) protocol.MarkupContent {
+func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) protocol.MarkupContent {
 	signature, extra := typeString(obj)
 	docstring := findExternalDocstring(packageDataCache, pkgs, p, obj)
 	return toMarkupContent(signature, docstring, extra)
@@ -27,7 +27,7 @@ func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packa
 // makeCachedHoverResult returns a hover result vertex identifier. If hover text for the given
 // identifier has not already been emitted, a new vertex is created. Identifiers will share the
 // same hover result if they refer to the same identifier in the same target package.
-func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj NoahObject, fn func() protocol.MarkupContent) uint64 {
+func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj ObjectLike, fn func() protocol.MarkupContent) uint64 {
 	key := makeCacheKey(pkg, obj)
 	if key == "" {
 		// Do not store empty cache keys
@@ -61,7 +61,7 @@ func (i *Indexer) makeCachedHoverResult(pkg *types.Package, obj NoahObject, fn f
 // identifier. Otherwise, the key will be the object identifier if it refers to a package import.
 // If the given package is nil and the object is not a package import, the returned cache key is
 // the empty string (to force a fresh calculation of each local object's hover text).
-func makeCacheKey(pkg *types.Package, obj NoahObject) string {
+func makeCacheKey(pkg *types.Package, obj ObjectLike) string {
 	if pkg != nil {
 		return fmt.Sprintf("%s::%d", pkg.Path(), obj.Pos())
 	}
@@ -75,7 +75,7 @@ func makeCacheKey(pkg *types.Package, obj NoahObject) string {
 
 // findDocstring extracts the comments from the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
-func findDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj NoahObject) string {
+func findDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) string {
 	if obj == nil {
 		return ""
 	}
@@ -90,7 +90,7 @@ func findDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package,
 
 // findExternalDocstring extracts the comments from the given object. It is assumed that this object is
 // declared in a dependency.
-func findExternalDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj NoahObject) string {
+func findExternalDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) string {
 	if obj == nil {
 		return ""
 	}
