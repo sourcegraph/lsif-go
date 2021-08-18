@@ -330,15 +330,9 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 			//
 			// So, we want to emit a local defition for the `f` token
 			if spec.Name != nil {
-				fmt.Println("Spec Pos:", p.Fset.Position(spec.Pos()))
-				fmt.Println("Name Pos:", p.Fset.Position(spec.Name.Pos()))
-				fmt.Println("Path Pos:", p.Fset.Position(spec.Path.Pos()))
-				fmt.Println("")
-
 				pos := spec.Name.Pos()
 				obj := types.NewPkgName(pos, p.Types, spec.Name.Name, pkg.Types)
 				ident := spec.Name
-				fmt.Println(obj)
 
 				position, document, _ := i.positionAndDocument(p, pos)
 				rangeID, _ := i.ensureRangeFor(position, obj)
@@ -714,11 +708,6 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 		return 0, false
 	}
 
-	pkgName, ok := definitionObj.(*types.PkgName)
-	if ok {
-		fmt.Println(pkgName, pkgName.Name(), pkgName.Imported(), pos, "||", pkgName.Pos())
-	}
-
 	// Create a or retreive a hover result identifier keyed by the target object's identifier
 	// (scoped ot the object's package name). Caching this gives us another big win as some
 	// methods imported from other packages are likely to be used many times in a dependent
@@ -941,6 +930,8 @@ func (i *Indexer) Stats() IndexerStats {
 	}
 }
 
+// TODO:
+// - We should sort by edit distance here, so that it picks the best name we can as a last resort.
 func findBestPackageDefinitionPath(packageName string, possiblePaths []DeclInfo) (string, error) {
 	if len(possiblePaths) == 0 {
 		return "", errors.New("must have at least one possible path")
