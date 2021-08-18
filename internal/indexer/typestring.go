@@ -29,7 +29,7 @@ func typeString(obj NoahObject) (signature string, extra string) {
 		return fmt.Sprintf("%s = %s", types.ObjectString(v, packageQualifier), v.Val()), ""
 
 	case *PkgDeclaration:
-		return "Package Declaration", ""
+		return fmt.Sprintf("package %s", v.name), ""
 
 	}
 

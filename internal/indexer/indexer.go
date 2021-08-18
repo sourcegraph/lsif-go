@@ -297,6 +297,22 @@ func (i *Indexer) addImports() {
 	i.visitEachPackage("Adding import definitions", i.addImportsToPackage)
 }
 
+func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
+	// The reference is always the Path, not the Name
+	pos := spec.Path.Pos()
+	obj := types.NewPkgName(pos, p.Types, spec.Path.Value, pkg.Types)
+	position, d, _ := i.positionAndDocument(p, pos)
+	rangeID, _ := i.ensureRangeFor(position, obj)
+
+	resultSetID := i.emitter.EmitResultSet()
+
+	_ = i.emitter.EmitNext(rangeID, resultSetID)
+	i.emitImportMoniker(resultSetID, p, obj)
+
+	// TODO: It feels like I should have to lock or something here
+	d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+}
+
 // addImportsToFile modifies the definitions map of the given file to include entries for import
 // statements so they can be indexed uniformly in subsequent steps.
 func (i *Indexer) addImportsToPackage(p *packages.Package) {
@@ -307,27 +323,52 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 				continue
 			}
 
-			pos, d, _ := i.positionAndDocument(p, spec.Pos())
-			obj := types.NewPkgName(spec.Pos(), p.Types, importSpecName(spec), pkg.Types)
-			rangeID, _ := i.ensureRangeFor(pos, obj)
+			i.emitImportMonikerReference(p, pkg, spec)
 
-			resultSetID := i.emitter.EmitResultSet()
+			// spec.Name is only non-nil when we have an import of the form:
+			//     import f "fmt"
+			//
+			// So, we want to emit a local defition for the `f` token
+			if spec.Name != nil {
+				fmt.Println("Spec Pos:", p.Fset.Position(spec.Pos()))
+				fmt.Println("Name Pos:", p.Fset.Position(spec.Name.Pos()))
+				fmt.Println("Path Pos:", p.Fset.Position(spec.Path.Pos()))
+				fmt.Println("")
 
-			_ = i.emitter.EmitNext(rangeID, resultSetID)
-			i.emitImportMoniker(resultSetID, p, obj)
+				pos := spec.Name.Pos()
+				obj := types.NewPkgName(pos, p.Types, spec.Name.Name, pkg.Types)
+				ident := spec.Name
+				fmt.Println(obj)
 
-			d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+				position, document, _ := i.positionAndDocument(p, pos)
+				rangeID, _ := i.ensureRangeFor(position, obj)
+				resultSetID := i.emitter.EmitResultSet()
+				defResultID := i.emitter.EmitDefinitionResult()
+
+				_ = i.emitter.EmitNext(rangeID, resultSetID)
+				_ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
+				_ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
+
+				i.stripedMutex.LockKey(position.Filename)
+				i.ranges[position.Filename][position.Offset] = rangeID
+				i.stripedMutex.UnlockKey(position.Filename)
+
+				document.m.Lock()
+				document.DefinitionRangeIDs = append(document.DefinitionRangeIDs, rangeID)
+				document.m.Unlock()
+
+				// i.indexDefinition()
+				i.setDefinitionInfo(obj, ident, &DefinitionInfo{
+					DocumentID:         document.DocumentID,
+					RangeID:            rangeID,
+					ResultSetID:        resultSetID,
+					DefinitionResultID: defResultID,
+					ReferenceRangeIDs:  map[uint64][]uint64{},
+					TypeSwitchHeader:   false,
+				})
+			}
 		}
 	}
-}
-
-// importSpecName extracts the name from the given import spec.
-func importSpecName(spec *ast.ImportSpec) string {
-	if spec.Name != nil {
-		return spec.Name.String()
-	}
-
-	return spec.Path.Value
 }
 
 // getAllReferencedPackages returns a slice of packages containing the index target packages
@@ -393,12 +434,13 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		// _, isPkgName := typeObj.(*types.PkgName)
-		// if isPkgName {
-		// 	// TODO: Dont merge
-		// 	fmt.Println("Skipping pkgname")
-		// 	continue
-		// }
+		// Always skip types.PkgName because we handle them in addImports()
+		//    we do not want to emit anything new here.
+		//
+		// TODO: @eric is this OK here? or should I do something else
+		if _, isPkgName := typeObj.(*types.PkgName); isPkgName {
+			continue
+		}
 
 		if !i.markRange(pos) {
 			// This performs a quick assignment to a map that will ensure that
@@ -670,6 +712,11 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	definitionPkg := definitionObj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
+	}
+
+	pkgName, ok := definitionObj.(*types.PkgName)
+	if ok {
+		fmt.Println(pkgName, pkgName.Name(), pkgName.Imported(), pos, "||", pkgName.Pos())
 	}
 
 	// Create a or retreive a hover result identifier keyed by the target object's identifier

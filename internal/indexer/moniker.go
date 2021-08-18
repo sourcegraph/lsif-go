@@ -70,12 +70,6 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj No
 			return
 		}
 	}
-
-	for _, moduleName := range packagePrefixes(pkg) {
-		fmt.Println("Module Name:", moduleName)
-	}
-
-	panic(fmt.Sprintf("Could not find import moniker pkg: %s | %+v\n%s", pkg, obj, i.dependencies))
 }
 
 // packagePrefixes returns all prefix of the go package path. For example, the package

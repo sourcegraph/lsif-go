@@ -138,37 +138,12 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("found too many monikers: %+v\n", monikers)
 		}
 
+		// Only important part is linking to the correct moniker.
+		// Hover results will be linked accordingly
 		moniker := monikers[0]
 		expectedMoniker := "github.com/golang/go/std/sync"
 		if moniker.Identifier != expectedMoniker {
 			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedMoniker, moniker.Identifier)
-		} else {
-			return
-		}
-
-		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
-		if !ok {
-			t.Fatalf("could not find hover text: result")
-		}
-
-		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
-		if !ok || len(markupContentSegments) != 1 {
-			t.Fatalf("could not find hover text: markup")
-		}
-
-		expectedType := `package "sync"`
-		if value := unCodeFence(markupContentSegments[0]); value != expectedType {
-			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
-		}
-
-		expectedDocumentation := normalizeDocstring(`
-			Package sync provides basic synchronization primitives such as mutual exclusion locks.
-			Other than the Once and WaitGroup types, most are intended for use by low-level library routines.
-			Higher-level synchronization is better done via channels and communication.
-			Values containing the types defined in this package should not be copied.
-		`)
-		if value := normalizeDocstring(markupContentSegments[1]); value != expectedDocumentation {
-			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedDocumentation, value)
 		}
 	})
 
