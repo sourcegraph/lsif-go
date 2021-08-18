@@ -65,7 +65,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("declares definitions for 'package testdata' identifiers", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 0, 8)
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "main.go"), 2, 8)
 		if !ok {
 			t.Errorf("Could not find range for 'package testdata'")
 		}
@@ -76,7 +76,7 @@ func TestIndexer(t *testing.T) {
 		}
 
 		def := definitions[0]
-		compareRange(t, def, 0, 8, 0, 16)
+		compareRange(t, def, 2, 8, 2, 16)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
 		if len(monikers) != 1 {
@@ -92,7 +92,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("declares definitions for nested 'package *' identifiers", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "internal", "secret", "secret.go"), 0, 8)
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "internal", "secret", "doc.go"), 1, 8)
 		if !ok {
 			t.Errorf("Could not find range for 'package secret'")
 		}
@@ -103,7 +103,7 @@ func TestIndexer(t *testing.T) {
 		}
 
 		def := definitions[0]
-		compareRange(t, def, 0, 8, 0, 14)
+		compareRange(t, def, 1, 8, 1, 14)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
 		if len(monikers) != 1 {
