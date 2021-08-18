@@ -28,6 +28,9 @@ func typeString(obj NoahObject) (signature string, extra string) {
 	case *types.Const:
 		return fmt.Sprintf("%s = %s", types.ObjectString(v, packageQualifier), v.Val()), ""
 
+	case *PkgDeclaration:
+		return "Package Declaration", ""
+
 	}
 
 	// Fall back to types.Object if possible

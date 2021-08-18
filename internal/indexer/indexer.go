@@ -393,15 +393,12 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		if pos.Line == 7 && pos.Column == 2 {
-			fmt.Println("Hello, we here?")
-		}
-
-		_, isPkgName := typeObj.(*types.PkgName)
-		if isPkgName {
-			// TODO: Dont merge
-			continue
-		}
+		// _, isPkgName := typeObj.(*types.PkgName)
+		// if isPkgName {
+		// 	// TODO: Dont merge
+		// 	fmt.Println("Skipping pkgname")
+		// 	continue
+		// }
 
 		if !i.markRange(pos) {
 			// This performs a quick assignment to a map that will ensure that

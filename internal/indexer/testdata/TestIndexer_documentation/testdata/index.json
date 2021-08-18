@@ -15,9 +15,12 @@
   },
   "detail": {
     "kind": "markdown",
-    "value": "Package testdata \n\ntestdata is a small package containing sample Go source code used for testing the indexing routines of github.com/sourcegraph/lsif-go. \n\n"
+    "value": "testdata is a small package containing sample Go source code used for testing the indexing routines of github.com/sourcegraph/lsif-go. \n\n"
   },
   "children": [
+    {
+      "pathID": "/cmd"
+    },
     {
       "pathID": "/internal"
     },
@@ -1040,6 +1043,28 @@
         "children": [
           {
             "node": {
+              "pathID": "/#Example",
+              "documentation": {
+                "identifier": "Example",
+                "newPage": false,
+                "searchKey": "testdata.Example",
+                "tags": [
+                  "function"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func Example()"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc Example()\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/#Parallel",
               "documentation": {
                 "identifier": "Parallel",
@@ -1078,29 +1103,6 @@
               "detail": {
                 "kind": "markdown",
                 "value": "```Go\nfunc Switch(interfaceValue interface{}) bool\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/#main",
-              "documentation": {
-                "identifier": "main",
-                "newPage": false,
-                "searchKey": "testdata.main",
-                "tags": [
-                  "function",
-                  "private"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func main()"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc main()\n```\n\n"
               },
               "children": null
             }

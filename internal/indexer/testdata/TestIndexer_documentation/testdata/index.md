@@ -1,12 +1,11 @@
 # Package testdata
 
-Package testdata 
-
 testdata is a small package containing sample Go source code used for testing the indexing routines of github.com/sourcegraph/lsif-go. 
 
 ## Index
 
 * Subpages
+  * [cmd](cmd.md)
   * [internal](internal.md)
   * [conflicting_test_symbols](conflicting_test_symbols.md)
   * [duplicate_path_id](duplicate_path_id.md)
@@ -56,9 +55,9 @@ testdata is a small package containing sample Go source code used for testing th
     * [type X struct](#X)
     * [type Y struct](#Y)
 * [Functions](#func)
+    * [func Example()](#Example)
     * [func Parallel(ctx context.Context, fns ...ParallelizableFunc) error](#Parallel)
     * [func Switch(interfaceValue interface{}) bool](#Switch)
-    * [func main()](#main)
     * [func useOfCompositeStructs()](#useOfCompositeStructs)
 
 
@@ -666,6 +665,17 @@ Go can be fun
 tags: [private]
 ```
 
+### <a id="Example" href="#Example">func Example()</a>
+
+```
+searchKey: testdata.Example
+tags: [function]
+```
+
+```Go
+func Example()
+```
+
 ### <a id="Parallel" href="#Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error</a>
 
 ```
@@ -688,17 +698,6 @@ tags: [function]
 
 ```Go
 func Switch(interfaceValue interface{}) bool
-```
-
-### <a id="main" href="#main">func main()</a>
-
-```
-searchKey: testdata.main
-tags: [function private]
-```
-
-```Go
-func main()
 ```
 
 ### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>

@@ -3,6 +3,7 @@ package indexer
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,11 +12,17 @@ import (
 	"testing"
 
 	"github.com/hexops/autogold"
+	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/lsif-static-doc/staticdoc"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
+
+var dependencies = map[string]gomod.GoModule{
+	"github.com/sourcegraph/lsif-go": {Name: "github.com/sourcegraph/lsif-go", Version: "dev"},
+	"github.com/golang/go":           {Name: "github.com/golang/go", Version: "go1.16"},
+}
 
 func TestIndexer(t *testing.T) {
 	w := &capturingWriter{}
@@ -27,15 +34,17 @@ func TestIndexer(t *testing.T) {
 		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 		"testdata",
 		"0.0.1",
-		nil,
+		dependencies,
 		w,
 		NewPackageDataCache(),
 		output.Options{},
 	)
 
+	fmt.Println("Indexing...")
 	if err := indexer.Index(); err != nil {
 		t.Fatalf("unexpected error indexing testdata: %s", err.Error())
 	}
+	fmt.Println("... Done")
 
 	t.Run("check Parallel function hover text", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
@@ -124,10 +133,27 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Fatalf("found too many monikers: %+v\n", monikers)
+		}
+
+		moniker := monikers[0]
+		expectedMoniker := "github.com/golang/go/std/sync"
+		if moniker.Identifier != expectedMoniker {
+			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedMoniker, moniker.Identifier)
+		} else {
+			return
+		}
+
 		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		if !ok {
+			t.Fatalf("could not find hover text: result")
+		}
+
 		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) != 1 {
-			t.Fatalf("could not find hover text")
+			t.Fatalf("could not find hover text: markup")
 		}
 
 		expectedType := `package "sync"`
@@ -439,7 +465,7 @@ func TestIndexer_documentation(t *testing.T) {
 				protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 				"testdata",
 				"0.0.1",
-				nil,
+				dependencies,
 				writer.NewJSONWriter(&buf),
 				NewPackageDataCache(),
 				output.Options{},
@@ -487,7 +513,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
 		"testdata",
 		"0.0.1",
-		nil,
+		dependencies,
 		w,
 		NewPackageDataCache(),
 		output.Options{},
@@ -513,6 +539,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test":                                                                             false,
 		"github.com/sourcegraph/lsif-go/internal/testdata/duplicate_path_id":                                                                                         true,
 		"github.com/sourcegraph/lsif-go/internal/testdata/illegal_multiple_mains":                                                                                    true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/cmd/minimal_main":                                                                                          true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,

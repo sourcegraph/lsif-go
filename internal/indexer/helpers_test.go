@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"os"
@@ -414,6 +415,98 @@ func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packa
 	}
 
 	return packageInformation
+}
+
+// findAllAssociatedElements can be useful to debug all the associated elements with a particular ID
+func findAllAssociatedElements(elements []interface{}, id uint64) []interface{} {
+	results := []interface{}{}
+
+	// for _, elem := range elements {
+	// 	value := reflect.ValueOf(&elem).Elem()
+
+	// 	fmt.Println("Value", value)
+
+	// 	// Check if the passed interface is a pointer
+	// 	// if value.Type().Kind() != reflect.Ptr {
+	// 	// 	// Create a new type of Iface's Type, so we have a pointer to work with
+	// 	// 	value = reflect.New(reflect.TypeOf(elem))
+	// 	// }
+
+	// 	typeOfValue := value.Type()
+	// 	fmt.Println("typeOfValue", typeOfValue)
+
+	// 	// 'dereference' with Elem() and get the field by name
+	// 	field, ok := typeOfValue.FieldByName("OutV")
+	// 	if ok {
+	// 		fmt.Println("This has an outV", field)
+	// 	}
+	// }
+
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.Moniker:
+			if e.ID == id {
+				fmt.Println("Yo, we got this moniker", e)
+			}
+
+		case protocol.MonikerEdge:
+			if e.OutV == id {
+				fmt.Println("Moniker Edge")
+				results = append(results, e)
+			}
+
+		case protocol.TextDocumentDefinition:
+			if e.OutV == id {
+				fmt.Println("Def...", e)
+				results = append(results, e)
+				results = append(results, findAllAssociatedElements(elements, e.InV)...)
+			}
+
+		case protocol.TextDocumentReferences:
+			if e.OutV == id {
+				fmt.Println("Reference...", e)
+				results = append(results, e)
+				results = append(results, findAllAssociatedElements(elements, e.InV)...)
+			}
+
+		case protocol.Range:
+			if e.ID == id {
+				results = append(results, e)
+			}
+
+		case protocol.ResultSet:
+			if e.ID == id {
+				fmt.Println("RESULT", e)
+				results = append(results, e)
+				// results = append(results, findAllAssociatedElements(elements, e.ID)...)
+			}
+
+		case protocol.Next:
+			if e.OutV == id {
+				fmt.Println("Next")
+				results = append(results, e)
+				results = append(results, findAllAssociatedElements(elements, e.InV)...)
+			}
+
+			// if e.InV == id {
+			// 	fmt.Println("We got an in ID:", e)
+			// 	results = append(results, findAllAssociatedElements(elements, e.OutV)...)
+			// }
+
+		case protocol.NextMonikerEdge:
+			if e.OutV == id {
+				fmt.Println("NextMoniker")
+				results = append(results, findAllAssociatedElements(elements, e.InV)...)
+			}
+
+			if e.InV == id {
+				fmt.Println("NextMoniker")
+				results = append(results, findAllAssociatedElements(elements, e.InV)...)
+			}
+		}
+	}
+
+	return results
 }
 
 func splitMarkupContent(value string) []string {
