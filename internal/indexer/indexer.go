@@ -315,36 +315,41 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
 	i.emitImportMoniker(resultSetID, p, obj)
 
-	// TODO: It feels like I should have to lock or something here
-	document.ReferenceRangeIDs = append(document.ReferenceRangeIDs, rangeID)
+	// @eric -- we could potentially skip this because we have am oniker now.
+	// but this breaks a test and the current structure.
+	_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
+		return findHoverContents(i.packageDataCache, i.packages, p, obj)
+	}))
+
+	document.appendReference(rangeID)
 }
 
 func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
 	pos := spec.Name.Pos()
 	name := spec.Name.Name
-	position := p.Fset.Position(pos)
 
 	document, obj, rangeID, resultSetID := i.makeStuff(p, pos, name, pkg)
 	ident := spec.Name
 
-	i.indexDefinition(p, document, position, obj, false, ident)
+	// i.indexDefinition(p, document, position, obj, false, ident)
+	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, false, ident)
 
-	defResultID := i.emitter.EmitDefinitionResult()
+	// defResultID := i.emitter.EmitDefinitionResult()
 
-	_ = i.emitter.EmitNext(rangeID, resultSetID)
-	_ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
-	_ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
+	// _ = i.emitter.EmitNext(rangeID, resultSetID)
+	// _ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
+	// _ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
 
-	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
-		DocumentID:         document.DocumentID,
-		RangeID:            rangeID,
-		ResultSetID:        resultSetID,
-		DefinitionResultID: defResultID,
-		ReferenceRangeIDs:  map[uint64][]uint64{},
-		TypeSwitchHeader:   false,
-	})
+	// i.setDefinitionInfo(obj, ident, &DefinitionInfo{
+	// 	DocumentID:         document.DocumentID,
+	// 	RangeID:            rangeID,
+	// 	ResultSetID:        resultSetID,
+	// 	DefinitionResultID: defResultID,
+	// 	ReferenceRangeIDs:  map[uint64][]uint64{},
+	// 	TypeSwitchHeader:   false,
+	// })
 
-	document.appendDefinition(rangeID)
+	// document.appendDefinition(rangeID)
 
 }
 
@@ -493,12 +498,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 	return true
 }
 
-// indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) uint64 {
-	// Ensure the range exists, but don't emit a new one as it might already exist due to another
-	// phase of indexing (such as symbols) having emitted the range.
-	rangeID, _ := i.ensureRangeFor(position, obj)
-	resultSetID := i.emitter.EmitResultSet()
+func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document *DocumentInfo, obj ObjectLike, rangeID, resultSetID uint64, typeSwitchHeader bool, ident *ast.Ident) {
 	defResultID := i.emitter.EmitDefinitionResult()
 
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
@@ -518,14 +518,10 @@ func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, p
 		}))
 	}
 
-	// @eric, I don't think this will ever happen anymore.
-	//        I ran over sg/sg and didn't encounter the panic.
-	//        Wanted to make sure we talked about it.
-	//
-	if _, ok := obj.(*types.PkgName); ok {
-		i.emitImportMoniker(resultSetID, p, obj)
-		panic("I do not think this is possible.")
-	}
+	// @eric, I don't think we want this to happen anymore
+	// if _, ok := obj.(*types.PkgName); ok {
+	// 	i.emitImportMoniker(resultSetID, p, obj)
+	// }
 
 	if obj.Exported() {
 		i.emitExportMoniker(resultSetID, p, obj)
@@ -554,6 +550,16 @@ func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, p
 	})
 
 	document.appendDefinition(rangeID)
+}
+
+// indexDefinition emits data for the given definition object.
+func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) uint64 {
+	// Ensure the range exists, but don't emit a new one as it might already exist due to another
+	// phase of indexing (such as symbols) having emitted the range.
+	rangeID, _ := i.ensureRangeFor(position, obj)
+	resultSetID := i.emitter.EmitResultSet()
+
+	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, typeSwitchHeader, ident)
 
 	return rangeID
 }
