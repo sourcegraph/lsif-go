@@ -10,7 +10,7 @@ import (
 // indent is used to format struct fields.
 const indent = "    "
 
-// typeString returns the string representation fo the given object's type.
+// typeString returns the string representation of the given object's type.
 func typeString(obj ObjectLike) (signature string, extra string) {
 	switch v := obj.(type) {
 	case *types.PkgName:

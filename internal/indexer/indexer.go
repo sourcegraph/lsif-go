@@ -123,7 +123,7 @@ func (i *Indexer) Index() error {
 
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
-	i.addImports()
+	i.emitImports()
 	i.indexPackageDeclarations()
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
@@ -291,31 +291,66 @@ func (i *Indexer) emitDocument(filename string) {
 	i.defined[filename] = map[int]struct{}{}
 }
 
-// addImports modifies the definitions map of each file to include entries for import statements so
+// emitImports modifies the definitions map of each file to include entries for import statements so
 // they can be indexed uniformly in subsequent steps.
-func (i *Indexer) addImports() {
-	i.visitEachPackage("Adding import definitions", i.addImportsToPackage)
+func (i *Indexer) emitImports() {
+	i.visitEachPackage("Adding import definitions", i.emitImportsForPackage)
+}
+
+func (i *Indexer) makeStuff(p *packages.Package, pos token.Pos, name string, pkg *packages.Package) (d *DocumentInfo, obj *types.PkgName, rangeID uint64, resultSetID uint64) {
+	obj = types.NewPkgName(pos, p.Types, name, pkg.Types)
+	position, d, _ := i.positionAndDocument(p, pos)
+	rangeID, _ = i.ensureRangeFor(position, obj)
+	resultSetID = i.emitter.EmitResultSet()
+
+	return d, obj, rangeID, resultSetID
 }
 
 func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
 	// The reference is always the Path, not the Name
 	pos := spec.Path.Pos()
-	obj := types.NewPkgName(pos, p.Types, spec.Path.Value, pkg.Types)
-	position, d, _ := i.positionAndDocument(p, pos)
-	rangeID, _ := i.ensureRangeFor(position, obj)
-
-	resultSetID := i.emitter.EmitResultSet()
+	name := spec.Path.Value
+	document, obj, rangeID, resultSetID := i.makeStuff(p, pos, name, pkg)
 
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
 	i.emitImportMoniker(resultSetID, p, obj)
 
 	// TODO: It feels like I should have to lock or something here
-	d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
+	document.ReferenceRangeIDs = append(document.ReferenceRangeIDs, rangeID)
+}
+
+func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
+	pos := spec.Name.Pos()
+	name := spec.Name.Name
+	position := p.Fset.Position(pos)
+
+	document, obj, rangeID, resultSetID := i.makeStuff(p, pos, name, pkg)
+	ident := spec.Name
+
+	i.indexDefinition(p, document, position, obj, false, ident)
+
+	defResultID := i.emitter.EmitDefinitionResult()
+
+	_ = i.emitter.EmitNext(rangeID, resultSetID)
+	_ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
+	_ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
+
+	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
+		DocumentID:         document.DocumentID,
+		RangeID:            rangeID,
+		ResultSetID:        resultSetID,
+		DefinitionResultID: defResultID,
+		ReferenceRangeIDs:  map[uint64][]uint64{},
+		TypeSwitchHeader:   false,
+	})
+
+	document.appendDefinition(rangeID)
+
 }
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
 // statements so they can be indexed uniformly in subsequent steps.
-func (i *Indexer) addImportsToPackage(p *packages.Package) {
+func (i *Indexer) emitImportsForPackage(p *packages.Package) {
 	for _, f := range p.Syntax {
 		for _, spec := range f.Imports {
 			pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
@@ -330,36 +365,7 @@ func (i *Indexer) addImportsToPackage(p *packages.Package) {
 			//
 			// So, we want to emit a local defition for the `f` token
 			if spec.Name != nil {
-				pos := spec.Name.Pos()
-				obj := types.NewPkgName(pos, p.Types, spec.Name.Name, pkg.Types)
-				ident := spec.Name
-
-				position, document, _ := i.positionAndDocument(p, pos)
-				rangeID, _ := i.ensureRangeFor(position, obj)
-				resultSetID := i.emitter.EmitResultSet()
-				defResultID := i.emitter.EmitDefinitionResult()
-
-				_ = i.emitter.EmitNext(rangeID, resultSetID)
-				_ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
-				_ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
-
-				i.stripedMutex.LockKey(position.Filename)
-				i.ranges[position.Filename][position.Offset] = rangeID
-				i.stripedMutex.UnlockKey(position.Filename)
-
-				document.m.Lock()
-				document.DefinitionRangeIDs = append(document.DefinitionRangeIDs, rangeID)
-				document.m.Unlock()
-
-				// i.indexDefinition()
-				i.setDefinitionInfo(obj, ident, &DefinitionInfo{
-					DocumentID:         document.DocumentID,
-					RangeID:            rangeID,
-					ResultSetID:        resultSetID,
-					DefinitionResultID: defResultID,
-					ReferenceRangeIDs:  map[uint64][]uint64{},
-					TypeSwitchHeader:   false,
-				})
+				i.emitImportMonikerNamedDefinition(p, pkg, spec)
 			}
 		}
 	}
@@ -423,7 +429,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			typeSwitchHeader = true
 		}
 
-		pos, d, ok := i.positionAndDocument(p, obj.Pos())
+		position, d, ok := i.positionAndDocument(p, obj.Pos())
 		if !ok {
 			continue
 		}
@@ -436,7 +442,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		if !i.markRange(pos) {
+		if !i.markRange(position) {
 			// This performs a quick assignment to a map that will ensure that
 			// we don't race against another routine indexing the same definition
 			// reachable from another dataflow path through the indexer. If we
@@ -444,15 +450,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		rangeID := i.indexDefinition(p, pos.Filename, d, pos, obj, typeSwitchHeader, ident)
-
-		i.stripedMutex.LockKey(pos.Filename)
-		i.ranges[pos.Filename][pos.Offset] = rangeID
-		i.stripedMutex.UnlockKey(pos.Filename)
-
-		d.m.Lock()
-		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
-		d.m.Unlock()
+		_ = i.indexDefinition(p, d, position, obj, typeSwitchHeader, ident)
 	}
 }
 
@@ -496,10 +494,10 @@ func (i *Indexer) markRange(pos token.Position) bool {
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, filename string, document *DocumentInfo, pos token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) uint64 {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
-	rangeID, _ := i.ensureRangeFor(pos, obj)
+	rangeID, _ := i.ensureRangeFor(position, obj)
 	resultSetID := i.emitter.EmitResultSet()
 	defResultID := i.emitter.EmitDefinitionResult()
 
@@ -520,8 +518,13 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		}))
 	}
 
+	// @eric, I don't think this will ever happen anymore.
+	//        I ran over sg/sg and didn't encounter the panic.
+	//        Wanted to make sure we talked about it.
+	//
 	if _, ok := obj.(*types.PkgName); ok {
 		i.emitImportMoniker(resultSetID, p, obj)
+		panic("I do not think this is possible.")
 	}
 
 	if obj.Exported() {
@@ -530,6 +533,9 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 
 	// If the pkg/object has associated documentation, link to it. This enables e.g. going from documentation
 	// for a symbol <-> its definition/hover/references/etc in either direction.
+	//
+	// @eric I'm not sure we need to even do this anymore.
+	// We have the monikers correct now, so I don't think there is any reason to even do anything for these (maybe?)
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		if documentationResultID, ok := i.emittedDocumentationResultsByPackagePath[pkgName.Imported().Path()]; ok {
 			_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
@@ -546,6 +552,8 @@ func (i *Indexer) indexDefinition(p *packages.Package, filename string, document
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 		TypeSwitchHeader:   typeSwitchHeader,
 	})
+
+	document.appendDefinition(rangeID)
 
 	return rangeID
 }
@@ -609,19 +617,17 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 			continue
 		}
 
-		pos, d, ok := i.positionAndDocument(p, ident.Pos())
+		pos, document, ok := i.positionAndDocument(p, ident.Pos())
 		if !ok {
 			continue
 		}
 
-		rangeID, ok := i.indexReference(p, d, pos, definitionObj, ident)
+		rangeID, ok := i.indexReference(p, document, pos, definitionObj, ident)
 		if !ok {
 			continue
 		}
 
-		d.m.Lock()
-		d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
-		d.m.Unlock()
+		document.appendReference(rangeID)
 	}
 }
 
@@ -652,6 +658,7 @@ func (i *Indexer) getDefinitionInfo(obj ObjectLike, ident *ast.Ident) *Definitio
 	case *types.Var:
 		return i.vars[v.Pos()]
 	case *PkgDeclaration:
+		// @eric I'm not sure why I had to put these, but in large projects I had race conditions without this.
 		i.pkgMutex.Lock()
 		val := i.pkgs[v.Pkg().Path()]
 		i.pkgMutex.Unlock()
@@ -717,15 +724,17 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	})
 
 	rangeID, _ := i.ensureRangeFor(pos, definitionObj)
-	// refResultID := i.emitter.EmitReferenceResult()
-	// _ = i.emitter.EmitTextDocumentReferences(rangeID, refResultID)
-	// _ = i.emitter.EmitItemOfReferences(refResultID, []uint64{rangeID}, document.DocumentID)
-
 	if hoverResultID != 0 {
 		_ = i.emitter.EmitTextDocumentHover(rangeID, hoverResultID)
 	}
 
+	// You might think, "Hey, TJ, don't you want to emit a textDocument/references result here?"
+	//   Great question!
+	//   No.
+	//
+	// Instead, we just emit an import moniker which will link to the external definition.
 	i.emitImportMoniker(rangeID, p, definitionObj)
+
 	return rangeID, true
 }
 
@@ -866,19 +875,11 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 			panic("hmmm, probably should not merge this code")
 		}
 
-		rangeID := i.indexDefinition(p, position.Filename, d, position, obj, false, &ast.Ident{
+		_ = i.indexDefinition(p, d, position, obj, false, &ast.Ident{
 			NamePos: obj.Pos(),
 			Name:    name,
 			Obj:     nil,
 		})
-
-		i.stripedMutex.LockKey(position.Filename)
-		i.ranges[position.Filename][position.Offset] = rangeID
-		i.stripedMutex.UnlockKey(position.Filename)
-
-		d.m.Lock()
-		d.DefinitionRangeIDs = append(d.DefinitionRangeIDs, rangeID)
-		d.m.Unlock()
 
 		// Once we've indexed the best one, we can quit this loop
 		break
@@ -895,7 +896,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 
 		name := obj.Name()
 
-		_, d, ok := i.positionAndDocument(p, obj.Pos())
+		_, document, ok := i.positionAndDocument(p, obj.Pos())
 		if !ok {
 			continue
 		}
@@ -904,19 +905,14 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 			Name:    name,
 			Obj:     nil,
 		}
-		rangeID, ok := i.indexReference(p, d, position, obj, ident)
+		rangeID, ok := i.indexReference(p, document, position, obj, ident)
 
 		if !ok {
 			continue
 		}
 
-		i.stripedMutex.LockKey(position.Filename)
-		i.ranges[position.Filename][position.Offset] = rangeID
-		i.stripedMutex.UnlockKey(position.Filename)
-
-		d.m.Lock()
-		d.ReferenceRangeIDs = append(d.ReferenceRangeIDs, rangeID)
-		d.m.Unlock()
+		i.setRangeForPosition(position, rangeID)
+		document.appendReference(rangeID)
 	}
 }
 
@@ -928,6 +924,12 @@ func (i *Indexer) Stats() IndexerStats {
 		NumDefs:     uint(len(i.consts) + len(i.funcs) + len(i.imports) + len(i.labels) + len(i.types) + len(i.vars)),
 		NumElements: i.emitter.NumElements(),
 	}
+}
+
+func (i *Indexer) setRangeForPosition(position token.Position, id uint64) {
+	i.stripedMutex.LockKey(position.Filename)
+	i.ranges[position.Filename][position.Offset] = id
+	i.stripedMutex.UnlockKey(position.Filename)
 }
 
 // TODO:
