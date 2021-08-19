@@ -444,6 +444,14 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
+		// typ, ok := obj.Type().(types.Var)
+		typVar, ok := typeObj.(*types.Var)
+		if ok {
+			if typVar.IsField() && typVar.Anonymous() {
+				continue
+			}
+		}
+
 		_ = i.indexDefinition(p, d, position, obj, typeSwitchHeader, ident)
 	}
 }
