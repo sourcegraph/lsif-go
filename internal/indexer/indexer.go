@@ -331,6 +331,11 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 //    import f "fmt"
 //           ^----- local definition
 func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
+	// Don't generate a definition if we import directly into the same namespace (i.e. "." imports)
+	if spec.Name.Name == "." {
+		return
+	}
+
 	state := makePkgNameState(i, p, spec.Name.Pos(), spec.Name.Name, pkg)
 
 	ident := spec.Name

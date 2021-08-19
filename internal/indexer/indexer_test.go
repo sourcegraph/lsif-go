@@ -3,7 +3,6 @@ package indexer
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -40,11 +39,9 @@ func TestIndexer(t *testing.T) {
 		output.Options{},
 	)
 
-	fmt.Println("Indexing...")
 	if err := indexer.Index(); err != nil {
 		t.Fatalf("unexpected error indexing testdata: %s", err.Error())
 	}
-	fmt.Println("... Done")
 
 	t.Run("check Parallel function hover text", func(t *testing.T) {
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
@@ -433,6 +430,69 @@ func TestIndexer(t *testing.T) {
 
 		compareRange(t, definitions[0], 4, 5, 4, 10)
 		compareRange(t, definitions[1], 11, 1, 11, 6)
+	})
+
+	t.Run("check named import definition: non-'.' import", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 1)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		if len(definitions) != 2 {
+			t.Fatalf("Failed to get the correct definitions: %+v\n", definitions)
+		}
+
+		definition := definitions[0]
+		compareRange(t, definition, 4, 1, 4, 2)
+	})
+
+	t.Run("check named import reference: non-'.' import", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 4)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Fatalf("Failed to get the expected single moniker: %+v\n", monikers)
+		}
+
+		moniker := monikers[0]
+		identifier := moniker.Identifier
+
+		expectedIdentifier := "github.com/golang/go/std/net/http"
+		if identifier != expectedIdentifier {
+			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
+		}
+	})
+
+	t.Run("check named import definition: . import", func(t *testing.T) {
+		// There should be no range generated for the `.` in the import.
+		_, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 1)
+		if ok {
+			t.Fatalf("could not find target range")
+		}
+	})
+
+	t.Run("check named import reference: . import", func(t *testing.T) {
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 4)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Fatalf("Failed to get the expected single moniker: %+v\n", monikers)
+		}
+
+		moniker := monikers[0]
+		identifier := moniker.Identifier
+
+		expectedIdentifier := "github.com/golang/go/std/fmt"
+		if identifier != expectedIdentifier {
+			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
+		}
 	})
 }
 

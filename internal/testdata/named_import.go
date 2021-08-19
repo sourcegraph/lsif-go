@@ -2,8 +2,9 @@ package testdata
 
 import (
 	. "fmt"
+	h "net/http"
 )
 
 func Example() {
-	Println("Hello, world")
+	Println(h.CanonicalHeaderKey("accept-encoding"))
 }
