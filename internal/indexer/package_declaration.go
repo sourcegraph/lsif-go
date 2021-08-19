@@ -18,6 +18,15 @@ type ObjectLike interface {
 	String() string
 }
 
+type pkgNameState struct {
+	document    *DocumentInfo
+	position    token.Position
+	obj         *types.PkgName
+	name        string
+	rangeID     uint64
+	resultSetID uint64
+}
+
 type PkgDeclaration struct {
 	pos  token.Pos
 	pkg  *types.Package

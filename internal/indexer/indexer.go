@@ -297,42 +297,45 @@ func (i *Indexer) emitImports() {
 	i.visitEachPackage("Adding import definitions", i.emitImportsForPackage)
 }
 
-func (i *Indexer) makeStuff(p *packages.Package, pos token.Pos, name string, pkg *packages.Package) (d *DocumentInfo, obj *types.PkgName, rangeID uint64, resultSetID uint64) {
-	obj = types.NewPkgName(pos, p.Types, name, pkg.Types)
-	position, d, _ := i.positionAndDocument(p, pos)
-	rangeID, _ = i.ensureRangeFor(position, obj)
-	resultSetID = i.emitter.EmitResultSet()
+func (i *Indexer) makePkgNameState(p *packages.Package, pos token.Pos, name string, pkg *packages.Package) pkgNameState {
+	position, document, _ := i.positionAndDocument(p, pos)
+	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
 
-	return d, obj, rangeID, resultSetID
+	rangeID, _ := i.ensureRangeFor(position, obj)
+	resultSetID := i.emitter.EmitResultSet()
+	_ = i.emitter.EmitNext(rangeID, resultSetID)
+
+	return pkgNameState{
+		document:    document,
+		position:    position,
+		obj:         obj,
+		name:        name,
+		rangeID:     rangeID,
+		resultSetID: resultSetID,
+	}
 }
 
 func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
 	// The reference is always the Path, not the Name
-	pos := spec.Path.Pos()
-	name := spec.Path.Value
-	document, obj, rangeID, resultSetID := i.makeStuff(p, pos, name, pkg)
+	state := i.makePkgNameState(p, spec.Path.Pos(), spec.Path.Value, pkg)
 
-	_ = i.emitter.EmitNext(rangeID, resultSetID)
-	i.emitImportMoniker(resultSetID, p, obj)
+	i.emitImportMoniker(state.resultSetID, p, state.obj)
 
 	// @eric -- we could potentially skip this because we have am oniker now.
 	// but this breaks a test and the current structure.
-	_ = i.emitter.EmitTextDocumentHover(resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
+	obj := state.obj
+	_ = i.emitter.EmitTextDocumentHover(state.resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
 		return findHoverContents(i.packageDataCache, i.packages, p, obj)
 	}))
 
-	document.appendReference(rangeID)
+	state.document.appendReference(state.rangeID)
 }
 
 func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
-	pos := spec.Name.Pos()
-	name := spec.Name.Name
+	state := i.makePkgNameState(p, spec.Name.Pos(), spec.Name.Name, pkg)
 
-	document, obj, rangeID, resultSetID := i.makeStuff(p, pos, name, pkg)
 	ident := spec.Name
-
-	// i.indexDefinition(p, document, position, obj, false, ident)
-	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, false, ident)
+	i.indexDefinitionForRangeAndResult(p, state.document, state.obj, state.rangeID, state.resultSetID, false, ident)
 
 	// defResultID := i.emitter.EmitDefinitionResult()
 
