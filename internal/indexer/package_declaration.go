@@ -3,6 +3,8 @@ package indexer
 import (
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // TODO: Handle testing packages differently.
@@ -22,9 +24,25 @@ type pkgNameState struct {
 	document    *DocumentInfo
 	position    token.Position
 	obj         *types.PkgName
-	name        string
 	rangeID     uint64
 	resultSetID uint64
+}
+
+func makePkgNameState(i *Indexer, p *packages.Package, pos token.Pos, name string, pkg *packages.Package) pkgNameState {
+	position, document, _ := i.positionAndDocument(p, pos)
+	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
+
+	rangeID, _ := i.ensureRangeFor(position, obj)
+	resultSetID := i.emitter.EmitResultSet()
+	_ = i.emitter.EmitNext(rangeID, resultSetID)
+
+	return pkgNameState{
+		document,
+		position,
+		obj,
+		rangeID,
+		resultSetID,
+	}
 }
 
 type PkgDeclaration struct {

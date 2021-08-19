@@ -297,27 +297,18 @@ func (i *Indexer) emitImports() {
 	i.visitEachPackage("Adding import definitions", i.emitImportsForPackage)
 }
 
-func (i *Indexer) makePkgNameState(p *packages.Package, pos token.Pos, name string, pkg *packages.Package) pkgNameState {
-	position, document, _ := i.positionAndDocument(p, pos)
-	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
-
-	rangeID, _ := i.ensureRangeFor(position, obj)
-	resultSetID := i.emitter.EmitResultSet()
-	_ = i.emitter.EmitNext(rangeID, resultSetID)
-
-	return pkgNameState{
-		document:    document,
-		position:    position,
-		obj:         obj,
-		name:        name,
-		rangeID:     rangeID,
-		resultSetID: resultSetID,
-	}
-}
-
+// emitImportMonikerReference will emit the associated reference to the import moniker.
+// This will emit the reference in either case:
+//
+//    import "fmt"
+//            ^^^------ reference github.com/golang/go/std/fmt
+//
+//    import f "fmt"
+//              ^^^---- reference github.com/golang/go/std/fmt
+//
+// In both cases, this will emit the corresponding import moniker for "fmt". This is ImportSpec.Path
 func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
-	// The reference is always the Path, not the Name
-	state := i.makePkgNameState(p, spec.Path.Pos(), spec.Path.Value, pkg)
+	state := makePkgNameState(i, p, spec.Path.Pos(), spec.Path.Value, pkg)
 
 	i.emitImportMoniker(state.resultSetID, p, state.obj)
 
@@ -331,29 +322,19 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 	state.document.appendReference(state.rangeID)
 }
 
+// emitImportMonikerNamedDefinition will emit the local, non-exported definition for the named import.
+// This will emit the definition for:
+//
+//    import "fmt"
+//                  no local defintion
+//
+//    import f "fmt"
+//           ^----- local definition
 func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
-	state := i.makePkgNameState(p, spec.Name.Pos(), spec.Name.Name, pkg)
+	state := makePkgNameState(i, p, spec.Name.Pos(), spec.Name.Name, pkg)
 
 	ident := spec.Name
 	i.indexDefinitionForRangeAndResult(p, state.document, state.obj, state.rangeID, state.resultSetID, false, ident)
-
-	// defResultID := i.emitter.EmitDefinitionResult()
-
-	// _ = i.emitter.EmitNext(rangeID, resultSetID)
-	// _ = i.emitter.EmitTextDocumentDefinition(resultSetID, defResultID)
-	// _ = i.emitter.EmitItem(defResultID, []uint64{rangeID}, document.DocumentID)
-
-	// i.setDefinitionInfo(obj, ident, &DefinitionInfo{
-	// 	DocumentID:         document.DocumentID,
-	// 	RangeID:            rangeID,
-	// 	ResultSetID:        resultSetID,
-	// 	DefinitionResultID: defResultID,
-	// 	ReferenceRangeIDs:  map[uint64][]uint64{},
-	// 	TypeSwitchHeader:   false,
-	// })
-
-	// document.appendDefinition(rangeID)
-
 }
 
 // addImportsToFile modifies the definitions map of the given file to include entries for import
