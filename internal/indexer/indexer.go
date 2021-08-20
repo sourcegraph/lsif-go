@@ -444,9 +444,12 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		// typ, ok := obj.Type().(types.Var)
 		typVar, ok := typeObj.(*types.Var)
 		if ok {
+			// @eric OK, this is not perfect.
+			// but, what it does do is that it will make it so that we add references directly
+			// to the Struct itself, instead of making a new definition in that location and
+			// having busted ranges.
 			if typVar.IsField() && typVar.Anonymous() {
 				continue
 			}
