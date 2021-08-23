@@ -37,6 +37,7 @@ testdata is a small package containing sample Go source code used for testing th
     * [type InnerStruct struct{}](#InnerStruct)
     * [type Interface interface](#Interface)
         * [func NewInterface() Interface](#NewInterface)
+    * [type NestedHandler struct](#NestedHandler)
     * [type Outer struct](#Outer)
     * [type ParallelizableFunc func(ctx context.Context) error](#ParallelizableFunc)
     * [type SecretBurger secret.Burger](#SecretBurger)
@@ -399,6 +400,20 @@ tags: [function]
 
 ```Go
 func NewInterface() Interface
+```
+
+### <a id="NestedHandler" href="#NestedHandler">type NestedHandler struct</a>
+
+```
+searchKey: testdata.NestedHandler
+tags: [struct]
+```
+
+```Go
+type NestedHandler struct {
+	http.Handler
+	Other int
+}
 ```
 
 ### <a id="Outer" href="#Outer">type Outer struct</a>

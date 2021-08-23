@@ -11,11 +11,13 @@ import (
 	"go/token"
 	"go/types"
 	"log"
+	"math"
 	"path"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/agnivade/levenshtein"
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
@@ -312,8 +314,7 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 
 	i.emitImportMoniker(state.resultSetID, p, state.obj)
 
-	// @eric -- we could potentially skip this because we have am oniker now.
-	// but this breaks a test and the current structure.
+	// TODO(perf): When we have better coverage, it may be possible to skip emitting this.
 	obj := state.obj
 	_ = i.emitter.EmitTextDocumentHover(state.resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
 		return findHoverContents(i.packageDataCache, i.packages, p, obj)
@@ -519,20 +520,12 @@ func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document
 		}))
 	}
 
-	// @eric, I don't think we want this to happen anymore
-	// if _, ok := obj.(*types.PkgName); ok {
-	// 	i.emitImportMoniker(resultSetID, p, obj)
-	// }
-
 	if obj.Exported() {
 		i.emitExportMoniker(resultSetID, p, obj)
 	}
 
 	// If the pkg/object has associated documentation, link to it. This enables e.g. going from documentation
 	// for a symbol <-> its definition/hover/references/etc in either direction.
-	//
-	// @eric I'm not sure we need to even do this anymore.
-	// We have the monikers correct now, so I don't think there is any reason to even do anything for these (maybe?)
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		if documentationResultID, ok := i.emittedDocumentationResultsByPackagePath[pkgName.Imported().Path()]; ok {
 			_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
@@ -966,35 +959,58 @@ func findBestPackageDefinitionPath(packageName string, possiblePaths []DeclInfo)
 		possiblePaths = pathsWithDocs
 	}
 
-	sort.Slice(possiblePaths, func(i, j int) bool {
-		return possiblePaths[i].Path < possiblePaths[j].Path
-	})
+	// Try to only pick non _test files for non _test packages and vice versa.
+	possiblePaths = filterBasedOnTestFiles(possiblePaths, packageName)
+
+	minDistance, bestPath := math.MaxInt32, ""
 
 	// If we have "package mylib" and the file "mylib.go", pick "mylib.go"
 	for _, v := range possiblePaths {
-		if packageName == fileNameWithoutExtension(v.Path) {
+		fileName := fileNameWithoutExtension(v.Path)
+
+		if packageName == fileName {
 			return v.Path, nil
 		}
 
 		if "doc.go" == path.Base(v.Path) {
 			return v.Path, nil
 		}
-	}
 
-	if !strings.HasSuffix(packageName, "_test") {
-		nonTestFiles := []DeclInfo{}
-		for _, v := range possiblePaths {
-			if !strings.HasSuffix(v.Path, "_test") {
-				nonTestFiles = append(nonTestFiles, v)
-			}
+		distance := levenshtein.ComputeDistance(packageName, fileName)
+		if distance < minDistance {
+			minDistance = distance
+			bestPath = v.Path
 		}
-
-		possiblePaths = nonTestFiles
 	}
 
-	return possiblePaths[0].Path, nil
+	return bestPath, nil
+
+	// return possiblePaths[0].Path, nil
 }
 
 func fileNameWithoutExtension(fileName string) string {
 	return strings.TrimSuffix(fileName, path.Ext(fileName))
+}
+
+func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []DeclInfo {
+	preferredPaths := []DeclInfo{}
+	if !strings.HasSuffix(packageName, "_test") {
+		for _, v := range possiblePaths {
+			if !strings.HasSuffix(v.Path, "_test") {
+				preferredPaths = append(preferredPaths, v)
+			}
+		}
+	} else {
+		for _, v := range possiblePaths {
+			if strings.HasSuffix(v.Path, "_test") {
+				preferredPaths = append(preferredPaths, v)
+			}
+		}
+	}
+
+	if len(preferredPaths) > 0 {
+		return preferredPaths
+	}
+
+	return possiblePaths
 }
