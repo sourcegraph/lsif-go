@@ -33,12 +33,13 @@ func typeString(obj ObjectLike) (signature string, extra string) {
 
 	}
 
-	// Fall back to types.Object if possible
-	if v, ok := obj.(types.Object); ok {
-		return types.ObjectString(v, packageQualifier), ""
-	}
-
-	return "TODO DONT LET TJ MERGE THIS", ""
+	// Fall back to types.Object
+	//    All other cases of this should be this type. We only had to implement PkgDeclaration because
+	//    some fields are not exported in types.Object.
+	//
+	//    We expect any new ObjectLike items to be `types.Object` values.
+	v, _ := obj.(types.Object)
+	return types.ObjectString(v, packageQualifier), ""
 }
 
 // packageQualifier returns an empty string in order to remove the leading package

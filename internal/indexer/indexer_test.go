@@ -664,4 +664,30 @@ func TestIndexer_findBestPackageDefinitionPath(t *testing.T) {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", "smol.go", pkgDefinitionPath)
 		}
 	})
+
+	t.Run("should pick a name that is a closer edit distance than one far away", func(t *testing.T) {
+		packageName := "http_router"
+		possibleFilepaths := []DeclInfo{
+			{false, "httprouter.go"},
+			{false, "httpother.go"},
+		}
+
+		pkgDefinitionPath, _ := findBestPackageDefinitionPath(packageName, possibleFilepaths)
+		if pkgDefinitionPath != "httprouter.go" {
+			t.Errorf("incorrect hover text documentation. want=%q have=%q", "smol.go", pkgDefinitionPath)
+		}
+	})
+
+	t.Run("should prefer test packages over other packages if the package name has test suffix", func(t *testing.T) {
+		packageName := "httprouter_test"
+		possibleFilepaths := []DeclInfo{
+			{false, "httprouter.go"},
+			{false, "http_test.go"},
+		}
+
+		pkgDefinitionPath, _ := findBestPackageDefinitionPath(packageName, possibleFilepaths)
+		if pkgDefinitionPath != "http_test.go" {
+			t.Errorf("incorrect hover text documentation. want=%q have=%q", "smol.go", pkgDefinitionPath)
+		}
+	})
 }

@@ -13,7 +13,6 @@ import (
 	"log"
 	"math"
 	"path"
-	"sort"
 	"strings"
 	"sync"
 
@@ -932,8 +931,8 @@ func (i *Indexer) setRangeForPosition(position token.Position, id uint64) {
 	i.stripedMutex.UnlockKey(position.Filename)
 }
 
-// TODO:
-// - We should sort by edit distance here, so that it picks the best name we can as a last resort.
+// findBestPackageDefinitionPath searches paths in possiblePaths and finds the one that seems best.
+// Chooses one with documentation if possible, otherwise looks for most similar name.
 func findBestPackageDefinitionPath(packageName string, possiblePaths []DeclInfo) (string, error) {
 	if len(possiblePaths) == 0 {
 		return "", errors.New("must have at least one possible path")
@@ -962,17 +961,20 @@ func findBestPackageDefinitionPath(packageName string, possiblePaths []DeclInfo)
 	// Try to only pick non _test files for non _test packages and vice versa.
 	possiblePaths = filterBasedOnTestFiles(possiblePaths, packageName)
 
+	// Find the best remaining path.
+	// Chooses:
+	//     1. doc.go
+	//     2. exact match
+	//     3. computes levenshtein and picks best score
 	minDistance, bestPath := math.MaxInt32, ""
-
-	// If we have "package mylib" and the file "mylib.go", pick "mylib.go"
 	for _, v := range possiblePaths {
 		fileName := fileNameWithoutExtension(v.Path)
 
-		if packageName == fileName {
+		if "doc.go" == path.Base(v.Path) {
 			return v.Path, nil
 		}
 
-		if "doc.go" == path.Base(v.Path) {
+		if packageName == fileName {
 			return v.Path, nil
 		}
 
@@ -984,8 +986,6 @@ func findBestPackageDefinitionPath(packageName string, possiblePaths []DeclInfo)
 	}
 
 	return bestPath, nil
-
-	// return possiblePaths[0].Path, nil
 }
 
 func fileNameWithoutExtension(fileName string) string {
@@ -996,13 +996,13 @@ func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []Decl
 	preferredPaths := []DeclInfo{}
 	if !strings.HasSuffix(packageName, "_test") {
 		for _, v := range possiblePaths {
-			if !strings.HasSuffix(v.Path, "_test") {
+			if !strings.HasSuffix(v.Path, "_test.go") {
 				preferredPaths = append(preferredPaths, v)
 			}
 		}
 	} else {
 		for _, v := range possiblePaths {
-			if strings.HasSuffix(v.Path, "_test") {
+			if strings.HasSuffix(v.Path, "_test.go") {
 				preferredPaths = append(preferredPaths, v)
 			}
 		}
