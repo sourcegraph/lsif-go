@@ -49,6 +49,8 @@ type ObjectLike interface {
 // it is for _declared_ packages.
 //
 // Generated for: `package name`
+//
+// There was no types.PkgDeclaration available
 type PkgDeclaration struct {
 	pos  token.Pos
 	pkg  *types.Package
