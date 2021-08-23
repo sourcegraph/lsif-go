@@ -139,7 +139,8 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 func makeMonikerPackage(obj ObjectLike) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
-		// pkgName = strings.Trim(v.Name(), `"`)
+		// gets the full path of the package name, rather than just the name.
+		// So instead of "http", it will return "net/http"
 		pkgName = v.Imported().Path()
 	} else {
 		pkgName = obj.Pkg().Path()

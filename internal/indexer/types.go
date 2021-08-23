@@ -61,6 +61,7 @@ func (p PkgDeclaration) Name() string        { return p.name }
 func (p PkgDeclaration) Type() types.Type    { return pkgDeclarationType{p} }
 func (p PkgDeclaration) Exported() bool      { return true }
 func (p PkgDeclaration) Id() string          { return "pkg:" + p.pkg.Name() + ":" + p.name }
+func (p PkgDeclaration) String() string      { return "pkg:" + p.pkg.Name() + ":" + p.name }
 
 // Fulfills types.Type interface
 type pkgDeclarationType struct{ decl PkgDeclaration }
