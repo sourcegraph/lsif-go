@@ -451,6 +451,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			// to the Struct itself, instead of making a new definition in that location and
 			// having busted ranges.
 			if typVar.IsField() && typVar.Anonymous() {
+				// TODO: Generate floating textDocument/definition
 				continue
 			}
 		}
