@@ -1,8 +1,5 @@
 package indexer
 
-// todo: gotta handle import (. "strings") whatever that is...?
-// todo: the env.go -> package env, doesn't seem to be working exactly right.
-
 import (
 	"bytes"
 	"encoding/json"
@@ -43,9 +40,7 @@ type Indexer struct {
 	labels  map[interface{}]*DefinitionInfo // position -> info
 	types   map[interface{}]*DefinitionInfo // name -> info
 	vars    map[interface{}]*DefinitionInfo // position -> info
-	// TODO: I don't think we need a lock for this because we only write to this once per name
-	// and it's always in the same thread and it's always only once per package. So I think it's safe.
-	pkgs map[interface{}]*DefinitionInfo // name -> info
+	pkgs    map[interface{}]*DefinitionInfo // name -> info
 
 	// LSIF data cache
 	documents                                map[string]*DocumentInfo    // filename -> info
@@ -67,7 +62,7 @@ type Indexer struct {
 	labelsMutex                sync.Mutex
 	typesMutex                 sync.Mutex
 	varsMutex                  sync.Mutex
-	pkgMutex                   sync.Mutex
+	pkgsMutex                  sync.Mutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
 	importMonikerIDsMutex      sync.RWMutex
@@ -451,7 +446,25 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			// to the Struct itself, instead of making a new definition in that location and
 			// having busted ranges.
 			if typVar.IsField() && typVar.Anonymous() {
-				// TODO: Generate floating textDocument/definition
+				fmt.Println("1", typVar.String())
+				fmt.Printf("4 %+v\n", typVar.Pkg().Scope().Lookup(typeObj.Name()))
+				fmt.Printf("4.1 %v\n", typVar.Pkg().Scope().Lookup("HasStuffWithLongName").Name())
+				fmt.Printf("5 %+v\n", typVar.Pkg().Scope().Names())
+
+				rangeID := i.emitter.EmitRange(
+					protocol.Pos{Line: position.Line, Character: position.Column},
+					// TODO: This is not the right length, but I can't figure out how to do the combined length
+					// of http.Client.
+					//
+					// This at least gets you to the right starting point, which is nice.
+					protocol.Pos{Line: position.Line, Character: position.Column + len(typVar.Id())},
+				)
+
+				resultSetID := i.emitter.EmitResultSet()
+
+				i.indexDefinitionForRangeAndResult(p, d, typVar, rangeID, resultSetID, typeSwitchHeader, ident)
+				fmt.Println("Range ID:", rangeID, typVar.Id())
+
 				continue
 			}
 		}
@@ -595,9 +608,9 @@ func (i *Indexer) setDefinitionInfo(obj ObjectLike, ident *ast.Ident, d *Definit
 		i.varsMutex.Unlock()
 
 	case *PkgDeclaration:
-		i.pkgMutex.Lock()
+		i.pkgsMutex.Lock()
 		i.pkgs[v.Pkg().Path()] = d
-		i.pkgMutex.Unlock()
+		i.pkgsMutex.Unlock()
 	}
 }
 
@@ -658,9 +671,9 @@ func (i *Indexer) getDefinitionInfo(obj ObjectLike, ident *ast.Ident) *Definitio
 		return i.vars[v.Pos()]
 	case *PkgDeclaration:
 		// @eric I'm not sure why I had to put these, but in large projects I had race conditions without this.
-		i.pkgMutex.Lock()
+		i.pkgsMutex.Lock()
 		val := i.pkgs[v.Pkg().Path()]
-		i.pkgMutex.Unlock()
+		i.pkgsMutex.Unlock()
 
 		return val
 	}
@@ -727,11 +740,9 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 		_ = i.emitter.EmitTextDocumentHover(rangeID, hoverResultID)
 	}
 
-	// You might think, "Hey, TJ, don't you want to emit a textDocument/references result here?"
-	//   Great question!
-	//   No.
-	//
-	// Instead, we just emit an import moniker which will link to the external definition.
+	// Only emit an import moniker which will link to the external definition. If we actually
+	// put a textDocument/references result here, we would not traverse to lookup the external defintion
+	// via the moniker.
 	i.emitImportMoniker(rangeID, p, definitionObj)
 
 	return rangeID, true
