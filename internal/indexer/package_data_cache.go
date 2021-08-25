@@ -182,6 +182,11 @@ func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 			return addString(monikerPath, name.Name)
 		}
 
+		// Handle embedded types that are selectors, like http.Client
+		if selector, ok := q.Type.(*ast.SelectorExpr); ok {
+			return addString(monikerPath, selector.Sel.Name)
+		}
+
 	case *ast.TypeSpec:
 		// Add the top-level type spec (e.g. `type X struct` and `type Y interface`)
 		return addString(monikerPath, q.Name.String())

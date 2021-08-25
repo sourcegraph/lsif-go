@@ -446,25 +446,23 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			// to the Struct itself, instead of making a new definition in that location and
 			// having busted ranges.
 			if typVar.IsField() && typVar.Anonymous() {
-				fmt.Println("1", typVar.String())
-				fmt.Printf("4 %+v\n", typVar.Pkg().Scope().Lookup(typeObj.Name()))
-				fmt.Printf("4.1 %v\n", typVar.Pkg().Scope().Lookup("HasStuffWithLongName").Name())
-				fmt.Printf("5 %+v\n", typVar.Pkg().Scope().Names())
+				// fmt.Println("1", typVar.String())
+				// fmt.Printf("4 %+v\n", typVar.Pkg().Scope().Lookup(typeObj.Name()))
+				// fmt.Printf("4.1 %v\n", typVar.Pkg().Scope().Lookup("HasStuffWithLongName").Name())
+				// fmt.Printf("5 %+v\n", typVar.Pkg().Scope().Names())
 
 				rangeID := i.emitter.EmitRange(
-					protocol.Pos{Line: position.Line, Character: position.Column},
+					protocol.Pos{Line: position.Line - 1, Character: position.Column - 1},
 					// TODO: This is not the right length, but I can't figure out how to do the combined length
 					// of http.Client.
 					//
 					// This at least gets you to the right starting point, which is nice.
-					protocol.Pos{Line: position.Line, Character: position.Column + len(typVar.Id())},
+					protocol.Pos{Line: position.Line - 1, Character: position.Column - 1 + len(typVar.Id())},
 				)
 
 				resultSetID := i.emitter.EmitResultSet()
 
 				i.indexDefinitionForRangeAndResult(p, d, typVar, rangeID, resultSetID, typeSwitchHeader, ident)
-				fmt.Println("Range ID:", rangeID, typVar.Id())
-
 				continue
 			}
 		}

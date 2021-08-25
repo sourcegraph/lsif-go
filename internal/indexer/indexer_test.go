@@ -424,12 +424,31 @@ func TestIndexer(t *testing.T) {
 		}
 
 		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
-		if len(definitions) != 2 {
+		if len(definitions) != 1 {
 			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
 		}
 
-		compareRange(t, definitions[0], 4, 5, 4, 10)
-		compareRange(t, definitions[1], 11, 1, 11, 6)
+		compareRange(t, definitions[0], 11, 1, 11, 6)
+
+		// TODO
+		// references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
+		// if len(references) != 1 {
+		// 	t.Fatalf("incorrect references count. want=%d have=%d", 2, len(references))
+		// }
+
+		compareRange(t, definitions[0], 11, 1, 11, 6)
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Fatalf("incorrect references count. want=%d have=%d %+v", 2, len(monikers), monikers)
+		}
+
+		moniker := monikers[0]
+		identifier := moniker.Identifier
+
+		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:Outer.Inner"
+		if identifier != expectedIdentifier {
+			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
+		}
 	})
 
 	t.Run("check named import definition: non-'.' import", func(t *testing.T) {
