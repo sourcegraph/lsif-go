@@ -515,18 +515,30 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "external_composite.go"), 11, 1)
+		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
 		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
-		if len(definitions) != 2 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
+		if len(definitions) != 1 {
+			t.Fatalf("incorrect definition count. want=%d have=%d %v", 1, len(definitions), definitions)
 		}
 
-		compareRange(t, definitions[0], 4, 5, 4, 10)
-		compareRange(t, definitions[1], 11, 1, 11, 6)
+		compareRange(t, definitions[0], 5, 1, 5, 13)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		if len(monikers) != 1 {
+			t.Fatalf("incorrect references count. want=%d have=%d %+v", 2, len(monikers), monikers)
+		}
+
+		moniker := monikers[0]
+		identifier := moniker.Identifier
+
+		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:NestedHandler.Handler"
+		if identifier != expectedIdentifier {
+			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
+		}
 	})
 }
 

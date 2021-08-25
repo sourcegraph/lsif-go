@@ -441,23 +441,17 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 
 		typVar, ok := typeObj.(*types.Var)
 		if ok {
-			// @eric OK, this is not perfect.
-			// but, what it does do is that it will make it so that we add references directly
-			// to the Struct itself, instead of making a new definition in that location and
-			// having busted ranges.
 			if typVar.IsField() && typVar.Anonymous() {
-				// fmt.Println("1", typVar.String())
-				// fmt.Printf("4 %+v\n", typVar.Pkg().Scope().Lookup(typeObj.Name()))
-				// fmt.Printf("4.1 %v\n", typVar.Pkg().Scope().Lookup("HasStuffWithLongName").Name())
-				// fmt.Printf("5 %+v\n", typVar.Pkg().Scope().Names())
+				// TODO: We should be looking up the range and resultSet and re-using it, if it's exactly the same as the
+				// other range from this position.
 
+				// To find the end of the identifier, we use the identifier End() Pos and not the length
+				// of the name, because there may be package names prefixing the name ("http.Client").
+				//
+				// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
 				rangeID := i.emitter.EmitRange(
 					protocol.Pos{Line: position.Line - 1, Character: position.Column - 1},
-					// TODO: This is not the right length, but I can't figure out how to do the combined length
-					// of http.Client.
-					//
-					// This at least gets you to the right starting point, which is nice.
-					protocol.Pos{Line: position.Line - 1, Character: position.Column - 1 + len(typVar.Id())},
+					protocol.Pos{Line: position.Line - 1, Character: p.Fset.Position(ident.End()).Column - 1},
 				)
 
 				resultSetID := i.emitter.EmitResultSet()
