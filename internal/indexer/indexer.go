@@ -287,10 +287,31 @@ func (i *Indexer) emitDocument(filename string) {
 	i.defined[filename] = map[int]struct{}{}
 }
 
-// emitImports modifies the definitions map of each file to include entries for import statements so
-// they can be indexed uniformly in subsequent steps.
+// emitImports will emit the appropriate import monikers and named definitions for all packages.
 func (i *Indexer) emitImports() {
-	i.visitEachPackage("Adding import definitions", i.emitImportsForPackage)
+	i.visitEachPackage("Emitting import references and definitions", i.emitImportsForPackage)
+}
+
+// emitImportsForPackage will emit the appropriate import monikers and named definitions for a package.
+func (i *Indexer) emitImportsForPackage(p *packages.Package) {
+	for _, f := range p.Syntax {
+		for _, spec := range f.Imports {
+			pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
+			if pkg == nil {
+				continue
+			}
+
+			i.emitImportMonikerReference(p, pkg, spec)
+
+			// spec.Name is only non-nil when we have an import of the form:
+			//     import f "fmt"
+			//
+			// So, we want to emit a local defition for the `f` token
+			if spec.Name != nil {
+				i.emitImportMonikerNamedDefinition(p, pkg, spec)
+			}
+		}
+	}
 }
 
 // emitImportMonikerReference will emit the associated reference to the import moniker.
@@ -304,7 +325,7 @@ func (i *Indexer) emitImports() {
 //
 // In both cases, this will emit the corresponding import moniker for "fmt". This is ImportSpec.Path
 func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
-	state := makePkgNameState(i, p, spec.Path.Pos(), spec.Path.Value, pkg)
+	state := makeImportState(i, p, spec.Path.Pos(), spec.Path.Value, pkg)
 
 	i.emitImportMoniker(state.resultSetID, p, state.obj)
 
@@ -331,33 +352,10 @@ func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *pac
 		return
 	}
 
-	state := makePkgNameState(i, p, spec.Name.Pos(), spec.Name.Name, pkg)
+	state := makeImportState(i, p, spec.Name.Pos(), spec.Name.Name, pkg)
 
 	ident := spec.Name
 	i.indexDefinitionForRangeAndResult(p, state.document, state.obj, state.rangeID, state.resultSetID, false, ident)
-}
-
-// addImportsToFile modifies the definitions map of the given file to include entries for import
-// statements so they can be indexed uniformly in subsequent steps.
-func (i *Indexer) emitImportsForPackage(p *packages.Package) {
-	for _, f := range p.Syntax {
-		for _, spec := range f.Imports {
-			pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
-			if pkg == nil {
-				continue
-			}
-
-			i.emitImportMonikerReference(p, pkg, spec)
-
-			// spec.Name is only non-nil when we have an import of the form:
-			//     import f "fmt"
-			//
-			// So, we want to emit a local defition for the `f` token
-			if spec.Name != nil {
-				i.emitImportMonikerNamedDefinition(p, pkg, spec)
-			}
-		}
-	}
 }
 
 // getAllReferencedPackages returns a slice of packages containing the index target packages
@@ -400,8 +398,6 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 	}
 
-	anonyousFields := map[*ast.Ident]*types.Var{}
-
 	for ident, typeObj := range p.TypesInfo.Defs {
 		var obj ObjectLike = typeObj
 
@@ -420,12 +416,12 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			typeSwitchHeader = true
 		}
 
-		position, d, ok := i.positionAndDocument(p, obj.Pos())
+		position, document, ok := i.positionAndDocument(p, obj.Pos())
 		if !ok {
 			continue
 		}
 
-		// Always skip types.PkgName because we handle them in addImports()
+		// Always skip types.PkgName because we handle them in emitImports()
 		//    we do not want to emit anything new here.
 		if _, isPkgName := typeObj.(*types.PkgName); isPkgName {
 			continue
@@ -439,63 +435,56 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		typVar, ok := typeObj.(*types.Var)
-		if ok {
-			// Handle anonymous field definitions after we've emitted all the definition and range nodes.
-			// This way we can determine whether to generate new nodes for the fields or whether we can simply
-			// reuse the existing nodes.
+		if typVar, ok := typeObj.(*types.Var); ok {
 			if typVar.IsField() && typVar.Anonymous() {
-				anonyousFields[ident] = typVar
+				i.indexDefinitionForAnonymousField(p, document, ident, typVar, position)
 				continue
 			}
 		}
 
-		_ = i.indexDefinition(p, d, position, obj, typeSwitchHeader, ident)
+		i.indexDefinition(p, document, position, obj, typeSwitchHeader, ident)
+	}
+}
+
+// indexDefinitionForAnonymousField will handle anonymous fields definitions.
+//
+// The reason they have to be handled separately is because they are _both_:
+// - Defintion
+// - Reference
+//
+// This makes them a bit more complicated than other definitions.
+func (i *Indexer) indexDefinitionForAnonymousField(p *packages.Package, document *DocumentInfo, ident *ast.Ident, typVar *types.Var, position token.Position) {
+	// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
+	startCol := position.Column - 1
+
+	// To find the end of the identifier, we use the identifier End() Pos and not the length
+	// of the name, because there may be package names prefixing the name ("http.Client").
+	endCol := p.Fset.Position(ident.End()).Column - 1
+
+	var rangeID uint64
+	if endCol-startCol == len(typVar.Name()) {
+		var created bool
+		rangeID, created = i.ensureRangeFor(position, typVar)
+
+		if !created {
+			panic("Must be creating and regsitering a range for this position. Otherwise we will have two resultSets")
+		}
+	} else {
+		// This will be a separate range that encompasses _two_ items. So it is kind of
+		// "floating" in the nothingness, and should not be looked up in the future when
+		// trying to create a new range for whatever occurs at the start position of this location.
+		//
+		// In other words, this skips setting `i.ranges` for this range.
+		//
+		// Note to future readers: Do not use EmitRange directly unless you know why you don't want i.ensureRangeFor
+		rangeID = i.emitter.EmitRange(
+			protocol.Pos{Line: position.Line - 1, Character: startCol},
+			protocol.Pos{Line: position.Line - 1, Character: endCol},
+		)
 	}
 
-	// Handle anonymous fields separately.
-	//
-	// The reason they have to be handled separately is because they are _both_:
-	// - Defintion
-	// - Reference
-	//
-	// This makes them a bit more complicated than other definitions.
-	for ident, typVar := range anonyousFields {
-		position, d, ok := i.positionAndDocument(p, typVar.Pos())
-		if !ok {
-			continue
-		}
-
-		// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
-		startCol := position.Column - 1
-
-		// To find the end of the identifier, we use the identifier End() Pos and not the length
-		// of the name, because there may be package names prefixing the name ("http.Client").
-		endCol := p.Fset.Position(ident.End()).Column - 1
-
-		var rangeID uint64
-		if endCol-startCol == len(typVar.Name()) {
-			var created bool
-			rangeID, created = i.ensureRangeFor(position, typVar)
-
-			if !created {
-				panic("Must be creating and regsitering a range for this position. Otherwise we will have two resultSets")
-			}
-		} else {
-			// This will be a separate range that encompasses _two_ items. So it is kind of
-			// "floating" in the nothingness, and should not be looked up in the future when
-			// trying to create a new range for whatever occurs at the start position of this location.
-			//
-			// In other words, this skips setting `i.ranges` for this range.
-			rangeID = i.emitter.EmitRange(
-				protocol.Pos{Line: position.Line - 1, Character: startCol},
-				protocol.Pos{Line: position.Line - 1, Character: endCol},
-			)
-		}
-
-		resultSetID := i.emitter.EmitResultSet()
-		i.indexDefinitionForRangeAndResult(p, d, typVar, rangeID, resultSetID, false, ident)
-	}
+	resultSetID := i.emitter.EmitResultSet()
+	i.indexDefinitionForRangeAndResult(p, document, typVar, rangeID, resultSetID, false, ident)
 }
 
 // positionAndDocument returns the position of the given object and the document info object
@@ -537,6 +526,8 @@ func (i *Indexer) markRange(pos token.Position) bool {
 	return true
 }
 
+// indexDefinitionForRangeAndResult will handle all Indexer related handling of
+// a definition for a given rangeID and resultSetID.
 func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document *DocumentInfo, obj ObjectLike, rangeID, resultSetID uint64, typeSwitchHeader bool, ident *ast.Ident) {
 	defResultID := i.emitter.EmitDefinitionResult()
 
@@ -556,6 +547,8 @@ func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document
 			return findHoverContents(i.packageDataCache, i.packages, p, obj)
 		}))
 	}
+
+	// NOTE: Import monikers are emitted by emitImports, they do not need to be emitted here.
 
 	if obj.Exported() {
 		i.emitExportMoniker(resultSetID, p, obj)
@@ -584,15 +577,13 @@ func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) uint64 {
+func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
 	rangeID, _ := i.ensureRangeFor(position, obj)
 	resultSetID := i.emitter.EmitResultSet()
 
 	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, typeSwitchHeader, ident)
-
-	return rangeID
 }
 
 // setDefinitionInfo stashes the given definition info indexed by the given object type and name.
@@ -843,29 +834,7 @@ func (i *Indexer) emitContainsForProject() {
 }
 
 func (i *Indexer) indexPackageDeclarations() {
-	i.visitEachPackage("Indexing packages", i.indexPackageDeclarationForPackage)
-}
-
-func newPkgDeclaration(p *packages.Package, f *ast.File) (*PkgDeclaration, token.Position) {
-	pkgKeywordPosition := p.Fset.Position(f.Package)
-
-	name := f.Name.Name
-
-	// TODO(packages): Is this the right package information here? I'm not sure.
-	// obj := types.NewPkgName(f.Package, p.Types, name, types.NewPackage(p.PkgPath, name))
-	return &PkgDeclaration{
-			// TODO wrong :)
-			pos:  f.Package,
-			pkg:  types.NewPackage(p.PkgPath, name),
-			name: name,
-		}, token.Position{
-			Filename: pkgKeywordPosition.Filename,
-			Line:     pkgKeywordPosition.Line,
-			Column:   pkgKeywordPosition.Column + len("package "),
-
-			// TODO: ?? Is this right ??
-			// Offset: pkgKeywordPosition.Offset + len("package "),
-		}
+	i.visitEachPackage("Indexing package declarations", i.indexPackageDeclarationForPackage)
 }
 
 type DeclInfo struct {
@@ -874,11 +843,6 @@ type DeclInfo struct {
 }
 
 func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
-	// need to:
-	// - emit a range
-	// - create a resultset for the range
-	// - add reference to a moniker?
-
 	// Pick the filename that is the most idiomatic for the defintion of the package.
 	// This will make jump to def always send you to a better go file than the $PKG_test.go, for example.
 	packageDeclarations := []DeclInfo{}
@@ -890,7 +854,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 		})
 	}
 
-	best, err := findBestPackageDefinitionPath(p.Name, packageDeclarations)
+	bestFilename, err := findBestPackageDefinitionPath(p.Name, packageDeclarations)
 	if err != nil {
 		return
 	}
@@ -900,17 +864,17 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 		obj, position := newPkgDeclaration(p, f)
 
 		// Skip everything that isn't the best
-		if position.Filename != best {
+		if position.Filename != bestFilename {
 			continue
 		}
 
 		name := obj.Name()
 		_, d, ok := i.positionAndDocument(p, obj.Pos())
 		if !ok {
-			panic("hmmm, probably should not merge this code")
+			return
 		}
 
-		_ = i.indexDefinition(p, d, position, obj, false, &ast.Ident{
+		i.indexDefinition(p, d, position, obj, false, &ast.Ident{
 			NamePos: obj.Pos(),
 			Name:    name,
 			Obj:     nil,
@@ -925,7 +889,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 		obj, position := newPkgDeclaration(p, f)
 
 		// Skip the definition, it is already indexed
-		if position.Filename == best {
+		if position.Filename == bestFilename {
 			continue
 		}
 

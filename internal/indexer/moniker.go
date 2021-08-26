@@ -171,17 +171,7 @@ func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Packa
 		// Qualifiers for fields were populated as pre-load step so we do not need to traverse
 		// the AST path back up to the root to find the enclosing type specs and fields with an
 		// anonymous struct type.
-		cachedParts := packageDataCache.MonikerPath(p, obj.Pos())
-		parts := make([]string, len(cachedParts))
-		copy(parts, cachedParts)
-
-		// Anonymous fields still have a name (ironic, yes), they are just not declared in the same fashion.
-		// So we append the name of the field to the moniker identifier.
-		if v.Anonymous() && parts[len(parts)-1] != v.Name() {
-			// parts = append(parts, v.Name())
-		}
-
-		return strings.Join(parts, ".")
+		return strings.Join(packageDataCache.MonikerPath(p, obj.Pos()), ".")
 	}
 
 	if signature, ok := obj.Type().(*types.Signature); ok {

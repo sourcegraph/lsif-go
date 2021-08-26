@@ -1,13 +1,14 @@
 package indexer
 
 import (
+	"go/ast"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/packages"
 )
 
-type pkgNameState struct {
+type importState struct {
 	document    *DocumentInfo
 	position    token.Position
 	obj         *types.PkgName
@@ -15,7 +16,7 @@ type pkgNameState struct {
 	resultSetID uint64
 }
 
-func makePkgNameState(i *Indexer, p *packages.Package, pos token.Pos, name string, pkg *packages.Package) pkgNameState {
+func makeImportState(i *Indexer, p *packages.Package, pos token.Pos, name string, pkg *packages.Package) importState {
 	position, document, _ := i.positionAndDocument(p, pos)
 	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
 
@@ -23,7 +24,7 @@ func makePkgNameState(i *Indexer, p *packages.Package, pos token.Pos, name strin
 	resultSetID := i.emitter.EmitResultSet()
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
 
-	return pkgNameState{
+	return importState{
 		document,
 		position,
 		obj,
@@ -70,3 +71,19 @@ type pkgDeclarationType struct{ decl PkgDeclaration }
 
 func (p pkgDeclarationType) Underlying() types.Type { return p }
 func (p pkgDeclarationType) String() string         { return p.decl.Id() }
+
+var packageLen = len("package ")
+
+func newPkgDeclaration(p *packages.Package, f *ast.File) (*PkgDeclaration, token.Position) {
+	pkgKeywordPosition := p.Fset.Position(f.Package)
+	pkgDeclarationPos := p.Fset.File(f.Package).Pos(pkgKeywordPosition.Offset + packageLen)
+	pkgPosition := p.Fset.Position(pkgDeclarationPos)
+
+	name := f.Name.Name
+
+	return &PkgDeclaration{
+		pos:  pkgDeclarationPos,
+		pkg:  types.NewPackage(p.PkgPath, name),
+		name: name,
+	}, pkgPosition
+}
