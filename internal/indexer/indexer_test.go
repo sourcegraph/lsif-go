@@ -418,17 +418,30 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check nested struct definition", func(t *testing.T) {
+		ranges := findAllRanges(w.elements, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
+		if len(ranges) != 1 {
+			t.Fatalf("found more than one range for a non-selector nested struct: %v", ranges)
+		}
+
 		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
 		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
-		if len(definitions) != 1 {
+		if len(definitions) != 2 {
 			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
 		}
 
-		compareRange(t, definitions[0], 11, 1, 11, 6)
+		sort.Slice(definitions, func(i, j int) bool {
+			return definitions[i].Start.Line < definitions[j].Start.Line
+		})
+
+		// Original definition
+		compareRange(t, definitions[0], 4, 5, 4, 10)
+
+		// Definition through the moniker
+		compareRange(t, definitions[1], 11, 1, 11, 6)
 
 		// TODO
 		// references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
@@ -436,7 +449,6 @@ func TestIndexer(t *testing.T) {
 		// 	t.Fatalf("incorrect references count. want=%d have=%d", 2, len(references))
 		// }
 
-		compareRange(t, definitions[0], 11, 1, 11, 6)
 		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("incorrect references count. want=%d have=%d %+v", 2, len(monikers), monikers)
@@ -515,21 +527,35 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
-		if !ok {
-			t.Fatalf("could not find target range")
+		ranges := findAllRanges(w.elements, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
+		if len(ranges) != 2 {
+			t.Fatalf("Incorrect number of ranges: %v", ranges)
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		sort.Slice(ranges, func(i, j int) bool {
+			return ranges[i].End.Character < ranges[j].End.Character
+		})
+
+		// line: http.Handler
+		//       ^^^^------------ ranges[0], for http package reference
+		//       ^^^^^^^^^^^^---- ranges[1], for http.Handler, the entire definition
+		//
+		//            ^^^^^^^---- Separate range, for Handler reference
+		compareRange(t, ranges[0], 5, 1, 5, 5)
+		compareRange(t, ranges[1], 5, 1, 5, 13)
+
+		anonymousFieldRange := ranges[1]
+
+		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, anonymousFieldRange.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrect definition count. want=%d have=%d %v", 1, len(definitions), definitions)
 		}
 
 		compareRange(t, definitions[0], 5, 1, 5, 13)
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w.elements, anonymousFieldRange.ID)
 		if len(monikers) != 1 {
-			t.Fatalf("incorrect references count. want=%d have=%d %+v", 2, len(monikers), monikers)
+			t.Fatalf("incorrect monikers count. want=%d have=%d %+v", 1, len(monikers), monikers)
 		}
 
 		moniker := monikers[0]
@@ -538,6 +564,19 @@ func TestIndexer(t *testing.T) {
 		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:NestedHandler.Handler"
 		if identifier != expectedIdentifier {
 			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
+		}
+
+		// Check to make sure that the http range still correctly links to the external package.
+		httpRange := ranges[0]
+		httpMonikers := findMonikersByRangeOrReferenceResultID(w.elements, httpRange.ID)
+		if len(httpMonikers) != 1 {
+			t.Fatalf("incorrect http monikers count. want=%d have=%d %+v", 1, len(httpMonikers), httpMonikers)
+		}
+
+		httpIdentifier := httpMonikers[0].Identifier
+		expectedHttpIdentifier := "github.com/golang/go/std/net/http"
+		if httpIdentifier != expectedHttpIdentifier {
+			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedHttpIdentifier, httpIdentifier)
 		}
 	})
 }
@@ -600,7 +639,7 @@ func TestIndexer_documentation(t *testing.T) {
 
 func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
 	if r.Start.Line != startLine || r.Start.Character != startCharacter || r.End.Line != endLine || r.End.Character != endCharacter {
-		t.Errorf(
+		t.Fatalf(
 			"incorrect range. want=[%d:%d,%d:%d) have=[%d:%d,%d:%d)",
 			startLine, startCharacter, endLine, endCharacter,
 			r.Start.Line, r.Start.Character, r.End.Line, r.End.Character,

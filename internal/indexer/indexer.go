@@ -400,6 +400,8 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 	}
 
+	anonyousFields := map[*ast.Ident]*types.Var{}
+
 	for ident, typeObj := range p.TypesInfo.Defs {
 		var obj ObjectLike = typeObj
 
@@ -425,8 +427,6 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 
 		// Always skip types.PkgName because we handle them in addImports()
 		//    we do not want to emit anything new here.
-		//
-		// TODO: @eric is this OK here? or should I do something else
 		if _, isPkgName := typeObj.(*types.PkgName); isPkgName {
 			continue
 		}
@@ -441,27 +441,61 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 
 		typVar, ok := typeObj.(*types.Var)
 		if ok {
+			// Handle anonymous field definitions after we've emitted all the definition and range nodes.
+			// This way we can determine whether to generate new nodes for the fields or whether we can simply
+			// reuse the existing nodes.
 			if typVar.IsField() && typVar.Anonymous() {
-				// TODO: We should be looking up the range and resultSet and re-using it, if it's exactly the same as the
-				// other range from this position.
-
-				// To find the end of the identifier, we use the identifier End() Pos and not the length
-				// of the name, because there may be package names prefixing the name ("http.Client").
-				//
-				// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
-				rangeID := i.emitter.EmitRange(
-					protocol.Pos{Line: position.Line - 1, Character: position.Column - 1},
-					protocol.Pos{Line: position.Line - 1, Character: p.Fset.Position(ident.End()).Column - 1},
-				)
-
-				resultSetID := i.emitter.EmitResultSet()
-
-				i.indexDefinitionForRangeAndResult(p, d, typVar, rangeID, resultSetID, typeSwitchHeader, ident)
+				anonyousFields[ident] = typVar
 				continue
 			}
 		}
 
 		_ = i.indexDefinition(p, d, position, obj, typeSwitchHeader, ident)
+	}
+
+	// Handle anonymous fields separately.
+	//
+	// The reason they have to be handled separately is because they are _both_:
+	// - Defintion
+	// - Reference
+	//
+	// This makes them a bit more complicated than other definitions.
+	for ident, typVar := range anonyousFields {
+		position, d, ok := i.positionAndDocument(p, typVar.Pos())
+		if !ok {
+			continue
+		}
+
+		// TODO: We should be looking up the range and resultSet and re-using it, if it's exactly the same as the
+		// other range from this position.
+
+		// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
+		startCol := position.Column - 1
+
+		// To find the end of the identifier, we use the identifier End() Pos and not the length
+		// of the name, because there may be package names prefixing the name ("http.Client").
+		endCol := p.Fset.Position(ident.End()).Column - 1
+
+		// TODO: Is there a better way
+		var rangeID, resultSetID uint64
+		if endCol-startCol == len(typVar.Name()) {
+			var created bool
+			fmt.Println("handlin:", typVar.Id())
+			rangeID, created = i.ensureRangeFor(position, typVar)
+			if !created {
+				panic("Must be created")
+			}
+			resultSetID = i.emitter.EmitResultSet()
+		} else {
+			start := protocol.Pos{Line: position.Line - 1, Character: startCol}
+			end := protocol.Pos{Line: position.Line - 1, Character: endCol}
+			rangeID = i.emitter.EmitRange(start, end)
+
+			// TODO: This is probably not right.
+			resultSetID = i.emitter.EmitResultSet()
+		}
+
+		i.indexDefinitionForRangeAndResult(p, d, typVar, rangeID, resultSetID, false, ident)
 	}
 }
 

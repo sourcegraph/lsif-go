@@ -284,6 +284,24 @@ func findRange(elements []interface{}, filename string, startLine, startCharacte
 	return protocol.Range{}, false
 }
 
+// findAllRanges returns a list of ranges in the given file with the given start line and character.
+// This can be used to confirm that there is only one range that would match at a particular location
+func findAllRanges(elements []interface{}, filename string, startLine, startCharacter int) []protocol.Range {
+	ranges := []protocol.Range{}
+	for _, elem := range elements {
+		switch v := elem.(type) {
+		case protocol.Range:
+			if v.Start.Line == startLine && v.Start.Character == startCharacter {
+				if findDocumentURIContaining(elements, v.ID) == filename {
+					ranges = append(ranges, v)
+				}
+			}
+		}
+	}
+
+	return ranges
+}
+
 // findHoverResultByRangeOrResultSetID returns the hover result attached to the range or result
 // set with the given identifier.
 func findHoverResultByRangeOrResultSetID(elements []interface{}, id uint64) (protocol.HoverResult, bool) {
