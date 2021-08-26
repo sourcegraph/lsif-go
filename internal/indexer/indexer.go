@@ -40,7 +40,6 @@ type Indexer struct {
 	labels  map[interface{}]*DefinitionInfo // position -> info
 	types   map[interface{}]*DefinitionInfo // name -> info
 	vars    map[interface{}]*DefinitionInfo // position -> info
-	pkgs    map[interface{}]*DefinitionInfo // name -> info
 
 	// LSIF data cache
 	documents                                map[string]*DocumentInfo    // filename -> info
@@ -62,7 +61,6 @@ type Indexer struct {
 	labelsMutex                sync.Mutex
 	typesMutex                 sync.Mutex
 	varsMutex                  sync.Mutex
-	pkgsMutex                  sync.Mutex
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
 	importMonikerIDsMutex      sync.RWMutex
@@ -97,7 +95,6 @@ func New(
 		labels:                map[interface{}]*DefinitionInfo{},
 		types:                 map[interface{}]*DefinitionInfo{},
 		vars:                  map[interface{}]*DefinitionInfo{},
-		pkgs:                  map[interface{}]*DefinitionInfo{},
 		documents:             map[string]*DocumentInfo{},
 		ranges:                map[string]map[int]uint64{},
 		defined:               map[string]map[int]struct{}{},
@@ -528,7 +525,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 
 // indexDefinitionForRangeAndResult will handle all Indexer related handling of
 // a definition for a given rangeID and resultSetID.
-func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document *DocumentInfo, obj ObjectLike, rangeID, resultSetID uint64, typeSwitchHeader bool, ident *ast.Ident) {
+func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document *DocumentInfo, obj ObjectLike, rangeID, resultSetID uint64, typeSwitchHeader bool, ident *ast.Ident) *DefinitionInfo {
 	defResultID := i.emitter.EmitDefinitionResult()
 
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
@@ -564,26 +561,29 @@ func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document
 		_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
 	}
 
-	i.setDefinitionInfo(obj, ident, &DefinitionInfo{
+	definitionInfo := &DefinitionInfo{
 		DocumentID:         document.DocumentID,
 		RangeID:            rangeID,
 		ResultSetID:        resultSetID,
 		DefinitionResultID: defResultID,
 		ReferenceRangeIDs:  map[uint64][]uint64{},
 		TypeSwitchHeader:   typeSwitchHeader,
-	})
+	}
+	i.setDefinitionInfo(obj, ident, definitionInfo)
 
 	document.appendDefinition(rangeID)
+
+	return definitionInfo
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) {
+func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) *DefinitionInfo {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
 	rangeID, _ := i.ensureRangeFor(position, obj)
 	resultSetID := i.emitter.EmitResultSet()
 
-	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, typeSwitchHeader, ident)
+	return i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, typeSwitchHeader, ident)
 }
 
 // setDefinitionInfo stashes the given definition info indexed by the given object type and name.
@@ -624,9 +624,9 @@ func (i *Indexer) setDefinitionInfo(obj ObjectLike, ident *ast.Ident, d *Definit
 		i.varsMutex.Unlock()
 
 	case *PkgDeclaration:
-		i.pkgsMutex.Lock()
-		i.pkgs[v.Pkg().Path()] = d
-		i.pkgsMutex.Unlock()
+		// Do nothing -- we don't need to reference these ever again.
+		break
+
 	}
 }
 
@@ -661,8 +661,14 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 
 // indexReference emits data for the given reference object.
 func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident) (uint64, bool) {
-	if def := i.getDefinitionInfo(definitionObj, ident); def != nil {
-		return i.indexReferenceToDefinition(p, document, pos, definitionObj, def)
+	return i.indexReferenceWithDefinitionInfo(p, document, pos, definitionObj, ident, i.getDefinitionInfo(definitionObj, ident))
+}
+
+// indexReferenceWithDefinitionInfo emits data for the given reference object and definition info.
+// This can be used when the DefinitionInfo is already known, which will skip needing to get and release locks.
+func (i *Indexer) indexReferenceWithDefinitionInfo(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident, definitionInfo *DefinitionInfo) (uint64, bool) {
+	if definitionInfo != nil {
+		return i.indexReferenceToDefinition(p, document, pos, definitionObj, definitionInfo)
 	}
 
 	return i.indexReferenceToExternalDefinition(p, document, pos, definitionObj)
@@ -686,12 +692,8 @@ func (i *Indexer) getDefinitionInfo(obj ObjectLike, ident *ast.Ident) *Definitio
 	case *types.Var:
 		return i.vars[v.Pos()]
 	case *PkgDeclaration:
-		// @eric I'm not sure why I had to put these, but in large projects I had race conditions without this.
-		i.pkgsMutex.Lock()
-		val := i.pkgs[v.Pkg().Path()]
-		i.pkgsMutex.Unlock()
-
-		return val
+		// We don't store definition info for PkgDeclaration.
+		// They are never referenced after the first iteration.
 	}
 
 	return nil
@@ -860,6 +862,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 	}
 
 	// First, index the defition, which is the best package info.
+	var definitionInfo *DefinitionInfo
 	for _, f := range p.Syntax {
 		obj, position := newPkgDeclaration(p, f)
 
@@ -874,7 +877,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 			return
 		}
 
-		i.indexDefinition(p, d, position, obj, false, &ast.Ident{
+		definitionInfo = i.indexDefinition(p, d, position, obj, false, &ast.Ident{
 			NamePos: obj.Pos(),
 			Name:    name,
 			Obj:     nil,
@@ -904,7 +907,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 			Name:    name,
 			Obj:     nil,
 		}
-		rangeID, ok := i.indexReference(p, document, position, obj, ident)
+		rangeID, ok := i.indexReferenceWithDefinitionInfo(p, document, position, obj, ident, definitionInfo)
 
 		if !ok {
 			continue
