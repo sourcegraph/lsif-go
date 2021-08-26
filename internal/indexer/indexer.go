@@ -466,9 +466,6 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			continue
 		}
 
-		// TODO: We should be looking up the range and resultSet and re-using it, if it's exactly the same as the
-		// other range from this position.
-
 		// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
 		startCol := position.Column - 1
 
@@ -476,25 +473,25 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		// of the name, because there may be package names prefixing the name ("http.Client").
 		endCol := p.Fset.Position(ident.End()).Column - 1
 
-		// TODO: Is there a better way
-		var rangeID, resultSetID uint64
+		var rangeID uint64
 		if endCol-startCol == len(typVar.Name()) {
 			var created bool
-			fmt.Println("handlin:", typVar.Id())
 			rangeID, created = i.ensureRangeFor(position, typVar)
-			if !created {
-				panic("Must be created")
-			}
-			resultSetID = i.emitter.EmitResultSet()
-		} else {
-			start := protocol.Pos{Line: position.Line - 1, Character: startCol}
-			end := protocol.Pos{Line: position.Line - 1, Character: endCol}
-			rangeID = i.emitter.EmitRange(start, end)
 
-			// TODO: This is probably not right.
-			resultSetID = i.emitter.EmitResultSet()
+			if !created {
+				panic("Must be creating and regsitering a range for this position. Otherwise we will have two resultSets")
+			}
+		} else {
+			// This will be a separate range that encompasses _two_ items. So it is kind of
+			// "floating" in the nothingness, and should not be looked up in the future when
+			// trying to create a new range for whatever occurs at the start position of this location.
+			rangeID = i.emitter.EmitRange(
+				protocol.Pos{Line: position.Line - 1, Character: startCol},
+				protocol.Pos{Line: position.Line - 1, Character: endCol},
+			)
 		}
 
+		resultSetID := i.emitter.EmitResultSet()
 		i.indexDefinitionForRangeAndResult(p, d, typVar, rangeID, resultSetID, false, ident)
 	}
 }

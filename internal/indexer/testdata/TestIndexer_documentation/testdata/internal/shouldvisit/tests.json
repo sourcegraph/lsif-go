@@ -1,0 +1,116 @@
+{
+  "pathID": "/internal/shouldvisit/tests",
+  "documentation": {
+    "identifier": "tests",
+    "newPage": true,
+    "searchKey": "internal/shouldvisit/tests",
+    "tags": [
+      "private",
+      "package"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": "Package tests"
+  },
+  "detail": {
+    "kind": "markdown",
+    "value": "This package has tests. \n\n"
+  },
+  "children": [
+    {
+      "node": {
+        "pathID": "/internal/shouldvisit/tests#func",
+        "documentation": {
+          "identifier": "func",
+          "newPage": false,
+          "searchKey": "",
+          "tags": [
+            "private"
+          ]
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Functions"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/internal/shouldvisit/tests#BenchmarkFoo",
+              "documentation": {
+                "identifier": "BenchmarkFoo",
+                "newPage": false,
+                "searchKey": "tests.BenchmarkFoo",
+                "tags": [
+                  "function",
+                  "private",
+                  "benchmark"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func BenchmarkFoo(b *testing.B)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc BenchmarkFoo(b *testing.B)\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/internal/shouldvisit/tests#TestFoo",
+              "documentation": {
+                "identifier": "TestFoo",
+                "newPage": false,
+                "searchKey": "tests.TestFoo",
+                "tags": [
+                  "function",
+                  "private",
+                  "test"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func TestFoo(t *testing.T)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc TestFoo(t *testing.T)\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/internal/shouldvisit/tests#foo",
+              "documentation": {
+                "identifier": "foo",
+                "newPage": false,
+                "searchKey": "tests.foo",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func foo() bool"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc foo() bool\n```\n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
