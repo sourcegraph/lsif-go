@@ -485,6 +485,8 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 			// This will be a separate range that encompasses _two_ items. So it is kind of
 			// "floating" in the nothingness, and should not be looked up in the future when
 			// trying to create a new range for whatever occurs at the start position of this location.
+			//
+			// In other words, this skips setting `i.ranges` for this range.
 			rangeID = i.emitter.EmitRange(
 				protocol.Pos{Line: position.Line - 1, Character: startCol},
 				protocol.Pos{Line: position.Line - 1, Character: endCol},
