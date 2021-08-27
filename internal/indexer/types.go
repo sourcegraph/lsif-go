@@ -75,7 +75,12 @@ func (p pkgDeclarationType) String() string         { return p.decl.Id() }
 var packageLen = len("package ")
 
 func newPkgDeclaration(p *packages.Package, f *ast.File) (*PkgDeclaration, token.Position) {
+	// import mypackage
+	// ^--------------------- pkgKeywordPosition *types.Position
+	//        ^-------------- pkgDeclarationPos  *types.Pos
+	//        ^-------------- pkgPosition        *types.Position
 	pkgKeywordPosition := p.Fset.Position(f.Package)
+
 	pkgDeclarationPos := p.Fset.File(f.Package).Pos(pkgKeywordPosition.Offset + packageLen)
 	pkgPosition := p.Fset.Position(pkgDeclarationPos)
 

@@ -135,9 +135,6 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("found too many monikers: %+v\n", monikers)
 		}
 
-		// @eric -- corresponding test w/ emitImportMonikerReference
-		//          could be changed to just be the moniker check and remove the documentation.
-		//
 		// Only important part is linking to the correct moniker.
 		// Hover results will be linked accordingly
 		moniker := monikers[0]
@@ -443,11 +440,11 @@ func TestIndexer(t *testing.T) {
 		// Definition through the moniker
 		compareRange(t, definitions[1], 11, 1, 11, 6)
 
-		// TODO
-		// references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
-		// if len(references) != 1 {
-		// 	t.Fatalf("incorrect references count. want=%d have=%d", 2, len(references))
-		// }
+		// Expect to find the reference from the definition and for the time we instantiate it in the function.
+		references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
+		if len(references) != 2 {
+			t.Fatalf("incorrect references count. want=%d have=%d", 2, len(references))
+		}
 
 		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
 		if len(monikers) != 1 {
