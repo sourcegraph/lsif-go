@@ -1,0 +1,69 @@
+{
+  "pathID": "/internal/shouldvisit/tests_separate_test",
+  "documentation": {
+    "identifier": "tests_separate_test",
+    "newPage": true,
+    "searchKey": "internal/shouldvisit/tests_separate_test",
+    "tags": [
+      "private",
+      "package"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": "Package pkg_test"
+  },
+  "detail": {
+    "kind": "markdown",
+    "value": ""
+  },
+  "children": [
+    {
+      "node": {
+        "pathID": "/internal/shouldvisit/tests_separate_test#func",
+        "documentation": {
+          "identifier": "func",
+          "newPage": false,
+          "searchKey": "",
+          "tags": [
+            "private"
+          ]
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Functions"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/internal/shouldvisit/tests_separate_test#TestFoo",
+              "documentation": {
+                "identifier": "TestFoo",
+                "newPage": false,
+                "searchKey": "pkg_test.TestFoo",
+                "tags": [
+                  "function",
+                  "private",
+                  "test"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func TestFoo(t *testing.T)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc TestFoo(t *testing.T)\n```\n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
