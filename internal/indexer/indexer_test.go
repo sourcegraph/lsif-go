@@ -24,7 +24,12 @@ var dependencies = map[string]gomod.GoModule{
 }
 
 func TestIndexer(t *testing.T) {
-	w := &capturingWriter{}
+	w := &capturingWriter{
+		ranges:    map[uint64]protocol.Range{},
+		documents: map[uint64]protocol.Document{},
+		contains:  map[uint64]uint64{},
+	}
+
 	projectRoot := getRepositoryRoot(t)
 	indexer := New(
 		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
@@ -44,16 +49,16 @@ func TestIndexer(t *testing.T) {
 	}
 
 	t.Run("check Parallel function hover text", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		hoverResult, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
 
 		if !ok || len(markupContentSegments) < 2 {
-			t.Fatalf("could not find hover text")
+			t.Fatalf("could not find hover text: %v", markupContentSegments)
 		}
 
 		expectedType := `func Parallel(ctx Context, fns ...ParallelizableFunc) error`
@@ -71,12 +76,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("declares definitions for 'package testdata' identifiers", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "main.go"), 2, 8)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "main.go"), 2, 8)
 		if !ok {
 			t.Errorf("Could not find range for 'package testdata'")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 1 {
 			t.Errorf("Definitions: %+v\n", definitions)
 		}
@@ -84,7 +89,7 @@ func TestIndexer(t *testing.T) {
 		def := definitions[0]
 		compareRange(t, def, 2, 8, 2, 16)
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Errorf("Monikers: %+v\n", monikers)
 		}
@@ -98,12 +103,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("declares definitions for nested 'package *' identifiers", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "internal", "secret", "doc.go"), 1, 8)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "internal", "secret", "doc.go"), 1, 8)
 		if !ok {
 			t.Errorf("Could not find range for 'package secret'")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 1 {
 			t.Errorf("Definitions: %+v\n", definitions)
 		}
@@ -111,7 +116,7 @@ func TestIndexer(t *testing.T) {
 		def := definitions[0]
 		compareRange(t, def, 1, 8, 1, 14)
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Errorf("Monikers: %+v\n", monikers)
 		}
@@ -125,12 +130,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check external package hover text", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("found too many monikers: %+v\n", monikers)
 		}
@@ -143,10 +148,10 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedMoniker, moniker.Identifier)
 		}
 
-		hoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		hoverResult, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) < 2 {
-			t.Fatalf("could not find hover text")
+			t.Fatalf("could not find hover text: %v", markupContentSegments)
 		}
 
 		expectedType := `package "sync"`
@@ -166,12 +171,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check errs definition", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 21, 3)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 21, 3)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
 		}
@@ -180,12 +185,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check wg references", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "parallel.go"), 26, 1)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 26, 1)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
+		references := findReferenceRangesByRangeOrResultSetID(w, r.ID)
 		if len(references) != 4 {
 			t.Fatalf("incorrect reference count. want=%d have=%d", 4, len(references))
 		}
@@ -199,12 +204,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check NestedB monikers", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("incorrect moniker count. want=%d have=%d", 1, len(monikers))
 		}
@@ -220,17 +225,17 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check typeswitch", func(t *testing.T) {
-		definition, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 3, 8)
+		definition, ok := findRange(w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 3, 8)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		intReference, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 5, 9)
+		intReference, ok := findRange(w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 5, 9)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		boolReference, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 7, 10)
+		boolReference, ok := findRange(w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 7, 10)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
@@ -238,7 +243,7 @@ func TestIndexer(t *testing.T) {
 		//
 		// Check definition links
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, intReference.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, intReference.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
 		}
@@ -247,7 +252,7 @@ func TestIndexer(t *testing.T) {
 		//
 		// Check reference links
 
-		references := findReferenceRangesByRangeOrResultSetID(w.elements, definition.ID)
+		references := findReferenceRangesByRangeOrResultSetID(w, definition.ID)
 		if len(references) != 3 {
 			t.Fatalf("incorrect reference count. want=%d have=%d", 2, len(references))
 		}
@@ -262,7 +267,7 @@ func TestIndexer(t *testing.T) {
 
 		// TODO(efritz) - update test here if we emit hover text for the header
 
-		intReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, intReference.ID)
+		intReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w, intReference.ID)
 		markupContentSegments := splitMarkupContent(intReferenceHoverResult.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) < 1 {
 			t.Fatalf("could not find hover text")
@@ -273,7 +278,7 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect hover text type. want=%q have=%q", expectedType, value)
 		}
 
-		boolReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w.elements, boolReference.ID)
+		boolReferenceHoverResult, ok := findHoverResultByRangeOrResultSetID(w, boolReference.ID)
 		markupContentSegments = splitMarkupContent(boolReferenceHoverResult.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) < 1 {
 			t.Fatalf("could not find hover text")
@@ -288,19 +293,19 @@ func TestIndexer(t *testing.T) {
 	t.Run("check typealias", func(t *testing.T) {
 		typealiasFile := "file://" + filepath.Join(projectRoot, "typealias.go")
 
-		r, ok := findRange(w.elements, typealiasFile, 7, 5)
+		r, ok := findRange(w, typealiasFile, 7, 5)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
 		}
 
 		compareRange(t, definitions[0], 7, 5, 7, 17)
 
-		hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) < 3 {
 			t.Fatalf("incorrect hover text count. want=%d have=%d: %v", 3, len(markupContentSegments), markupContentSegments)
@@ -330,12 +335,12 @@ func TestIndexer(t *testing.T) {
 	t.Run("check typealias reference", func(t *testing.T) {
 		typealiasFile := "file://" + filepath.Join(projectRoot, "typealias.go")
 
-		r, ok := findRange(w.elements, typealiasFile, 7, 27)
+		r, ok := findRange(w, typealiasFile, 7, 27)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
 		}
@@ -347,7 +352,7 @@ func TestIndexer(t *testing.T) {
 
 		compareRange(t, definitions[0], 6, 5, 6, 11)
 
-		hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) < 3 {
 			t.Fatalf("incorrect hover text count. want=%d have=%d: %v", 3, len(markupContentSegments), markupContentSegments)
@@ -377,19 +382,19 @@ func TestIndexer(t *testing.T) {
 	t.Run("check_typealias anonymous struct", func(t *testing.T) {
 		typealiasFile := "file://" + filepath.Join(projectRoot, "typealias.go")
 
-		r, ok := findRange(w.elements, typealiasFile, 9, 5)
+		r, ok := findRange(w, typealiasFile, 9, 5)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
 		}
 
 		compareRange(t, definitions[0], 9, 5, 9, 14)
 
-		hover, ok := findHoverResultByRangeOrResultSetID(w.elements, r.ID)
+		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
 		if !ok || len(markupContentSegments) < 2 {
 			t.Fatalf("incorrect hover text count. want=%d have=%d: %v", 2, len(markupContentSegments), markupContentSegments)
@@ -408,24 +413,24 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect hover text documentation. want=%q have=%q", expectedUnderlyingType, value)
 		}
 
-		r, ok = findRange(w.elements, typealiasFile, 9, 17)
+		r, ok = findRange(w, typealiasFile, 9, 17)
 		if ok {
 			t.Fatalf("found range for anonymous struct when not expected")
 		}
 	})
 
 	t.Run("check nested struct definition", func(t *testing.T) {
-		ranges := findAllRanges(w.elements, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
+		ranges := findAllRanges(w, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
 		if len(ranges) != 1 {
 			t.Fatalf("found more than one range for a non-selector nested struct: %v", ranges)
 		}
 
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 2 {
 			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
 		}
@@ -441,12 +446,12 @@ func TestIndexer(t *testing.T) {
 		compareRange(t, definitions[1], 11, 1, 11, 6)
 
 		// Expect to find the reference from the definition and for the time we instantiate it in the function.
-		references := findReferenceRangesByRangeOrResultSetID(w.elements, r.ID)
+		references := findReferenceRangesByRangeOrResultSetID(w, r.ID)
 		if len(references) != 2 {
 			t.Fatalf("incorrect references count. want=%d have=%d", 2, len(references))
 		}
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("incorrect references count. want=%d have=%d %+v", 2, len(monikers), monikers)
 		}
@@ -461,12 +466,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check named import definition: non-'.' import", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 1)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 1)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, r.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		if len(definitions) != 2 {
 			t.Fatalf("Failed to get the correct definitions: %+v\n", definitions)
 		}
@@ -476,12 +481,12 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check named import reference: non-'.' import", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 4)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 4)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("Failed to get the expected single moniker: %+v\n", monikers)
 		}
@@ -497,19 +502,19 @@ func TestIndexer(t *testing.T) {
 
 	t.Run("check named import definition: . import", func(t *testing.T) {
 		// There should be no range generated for the `.` in the import.
-		_, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 1)
+		_, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 1)
 		if ok {
 			t.Fatalf("could not find target range")
 		}
 	})
 
 	t.Run("check named import reference: . import", func(t *testing.T) {
-		r, ok := findRange(w.elements, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 4)
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 4)
 		if !ok {
 			t.Fatalf("could not find target range")
 		}
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, r.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("Failed to get the expected single moniker: %+v\n", monikers)
 		}
@@ -524,7 +529,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
-		ranges := findAllRanges(w.elements, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
+		ranges := findAllRanges(w, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
 		if len(ranges) != 2 {
 			t.Fatalf("Incorrect number of ranges: %v", ranges)
 		}
@@ -543,14 +548,14 @@ func TestIndexer(t *testing.T) {
 
 		anonymousFieldRange := ranges[1]
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w.elements, anonymousFieldRange.ID)
+		definitions := findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID)
 		if len(definitions) != 1 {
 			t.Fatalf("incorrect definition count. want=%d have=%d %v", 1, len(definitions), definitions)
 		}
 
 		compareRange(t, definitions[0], 5, 1, 5, 13)
 
-		monikers := findMonikersByRangeOrReferenceResultID(w.elements, anonymousFieldRange.ID)
+		monikers := findMonikersByRangeOrReferenceResultID(w, anonymousFieldRange.ID)
 		if len(monikers) != 1 {
 			t.Fatalf("incorrect monikers count. want=%d have=%d %+v", 1, len(monikers), monikers)
 		}
@@ -565,7 +570,7 @@ func TestIndexer(t *testing.T) {
 
 		// Check to make sure that the http range still correctly links to the external package.
 		httpRange := ranges[0]
-		httpMonikers := findMonikersByRangeOrReferenceResultID(w.elements, httpRange.ID)
+		httpMonikers := findMonikersByRangeOrReferenceResultID(w, httpRange.ID)
 		if len(httpMonikers) != 1 {
 			t.Fatalf("incorrect http monikers count. want=%d have=%d %+v", 1, len(httpMonikers), httpMonikers)
 		}
@@ -631,16 +636,6 @@ func TestIndexer_documentation(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
-	if r.Start.Line != startLine || r.Start.Character != startCharacter || r.End.Line != endLine || r.End.Character != endCharacter {
-		t.Fatalf(
-			"incorrect range. want=[%d:%d,%d:%d) have=[%d:%d,%d:%d)",
-			startLine, startCharacter, endLine, endCharacter,
-			r.Start.Line, r.Start.Character, r.End.Line, r.End.Character,
-		)
 	}
 }
 

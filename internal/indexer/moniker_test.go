@@ -36,7 +36,7 @@ func TestEmitExportMoniker(t *testing.T) {
 
 	indexer.emitExportMoniker(123, nil, object)
 
-	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
+	monikers := findMonikersByRangeOrReferenceResultID(w, 123)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find moniker")
 	}
@@ -50,7 +50,7 @@ func TestEmitExportMoniker(t *testing.T) {
 		t.Errorf("incorrect moniker identifier. want=%q have=%q", "github.com/test/pkg:foobar", monikers[0].Identifier)
 	}
 
-	packageInformation := findPackageInformationByMonikerID(w.elements, monikers[0].ID)
+	packageInformation := findPackageInformationByMonikerID(w, monikers[0].ID)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find package information")
 	}
@@ -87,7 +87,7 @@ func TestEmitExportMonikerPreGoMod(t *testing.T) {
 
 	indexer.emitExportMoniker(123, nil, object)
 
-	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
+	monikers := findMonikersByRangeOrReferenceResultID(w, 123)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find moniker")
 	}
@@ -101,7 +101,7 @@ func TestEmitExportMonikerPreGoMod(t *testing.T) {
 		t.Errorf("incorrect moniker identifier. want=%q have=%q", "github.com/sourcegraph/lsif-go/internal/git:InferRemote", monikers[0].Identifier)
 	}
 
-	packageInformation := findPackageInformationByMonikerID(w.elements, monikers[0].ID)
+	packageInformation := findPackageInformationByMonikerID(w, monikers[0].ID)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find package information")
 	}
@@ -136,7 +136,7 @@ func TestEmitImportMoniker(t *testing.T) {
 
 	indexer.emitImportMoniker(123, nil, object)
 
-	monikers := findMonikersByRangeOrReferenceResultID(w.elements, 123)
+	monikers := findMonikersByRangeOrReferenceResultID(w, 123)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find moniker")
 	}
@@ -150,7 +150,7 @@ func TestEmitImportMoniker(t *testing.T) {
 		t.Errorf("incorrect moniker identifier. want=%q have=%q", "github.com/test/pkg/sub1/sub2/sub3:foobar", monikers[0].Identifier)
 	}
 
-	packageInformation := findPackageInformationByMonikerID(w.elements, monikers[0].ID)
+	packageInformation := findPackageInformationByMonikerID(w, monikers[0].ID)
 	if monikers == nil || len(monikers) < 1 {
 		t.Fatalf("could not find package information")
 	}

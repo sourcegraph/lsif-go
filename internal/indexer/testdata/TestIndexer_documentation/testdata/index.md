@@ -1,12 +1,11 @@
 # Package testdata
 
-Package testdata 
-
 testdata is a small package containing sample Go source code used for testing the indexing routines of github.com/sourcegraph/lsif-go. 
 
 ## Index
 
 * Subpages
+  * [cmd](cmd.md)
   * [internal](internal.md)
   * [conflicting_test_symbols](conflicting_test_symbols.md)
   * [duplicate_path_id](duplicate_path_id.md)
@@ -38,6 +37,7 @@ testdata is a small package containing sample Go source code used for testing th
     * [type InnerStruct struct{}](#InnerStruct)
     * [type Interface interface](#Interface)
         * [func NewInterface() Interface](#NewInterface)
+    * [type NestedHandler struct](#NestedHandler)
     * [type Outer struct](#Outer)
     * [type ParallelizableFunc func(ctx context.Context) error](#ParallelizableFunc)
     * [type SecretBurger secret.Burger](#SecretBurger)
@@ -56,9 +56,9 @@ testdata is a small package containing sample Go source code used for testing th
     * [type X struct](#X)
     * [type Y struct](#Y)
 * [Functions](#func)
+    * [func Example()](#Example)
     * [func Parallel(ctx context.Context, fns ...ParallelizableFunc) error](#Parallel)
     * [func Switch(interfaceValue interface{}) bool](#Switch)
-    * [func main()](#main)
     * [func useOfCompositeStructs()](#useOfCompositeStructs)
 
 
@@ -402,6 +402,20 @@ tags: [function]
 func NewInterface() Interface
 ```
 
+### <a id="NestedHandler" href="#NestedHandler">type NestedHandler struct</a>
+
+```
+searchKey: testdata.NestedHandler
+tags: [struct]
+```
+
+```Go
+type NestedHandler struct {
+	http.Handler
+	Other int
+}
+```
+
 ### <a id="Outer" href="#Outer">type Outer struct</a>
 
 ```
@@ -666,6 +680,17 @@ Go can be fun
 tags: [private]
 ```
 
+### <a id="Example" href="#Example">func Example()</a>
+
+```
+searchKey: testdata.Example
+tags: [function]
+```
+
+```Go
+func Example()
+```
+
 ### <a id="Parallel" href="#Parallel">func Parallel(ctx context.Context, fns ...ParallelizableFunc) error</a>
 
 ```
@@ -688,17 +713,6 @@ tags: [function]
 
 ```Go
 func Switch(interfaceValue interface{}) bool
-```
-
-### <a id="main" href="#main">func main()</a>
-
-```
-searchKey: testdata.main
-tags: [function private]
-```
-
-```Go
-func main()
 ```
 
 ### <a id="useOfCompositeStructs" href="#useOfCompositeStructs">func useOfCompositeStructs()</a>

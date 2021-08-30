@@ -133,6 +133,9 @@ func (i *Indexer) Index() error {
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
 
+// cachedPackages makes sure that we only load packages once per execution
+var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
+
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 //
@@ -153,10 +156,16 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			Logf:  i.packagesLoadLogger,
 		}
 
-		pkgs, err := packages.Load(config, "./...")
-		if err != nil {
-			errs <- errors.Wrap(err, "packages.Load")
-			return
+		pkgs, ok := cachedPackages[i.projectRoot]
+		if !ok {
+			loadedPkgs, err := packages.Load(config, "./...")
+			if err != nil {
+				errs <- errors.Wrap(err, "packages.Load")
+				return
+			}
+
+			cachedPackages[i.projectRoot] = loadedPkgs
+			pkgs = loadedPkgs
 		}
 
 		if deduplicate {
