@@ -1,0 +1,68 @@
+{
+  "pathID": "/internal/shouldvisit/tests_separate",
+  "documentation": {
+    "identifier": "tests_separate",
+    "newPage": true,
+    "searchKey": "internal/shouldvisit/tests_separate",
+    "tags": [
+      "private",
+      "package"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": "Package pkg"
+  },
+  "detail": {
+    "kind": "markdown",
+    "value": "This package has tests, but in a separate _test package. \n\n"
+  },
+  "children": [
+    {
+      "node": {
+        "pathID": "/internal/shouldvisit/tests_separate#func",
+        "documentation": {
+          "identifier": "func",
+          "newPage": false,
+          "searchKey": "",
+          "tags": [
+            "private"
+          ]
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Functions"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/internal/shouldvisit/tests_separate#foo",
+              "documentation": {
+                "identifier": "foo",
+                "newPage": false,
+                "searchKey": "pkg.foo",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func foo() bool"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc foo() bool\n```\n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
