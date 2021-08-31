@@ -10,8 +10,8 @@ require (
 	github.com/hexops/autogold v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
-	github.com/sourcegraph/lsif-static-doc v0.0.0-20210728160750-2383b286c98b
-	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210728181912-41b2ce5ea74c
+	github.com/sourcegraph/lsif-static-doc v0.0.0-20210831232443-e74f711cdf06
+	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210831223740-2eb532a72f6c
 	golang.org/x/tools v0.1.3
 	mvdan.cc/gofumpt v0.1.1 // indirect
 )
