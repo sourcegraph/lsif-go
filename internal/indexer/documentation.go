@@ -819,7 +819,7 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 		if *initIndex == 1 {
 			result.name = fmt.Sprintf("%s.%s", result.name, fileName)
 		} else {
-			result.name = fmt.Sprintf("%s.%s.%v", result.name, fileName, initIndex)
+			result.name = fmt.Sprintf("%s.%s.%v", result.name, fileName, *initIndex)
 		}
 		*initIndex++
 	}

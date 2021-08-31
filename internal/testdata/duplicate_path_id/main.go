@@ -10,3 +10,11 @@ func fetchMeta() (string, *importMeta, *sourceMeta) {
 
 func init() {
 }
+
+// two inits in the same file is legal
+func init() {
+}
+
+// three inits in the same file is legal
+func init() {
+}
