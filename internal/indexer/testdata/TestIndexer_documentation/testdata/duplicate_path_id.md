@@ -8,6 +8,8 @@
     * [type sourceMeta struct{}](#sourceMeta)
 * [Functions](#func)
     * [func init()](#init.main.go)
+    * [func init()](#init.main.go.2)
+    * [func init()](#init.main.go.3)
     * [func init()](#init.two.go)
 
 
@@ -66,6 +68,32 @@ tags: [function private]
 ```Go
 func init()
 ```
+
+### <a id="init.main.go.2" href="#init.main.go.2">func init()</a>
+
+```
+searchKey: gosrc.init
+tags: [function private]
+```
+
+```Go
+func init()
+```
+
+two inits in the same file is legal 
+
+### <a id="init.main.go.3" href="#init.main.go.3">func init()</a>
+
+```
+searchKey: gosrc.init
+tags: [function private]
+```
+
+```Go
+func init()
+```
+
+three inits in the same file is legal 
 
 ### <a id="init.two.go" href="#init.two.go">func init()</a>
 
