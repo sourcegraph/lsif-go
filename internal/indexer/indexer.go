@@ -156,16 +156,17 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			Logf:  i.packagesLoadLogger,
 		}
 
+		// Make sure we only load packages once per execution.
 		pkgs, ok := cachedPackages[i.projectRoot]
 		if !ok {
-			loadedPkgs, err := packages.Load(config, "./...")
+			var err error
+			pkgs, err = packages.Load(config, "./...")
 			if err != nil {
 				errs <- errors.Wrap(err, "packages.Load")
 				return
 			}
 
-			cachedPackages[i.projectRoot] = loadedPkgs
-			pkgs = loadedPkgs
+			cachedPackages[i.projectRoot] = pkgs
 		}
 
 		if deduplicate {
