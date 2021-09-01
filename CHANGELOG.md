@@ -14,6 +14,7 @@ All notable changes to `lsif-go` are documented in this file.
 ### Fixed
 
 - An issue where API docs would not be generated for packages containing multiple `init` functions in the same file. [#195](https://github.com/sourcegraph/lsif-go/pull/195)
+- An issue where API docs would not be generated for packages contianing multiple (illegal) `main` functions in the same file ([example](https://raw.githubusercontent.com/golang/go/master/test/mainsig.go)). [#196](https://github.com/sourcegraph/lsif-go/pull/196)
 
 ## v1.6.6
 

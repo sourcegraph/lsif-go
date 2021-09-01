@@ -459,6 +459,7 @@ func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, fileName strin
 
 	// Collect each top-level declaration.
 	var initIndex int = 1
+	var mainIndex int = 1
 	for _, decl := range f.Decls {
 		switch node := decl.(type) {
 		case *ast.GenDecl:
@@ -472,7 +473,7 @@ func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, fileName strin
 				// Not only is it not exported, it cannot be referenced outside this package at all.
 				continue
 			}
-			result.funcs = append(result.funcs, d.indexFuncDecl(p.Fset, p, node, fileName, &initIndex, isTestFile))
+			result.funcs = append(result.funcs, d.indexFuncDecl(p.Fset, p, node, fileName, &initIndex, &mainIndex, isTestFile))
 		}
 	}
 
@@ -809,7 +810,7 @@ func (f funcDocs) result() *documentationResult {
 }
 
 // indexFuncDecl returns the documentation corresponding to the given function declaration.
-func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in *ast.FuncDecl, fileName string, initIndex *int, isTestFile bool) funcDocs {
+func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in *ast.FuncDecl, fileName string, initIndex *int, mainIndex *int, isTestFile bool) funcDocs {
 	var result funcDocs
 	result.name = in.Name.String()
 	if result.name == "init" {
@@ -822,6 +823,17 @@ func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in
 			result.name = fmt.Sprintf("%s.%s.%v", result.name, fileName, *initIndex)
 		}
 		*initIndex++
+	}
+	if result.name == "main" {
+		// In some repositories, there exist Go files which have multiple `main` functions inside
+		// the same file. This is illegal and rejected by the Go compiler, yet it exists. It's bad
+		// code, and would result in an error if compiled or passed through most tools. However, we
+		// must not emit a duplicate path ID in such cases. Specifically because this would prevent
+		// indexing the Go standard library due to e.g. https://raw.githubusercontent.com/golang/go/master/test/mainsig.go
+		if *mainIndex > 1 {
+			result.name = fmt.Sprintf("%s.%s.%v", result.name, fileName, *mainIndex)
+		}
+		*mainIndex++
 	}
 	result.searchKey = p.Name + "." + in.Name.String()
 	result.docsMarkdown = godocToMarkdown(in.Doc.Text())

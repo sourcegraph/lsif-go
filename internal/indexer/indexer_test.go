@@ -460,6 +460,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols [github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test]": true,
 		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test":                                                                             false,
 		"github.com/sourcegraph/lsif-go/internal/testdata/duplicate_path_id":                                                                                         true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/illegal_multiple_mains":                                                                                    true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,

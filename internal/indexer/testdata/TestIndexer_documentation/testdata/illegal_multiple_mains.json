@@ -1,0 +1,137 @@
+{
+  "pathID": "/illegal_multiple_mains",
+  "documentation": {
+    "identifier": "illegal_multiple_mains",
+    "newPage": true,
+    "searchKey": "illegal_multiple_mains",
+    "tags": [
+      "private",
+      "package"
+    ]
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": "Package main"
+  },
+  "detail": {
+    "kind": "markdown",
+    "value": ""
+  },
+  "children": [
+    {
+      "node": {
+        "pathID": "/illegal_multiple_mains#func",
+        "documentation": {
+          "identifier": "func",
+          "newPage": false,
+          "searchKey": "",
+          "tags": [
+            "private"
+          ]
+        },
+        "label": {
+          "kind": "plaintext",
+          "value": "Functions"
+        },
+        "detail": {
+          "kind": "plaintext",
+          "value": ""
+        },
+        "children": [
+          {
+            "node": {
+              "pathID": "/illegal_multiple_mains#init.main.go",
+              "documentation": {
+                "identifier": "init.main.go",
+                "newPage": false,
+                "searchKey": "main.init",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func init(int)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc init(int)\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/illegal_multiple_mains#init.main.go.2",
+              "documentation": {
+                "identifier": "init.main.go.2",
+                "newPage": false,
+                "searchKey": "main.init",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func init() int"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc init() int\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/illegal_multiple_mains#main",
+              "documentation": {
+                "identifier": "main",
+                "newPage": false,
+                "searchKey": "main.main",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func main(int)"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc main(int)\n```\n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/illegal_multiple_mains#main.main.go.2",
+              "documentation": {
+                "identifier": "main.main.go.2",
+                "newPage": false,
+                "searchKey": "main.main",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func main() int"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc main() int\n```\n\n"
+              },
+              "children": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
