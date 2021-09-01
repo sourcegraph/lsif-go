@@ -8,6 +8,11 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type importReference struct {
+	rangeID    uint64
+	documentID uint64
+}
+
 type importState struct {
 	document    *DocumentInfo
 	position    token.Position

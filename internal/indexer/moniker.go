@@ -53,7 +53,7 @@ func joinMonikerParts(parts ...string) string {
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ObjectLike) {
+func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj ObjectLike) (uint64, bool) {
 	pkg := makeMonikerPackage(obj)
 	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
 
@@ -67,9 +67,11 @@ func (i *Indexer) emitImportMoniker(sourceID uint64, p *packages.Package, obj Ob
 
 			// Attach moniker to source element and stop after first match
 			_ = i.emitter.EmitMonikerEdge(sourceID, monikerID)
-			return
+			return monikerID, true
 		}
 	}
+
+	return 0, false
 }
 
 // packagePrefixes returns all prefix of the go package path. For example, the package

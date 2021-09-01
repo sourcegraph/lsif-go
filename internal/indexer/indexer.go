@@ -42,15 +42,16 @@ type Indexer struct {
 	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
-	documents                                map[string]*DocumentInfo    // filename -> info
-	ranges                                   map[string]map[int]uint64   // filename -> offset -> rangeID
-	defined                                  map[string]map[int]struct{} // set of defined ranges (filename, offset)
-	hoverResultCache                         map[string]uint64           // cache key -> hoverResultID
-	importMonikerIDs                         map[string]uint64           // identifier:packageInformationID -> monikerID
-	packageInformationIDs                    map[string]uint64           // name -> packageInformationID
-	packageDataCache                         *PackageDataCache           // hover text and moniker path cache
-	packages                                 []*packages.Package         // index target packages
-	projectID                                uint64                      // project vertex identifier
+	documents                                map[string]*DocumentInfo       // filename -> info
+	ranges                                   map[string]map[int]uint64      // filename -> offset -> rangeID
+	defined                                  map[string]map[int]struct{}    // set of defined ranges (filename, offset)
+	hoverResultCache                         map[string]uint64              // cache key -> hoverResultID
+	importMonikerIDs                         map[string]uint64              // identifier:packageInformationID -> monikerID
+	importMonikerReferences                  map[uint64]map[uint64][]uint64 // monikerKey -> documentID -> []rangeID
+	packageInformationIDs                    map[string]uint64              // name -> packageInformationID
+	packageDataCache                         *PackageDataCache              // hover text and moniker path cache
+	packages                                 []*packages.Package            // index target packages
+	projectID                                uint64                         // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
 	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
 	emittedDocumentationResultsByPackagePath map[string]uint64     // package path -> documentationResult vertex ID
@@ -64,6 +65,7 @@ type Indexer struct {
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
 	importMonikerIDsMutex      sync.RWMutex
+	importMonikerRefMutex      sync.Mutex
 	packageInformationIDsMutex sync.RWMutex
 }
 
@@ -80,29 +82,32 @@ func New(
 	outputOptions output.Options,
 ) *Indexer {
 	return &Indexer{
-		repositoryRoot:        repositoryRoot,
-		repositoryRemote:      repositoryRemote,
-		projectRoot:           projectRoot,
-		toolInfo:              toolInfo,
-		moduleName:            moduleName,
-		moduleVersion:         moduleVersion,
-		dependencies:          dependencies,
-		emitter:               writer.NewEmitter(jsonWriter),
-		outputOptions:         outputOptions,
-		consts:                map[interface{}]*DefinitionInfo{},
-		funcs:                 map[interface{}]*DefinitionInfo{},
-		imports:               map[interface{}]*DefinitionInfo{},
-		labels:                map[interface{}]*DefinitionInfo{},
-		types:                 map[interface{}]*DefinitionInfo{},
-		vars:                  map[interface{}]*DefinitionInfo{},
-		documents:             map[string]*DocumentInfo{},
-		ranges:                map[string]map[int]uint64{},
-		defined:               map[string]map[int]struct{}{},
-		hoverResultCache:      map[string]uint64{},
-		importMonikerIDs:      map[string]uint64{},
-		packageInformationIDs: map[string]uint64{},
-		packageDataCache:      packageDataCache,
-		stripedMutex:          newStripedMutex(),
+		repositoryRoot:          repositoryRoot,
+		repositoryRemote:        repositoryRemote,
+		projectRoot:             projectRoot,
+		toolInfo:                toolInfo,
+		moduleName:              moduleName,
+		moduleVersion:           moduleVersion,
+		dependencies:            dependencies,
+		emitter:                 writer.NewEmitter(jsonWriter),
+		outputOptions:           outputOptions,
+		consts:                  map[interface{}]*DefinitionInfo{},
+		funcs:                   map[interface{}]*DefinitionInfo{},
+		imports:                 map[interface{}]*DefinitionInfo{},
+		labels:                  map[interface{}]*DefinitionInfo{},
+		types:                   map[interface{}]*DefinitionInfo{},
+		vars:                    map[interface{}]*DefinitionInfo{},
+		documents:               map[string]*DocumentInfo{},
+		ranges:                  map[string]map[int]uint64{},
+		defined:                 map[string]map[int]struct{}{},
+		hoverResultCache:        map[string]uint64{},
+		importMonikerIDs:        map[string]uint64{},
+		importMonikerReferences: map[uint64]map[uint64][]uint64{},
+		packageInformationIDs:   map[string]uint64{},
+		packageDataCache:        packageDataCache,
+		stripedMutex:            newStripedMutex(),
+		// importMonikerRefMutex:            newStripedMutex(),
+
 	}
 }
 
@@ -122,6 +127,7 @@ func (i *Indexer) Index() error {
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
+	i.linkImportMonikersToRanges()
 	i.emitContains()
 
 	if err := i.emitter.Flush(); err != nil {
@@ -455,7 +461,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 
 // indexDefinitionForAnonymousField will handle anonymous fields definitions.
 //
-// The reason they have to be handled separately is because they are _both_:
+// The reason they have to be handled separately is because they are _both_ a:
 // - Defintion
 // - Reference
 //
@@ -470,12 +476,7 @@ func (i *Indexer) indexDefinitionForAnonymousField(p *packages.Package, document
 
 	var rangeID uint64
 	if endCol-startCol == len(typVar.Name()) {
-		var created bool
-		rangeID, created = i.ensureRangeFor(position, typVar)
-
-		if !created {
-			panic("Must be creating and regsitering a range for this position. Otherwise we will have two resultSets")
-		}
+		rangeID, _ = i.ensureRangeFor(position, typVar)
 	} else {
 		// This will be a separate range that encompasses _two_ items. So it is kind of
 		// "floating" in the nothingness, and should not be looked up in the future when
@@ -679,9 +680,9 @@ func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, po
 func (i *Indexer) indexReferenceWithDefinitionInfo(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident, definitionInfo *DefinitionInfo) (uint64, bool) {
 	if definitionInfo != nil {
 		return i.indexReferenceToDefinition(p, document, pos, definitionObj, definitionInfo)
+	} else {
+		return i.indexReferenceToExternalDefinition(p, document, pos, definitionObj)
 	}
-
-	return i.indexReferenceToExternalDefinition(p, document, pos, definitionObj)
 }
 
 // getDefinitionInfo returns the definition info object for the given object. This requires that
@@ -771,9 +772,25 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	// Only emit an import moniker which will link to the external definition. If we actually
 	// put a textDocument/references result here, we would not traverse to lookup the external defintion
 	// via the moniker.
-	i.emitImportMoniker(rangeID, p, definitionObj)
+	monikerID, ok := i.emitImportMoniker(rangeID, p, definitionObj)
+	if !ok {
+		return 0, false
+	}
 
+	i.addImportMonikerReference(monikerID, rangeID, document)
 	return rangeID, true
+}
+
+func (i *Indexer) addImportMonikerReference(monikerKey uint64, rangeID uint64, document *DocumentInfo) {
+	i.importMonikerRefMutex.Lock()
+	defer i.importMonikerRefMutex.Unlock()
+
+	_, ok := i.importMonikerReferences[monikerKey]
+	if !ok {
+		i.importMonikerReferences[monikerKey] = map[uint64][]uint64{}
+	}
+
+	i.importMonikerReferences[monikerKey][document.DocumentID] = append(i.importMonikerReferences[monikerKey][document.DocumentID], rangeID)
 }
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
@@ -815,6 +832,23 @@ func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
 
 	for documentID, rangeIDs := range d.ReferenceRangeIDs {
 		_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
+	}
+}
+
+func (i *Indexer) linkImportMonikersToRanges() {
+	for _, documentReferences := range i.importMonikerReferences {
+		resultSetID := i.emitter.EmitResultSet()
+
+		for documentID, rangeIDs := range documentReferences {
+			for _, rangeID := range rangeIDs {
+				_ = i.emitter.EmitNext(rangeID, resultSetID)
+			}
+
+			refResultID := i.emitter.EmitReferenceResult()
+			_ = i.emitter.EmitTextDocumentReferences(resultSetID, refResultID)
+			_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
+		}
+
 	}
 }
 

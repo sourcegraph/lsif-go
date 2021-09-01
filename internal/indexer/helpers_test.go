@@ -140,6 +140,8 @@ type capturingWriter struct {
 	m        sync.Mutex
 	elements []interface{}
 
+	// Quicker access for special types of nodes.
+	// Could add other node types if desired.
 	ranges    map[uint64]protocol.Range
 	documents map[uint64]protocol.Document
 	contains  map[uint64]uint64
