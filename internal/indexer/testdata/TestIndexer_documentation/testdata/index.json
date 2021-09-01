@@ -1136,6 +1136,9 @@
     },
     {
       "pathID": "/duplicate_path_id"
+    },
+    {
+      "pathID": "/illegal_multiple_mains"
     }
   ]
 }

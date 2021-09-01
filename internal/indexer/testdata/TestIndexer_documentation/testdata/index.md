@@ -10,6 +10,7 @@ testdata is a small package containing sample Go source code used for testing th
   * [internal](internal.md)
   * [conflicting_test_symbols](conflicting_test_symbols.md)
   * [duplicate_path_id](duplicate_path_id.md)
+  * [illegal_multiple_mains](illegal_multiple_mains.md)
 * [Constants](#const)
     * [const AliasedString](#AliasedString)
     * [const Const](#Const)
