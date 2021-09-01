@@ -11,6 +11,8 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+## v1.6.7
+
 ### Fixed
 
 - An issue where API docs would not be generated for packages containing multiple `init` functions in the same file. [#195](https://github.com/sourcegraph/lsif-go/pull/195)
