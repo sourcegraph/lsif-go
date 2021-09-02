@@ -152,14 +152,9 @@ func (i *Indexer) startImportMonikerReferenceTracker(wg *sync.WaitGroup) {
 	go func() {
 		contained := struct{}{}
 
-		added := false
+		wg.Add(1)
 		for {
 			nextReference := <-i.importMonikerChannel
-
-			if !added {
-				added = true
-				wg.Add(1)
-			}
 
 			if nextReference.done {
 				wg.Done()
