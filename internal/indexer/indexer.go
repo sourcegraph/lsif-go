@@ -127,8 +127,6 @@ func (i *Indexer) Index() error {
 		return errors.Wrap(err, "failed to load packages")
 	}
 
-	fmt.Println("Indexer GO GO GO")
-
 	wg := new(sync.WaitGroup)
 	i.startImportMonikerReferenceTracker(wg)
 
@@ -159,7 +157,6 @@ func (i *Indexer) startImportMonikerReferenceTracker(wg *sync.WaitGroup) {
 			nextReference := <-i.importMonikerChannel
 
 			if !added {
-				fmt.Println("We for loopin", nextReference)
 				added = true
 				wg.Add(1)
 			}
