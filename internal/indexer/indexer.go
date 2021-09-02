@@ -22,6 +22,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type importMonikerReference struct {
+	monikerID  uint64
+	documentID uint64
+	rangeID    uint64
+	done       bool
+}
+type setVal interface{}
+
 type Indexer struct {
 	repositoryRoot   string                    // path to repository
 	repositoryRemote string                    // import path inferred by git remote
@@ -42,16 +50,16 @@ type Indexer struct {
 	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
-	documents                                map[string]*DocumentInfo       // filename -> info
-	ranges                                   map[string]map[int]uint64      // filename -> offset -> rangeID
-	defined                                  map[string]map[int]struct{}    // set of defined ranges (filename, offset)
-	hoverResultCache                         map[string]uint64              // cache key -> hoverResultID
-	importMonikerIDs                         map[string]uint64              // identifier:packageInformationID -> monikerID
-	importMonikerReferences                  map[uint64]map[uint64][]uint64 // monikerKey -> documentID -> []rangeID
-	packageInformationIDs                    map[string]uint64              // name -> packageInformationID
-	packageDataCache                         *PackageDataCache              // hover text and moniker path cache
-	packages                                 []*packages.Package            // index target packages
-	projectID                                uint64                         // project vertex identifier
+	documents                                map[string]*DocumentInfo                // filename -> info
+	ranges                                   map[string]map[int]uint64               // filename -> offset -> rangeID
+	defined                                  map[string]map[int]struct{}             // set of defined ranges (filename, offset)
+	hoverResultCache                         map[string]uint64                       // cache key -> hoverResultID
+	importMonikerIDs                         map[string]uint64                       // identifier:packageInformationID -> monikerID
+	importMonikerReferences                  map[uint64]map[uint64]map[uint64]setVal // monikerKey -> documentID -> Set(rangeID)
+	packageInformationIDs                    map[string]uint64                       // name -> packageInformationID
+	packageDataCache                         *PackageDataCache                       // hover text and moniker path cache
+	packages                                 []*packages.Package                     // index target packages
+	projectID                                uint64                                  // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
 	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
 	emittedDocumentationResultsByPackagePath map[string]uint64     // package path -> documentationResult vertex ID
@@ -65,8 +73,9 @@ type Indexer struct {
 	stripedMutex               *StripedMutex
 	hoverResultCacheMutex      sync.RWMutex
 	importMonikerIDsMutex      sync.RWMutex
-	importMonikerRefMutex      sync.Mutex
 	packageInformationIDsMutex sync.RWMutex
+
+	importMonikerChannel chan importMonikerReference
 }
 
 func New(
@@ -102,12 +111,11 @@ func New(
 		defined:                 map[string]map[int]struct{}{},
 		hoverResultCache:        map[string]uint64{},
 		importMonikerIDs:        map[string]uint64{},
-		importMonikerReferences: map[uint64]map[uint64][]uint64{},
+		importMonikerReferences: map[uint64]map[uint64]map[uint64]setVal{},
 		packageInformationIDs:   map[string]uint64{},
 		packageDataCache:        packageDataCache,
 		stripedMutex:            newStripedMutex(),
-		// importMonikerRefMutex:            newStripedMutex(),
-
+		importMonikerChannel:    make(chan importMonikerReference, 512),
 	}
 }
 
@@ -119,6 +127,11 @@ func (i *Indexer) Index() error {
 		return errors.Wrap(err, "failed to load packages")
 	}
 
+	fmt.Println("Indexer GO GO GO")
+
+	wg := new(sync.WaitGroup)
+	i.startImportMonikerReferenceTracker(wg)
+
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.emitImports()
@@ -127,7 +140,7 @@ func (i *Indexer) Index() error {
 	i.indexDefinitions()
 	i.indexReferences()
 	i.linkReferenceResultsToRanges()
-	i.linkImportMonikersToRanges()
+	i.linkImportMonikersToRanges(wg)
 	i.emitContains()
 
 	if err := i.emitter.Flush(); err != nil {
@@ -135,6 +148,55 @@ func (i *Indexer) Index() error {
 	}
 
 	return nil
+}
+
+func (i *Indexer) startImportMonikerReferenceTracker(wg *sync.WaitGroup) {
+	go func() {
+		contained := struct{}{}
+
+		added := false
+		for {
+			nextReference := <-i.importMonikerChannel
+
+			if !added {
+				fmt.Println("We for loopin", nextReference)
+				added = true
+				wg.Add(1)
+			}
+
+			if nextReference.done {
+				wg.Done()
+				return
+			} else {
+				monikerID := nextReference.monikerID
+				documentID := nextReference.documentID
+				rangeID := nextReference.rangeID
+
+				if monikerID == 0 || documentID == 0 || rangeID == 0 {
+					panic(fmt.Sprintf("One of these is 0: %d %d %d", monikerID, documentID, rangeID))
+				}
+
+				monikerMap, ok := i.importMonikerReferences[monikerID]
+				if !ok {
+					monikerMap = map[uint64]map[uint64]setVal{}
+					i.importMonikerReferences[monikerID] = monikerMap
+				}
+
+				documentMap, ok := monikerMap[documentID]
+				if !ok {
+					documentMap = map[uint64]setVal{}
+					monikerMap[documentID] = documentMap
+				}
+
+				documentMap[rangeID] = contained
+			}
+		}
+	}()
+}
+
+func (i *Indexer) stopImportMonikerReferenceTracker(wg *sync.WaitGroup) {
+	i.importMonikerChannel <- importMonikerReference{0, 0, 0, true}
+	wg.Wait()
 }
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
@@ -338,17 +400,23 @@ func (i *Indexer) emitImportsForPackage(p *packages.Package) {
 //
 // In both cases, this will emit the corresponding import moniker for "fmt". This is ImportSpec.Path
 func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
-	state := makeImportState(i, p, spec.Path.Pos(), spec.Path.Value, pkg)
+	pos := spec.Path.Pos()
+	name := spec.Path.Value
 
-	i.emitImportMoniker(state.resultSetID, p, state.obj)
+	position, document, _ := i.positionAndDocument(p, pos)
+	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
+
+	rangeID, _ := i.ensureRangeFor(position, obj)
+	if ok := i.emitImportMoniker(rangeID, p, obj, document); !ok {
+		return
+	}
 
 	// TODO(perf): When we have better coverage, it may be possible to skip emitting this.
-	obj := state.obj
-	_ = i.emitter.EmitTextDocumentHover(state.resultSetID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
+	_ = i.emitter.EmitTextDocumentHover(rangeID, i.makeCachedHoverResult(nil, obj, func() protocol.MarkupContent {
 		return findHoverContents(i.packageDataCache, i.packages, p, obj)
 	}))
 
-	state.document.appendReference(state.rangeID)
+	document.appendReference(rangeID)
 }
 
 // emitImportMonikerNamedDefinition will emit the local, non-exported definition for the named import.
@@ -360,15 +428,23 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 //    import f "fmt"
 //           ^----- local definition
 func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
+	pos := spec.Name.Pos()
+	name := spec.Name.Name
+	ident := spec.Name
+
 	// Don't generate a definition if we import directly into the same namespace (i.e. "." imports)
-	if spec.Name.Name == "." {
+	if name == "." {
 		return
 	}
 
-	state := makeImportState(i, p, spec.Name.Pos(), spec.Name.Name, pkg)
+	position, document, _ := i.positionAndDocument(p, pos)
+	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
 
-	ident := spec.Name
-	i.indexDefinitionForRangeAndResult(p, state.document, state.obj, state.rangeID, state.resultSetID, false, ident)
+	rangeID, _ := i.ensureRangeFor(position, obj)
+	resultSetID := i.emitter.EmitResultSet()
+	_ = i.emitter.EmitNext(rangeID, resultSetID)
+
+	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, false, ident)
 }
 
 // getAllReferencedPackages returns a slice of packages containing the index target packages
@@ -772,25 +848,15 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	// Only emit an import moniker which will link to the external definition. If we actually
 	// put a textDocument/references result here, we would not traverse to lookup the external defintion
 	// via the moniker.
-	monikerID, ok := i.emitImportMoniker(rangeID, p, definitionObj)
-	if !ok {
+	if ok := i.emitImportMoniker(rangeID, p, definitionObj, document); !ok {
 		return 0, false
 	}
 
-	i.addImportMonikerReference(monikerID, rangeID, document)
 	return rangeID, true
 }
 
-func (i *Indexer) addImportMonikerReference(monikerKey uint64, rangeID uint64, document *DocumentInfo) {
-	i.importMonikerRefMutex.Lock()
-	defer i.importMonikerRefMutex.Unlock()
-
-	_, ok := i.importMonikerReferences[monikerKey]
-	if !ok {
-		i.importMonikerReferences[monikerKey] = map[uint64][]uint64{}
-	}
-
-	i.importMonikerReferences[monikerKey][document.DocumentID] = append(i.importMonikerReferences[monikerKey][document.DocumentID], rangeID)
+func (i *Indexer) addImportMonikerReference(monikerID, rangeID, documentID uint64) {
+	i.importMonikerChannel <- importMonikerReference{monikerID, documentID, rangeID, false}
 }
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
@@ -835,18 +901,30 @@ func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
 	}
 }
 
-func (i *Indexer) linkImportMonikersToRanges() {
-	for _, documentReferences := range i.importMonikerReferences {
-		resultSetID := i.emitter.EmitResultSet()
+func (i *Indexer) linkImportMonikersToRanges(wg *sync.WaitGroup) {
+	i.stopImportMonikerReferenceTracker(wg)
 
-		for documentID, rangeIDs := range documentReferences {
-			for _, rangeID := range rangeIDs {
+	for monikerID, documentReferences := range i.importMonikerReferences {
+		// emit one result set and reference result per monikerID
+		resultSetID := i.emitter.EmitResultSet()
+		referenceResultID := i.emitter.EmitReferenceResult()
+
+		// Link the result set to the correct moniker
+		_ = i.emitter.EmitMonikerEdge(resultSetID, monikerID)
+
+		// Link the ranges correctly to the result
+		for documentID, rangeSet := range documentReferences {
+			rangeIDs := make([]uint64, len(rangeSet))
+			index := 0
+			for rangeID := range rangeSet {
+				rangeIDs[index] = rangeID
+				index += 1
+
 				_ = i.emitter.EmitNext(rangeID, resultSetID)
 			}
 
-			refResultID := i.emitter.EmitReferenceResult()
-			_ = i.emitter.EmitTextDocumentReferences(resultSetID, refResultID)
-			_ = i.emitter.EmitItemOfReferences(refResultID, rangeIDs, documentID)
+			_ = i.emitter.EmitTextDocumentReferences(resultSetID, referenceResultID)
+			_ = i.emitter.EmitItemOfReferences(referenceResultID, rangeIDs, documentID)
 		}
 
 	}

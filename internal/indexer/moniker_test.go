@@ -4,10 +4,12 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
@@ -15,15 +17,16 @@ func TestEmitExportMoniker(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		repositoryRemote:      "github.com/sourcegraph/lsif-go",
-		repositoryRoot:        "/users/efritz/dev/sourcegraph/lsif-go",
-		projectRoot:           "/users/efritz/dev/sourcegraph/lsif-go",
-		moduleName:            "https://github.com/sourcegraph/lsif-go",
-		moduleVersion:         "3.14.159",
-		emitter:               writer.NewEmitter(w),
-		importMonikerIDs:      map[string]uint64{},
-		packageInformationIDs: map[string]uint64{},
-		stripedMutex:          newStripedMutex(),
+		repositoryRemote:        "github.com/sourcegraph/lsif-go",
+		repositoryRoot:          "/users/efritz/dev/sourcegraph/lsif-go",
+		projectRoot:             "/users/efritz/dev/sourcegraph/lsif-go",
+		moduleName:              "https://github.com/sourcegraph/lsif-go",
+		moduleVersion:           "3.14.159",
+		emitter:                 writer.NewEmitter(w),
+		importMonikerIDs:        map[string]uint64{},
+		packageInformationIDs:   map[string]uint64{},
+		importMonikerReferences: map[uint64]map[uint64]map[uint64]setVal{},
+		stripedMutex:            newStripedMutex(),
 	}
 
 	object := types.NewConst(
@@ -66,15 +69,16 @@ func TestEmitExportMonikerPreGoMod(t *testing.T) {
 	w := &capturingWriter{}
 
 	indexer := &Indexer{
-		repositoryRemote:      "github.com/sourcegraph/lsif-go",
-		repositoryRoot:        "/users/efritz/dev/sourcegraph/lsif-go",
-		projectRoot:           "/users/efritz/dev/sourcegraph/lsif-go",
-		moduleName:            "https://github.com/sourcegraph/lsif-go",
-		moduleVersion:         "3.14.159",
-		emitter:               writer.NewEmitter(w),
-		importMonikerIDs:      map[string]uint64{},
-		packageInformationIDs: map[string]uint64{},
-		stripedMutex:          newStripedMutex(),
+		repositoryRemote:        "github.com/sourcegraph/lsif-go",
+		repositoryRoot:          "/users/efritz/dev/sourcegraph/lsif-go",
+		projectRoot:             "/users/efritz/dev/sourcegraph/lsif-go",
+		moduleName:              "https://github.com/sourcegraph/lsif-go",
+		moduleVersion:           "3.14.159",
+		emitter:                 writer.NewEmitter(w),
+		importMonikerIDs:        map[string]uint64{},
+		packageInformationIDs:   map[string]uint64{},
+		importMonikerReferences: map[uint64]map[uint64]map[uint64]setVal{},
+		stripedMutex:            newStripedMutex(),
 	}
 
 	object := types.NewConst(
@@ -120,10 +124,12 @@ func TestEmitImportMoniker(t *testing.T) {
 		dependencies: map[string]gomod.GoModule{
 			"github.com/test/pkg/sub1": {Name: "github.com/test/pkg/sub1", Version: "1.2.3-deadbeef"},
 		},
-		emitter:               writer.NewEmitter(w),
-		importMonikerIDs:      map[string]uint64{},
-		packageInformationIDs: map[string]uint64{},
-		stripedMutex:          newStripedMutex(),
+		emitter:                 writer.NewEmitter(w),
+		importMonikerIDs:        map[string]uint64{},
+		packageInformationIDs:   map[string]uint64{},
+		stripedMutex:            newStripedMutex(),
+		importMonikerChannel:    make(chan importMonikerReference, 1),
+		importMonikerReferences: map[uint64]map[uint64]map[uint64]setVal{},
 	}
 
 	object := types.NewConst(
@@ -134,31 +140,37 @@ func TestEmitImportMoniker(t *testing.T) {
 		constant.MakeBool(true),
 	)
 
-	indexer.emitImportMoniker(123, nil, object)
+	wg := new(sync.WaitGroup)
+	indexer.startImportMonikerReferenceTracker(wg)
 
-	monikers := findMonikersByRangeOrReferenceResultID(w, 123)
-	if monikers == nil || len(monikers) < 1 {
+	if !indexer.emitImportMoniker(123, nil, object, &DocumentInfo{DocumentID: 1}) {
+		t.Fatalf("Failed to emit import moniker")
+	}
+
+	// TODO: It might be nice to not hard code the elements... but this test is not super fantastic for anything else.
+	moniker, ok := w.elements[1].(protocol.Moniker)
+	if !ok {
 		t.Fatalf("could not find moniker")
 	}
-	if monikers[0].Kind != "import" {
-		t.Errorf("incorrect moniker kind. want=%q have=%q", "import", monikers[0].Kind)
+	if moniker.Kind != "import" {
+		t.Errorf("incorrect moniker kind. want=%q have=%q", "import", moniker.Kind)
 	}
-	if monikers[0].Scheme != "gomod" {
-		t.Errorf("incorrect moniker scheme want=%q have=%q", "gomod", monikers[0].Scheme)
+	if moniker.Scheme != "gomod" {
+		t.Errorf("incorrect moniker scheme want=%q have=%q", "gomod", moniker.Scheme)
 	}
-	if monikers[0].Identifier != "github.com/test/pkg/sub1/sub2/sub3:foobar" {
-		t.Errorf("incorrect moniker identifier. want=%q have=%q", "github.com/test/pkg/sub1/sub2/sub3:foobar", monikers[0].Identifier)
+	if moniker.Identifier != "github.com/test/pkg/sub1/sub2/sub3:foobar" {
+		t.Errorf("incorrect moniker identifier. want=%q have=%q", "github.com/test/pkg/sub1/sub2/sub3:foobar", moniker.Identifier)
 	}
 
-	packageInformation := findPackageInformationByMonikerID(w, monikers[0].ID)
-	if monikers == nil || len(monikers) < 1 {
+	packageInformation, ok := w.elements[0].(protocol.PackageInformation)
+	if !ok {
 		t.Fatalf("could not find package information")
 	}
-	if packageInformation[0].Name != "github.com/test/pkg/sub1" {
-		t.Errorf("incorrect moniker kind. want=%q have=%q", "github.com/test/pkg/sub1", monikers[0].Kind)
+	if packageInformation.Name != "github.com/test/pkg/sub1" {
+		t.Errorf("incorrect moniker kind. want=%q have=%q", "github.com/test/pkg/sub1", moniker.Kind)
 	}
-	if packageInformation[0].Version != "1.2.3-deadbeef" {
-		t.Errorf("incorrect moniker scheme want=%q have=%q", "1.2.3-deadbeef", monikers[0].Scheme)
+	if packageInformation.Version != "1.2.3-deadbeef" {
+		t.Errorf("incorrect moniker scheme want=%q have=%q", "1.2.3-deadbeef", moniker.Scheme)
 	}
 }
 

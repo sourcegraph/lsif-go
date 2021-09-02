@@ -13,31 +13,6 @@ type importReference struct {
 	documentID uint64
 }
 
-type importState struct {
-	document    *DocumentInfo
-	position    token.Position
-	obj         *types.PkgName
-	rangeID     uint64
-	resultSetID uint64
-}
-
-func makeImportState(i *Indexer, p *packages.Package, pos token.Pos, name string, pkg *packages.Package) importState {
-	position, document, _ := i.positionAndDocument(p, pos)
-	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
-
-	rangeID, _ := i.ensureRangeFor(position, obj)
-	resultSetID := i.emitter.EmitResultSet()
-	_ = i.emitter.EmitNext(rangeID, resultSetID)
-
-	return importState{
-		document,
-		position,
-		obj,
-		rangeID,
-		resultSetID,
-	}
-}
-
 // ObjectLike is effectively just types.Object. We needed an interface that we could actually implement
 // since types.Object has unexported fields, so it is unimplementable for our package.
 type ObjectLike interface {
