@@ -53,7 +53,6 @@ func joinMonikerParts(parts ...string) string {
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-// TODO THINGS
 func (i *Indexer) emitImportMoniker(rangeID uint64, p *packages.Package, obj ObjectLike, document *DocumentInfo) bool {
 	pkg := makeMonikerPackage(obj)
 	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))

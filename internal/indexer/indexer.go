@@ -26,7 +26,6 @@ type importMonikerReference struct {
 	monikerID  uint64
 	documentID uint64
 	rangeID    uint64
-	done       bool
 }
 type setVal interface{}
 
@@ -128,8 +127,10 @@ func (i *Indexer) Index() error {
 	}
 
 	wg := new(sync.WaitGroup)
+	// Start any channels used to synchronize reference sets
 	i.startImportMonikerReferenceTracker(wg)
 
+	// Begin emitting and indexing package
 	i.emitMetadataAndProjectVertex()
 	i.emitDocuments()
 	i.emitImports()
@@ -137,9 +138,14 @@ func (i *Indexer) Index() error {
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
+
+	// Stop any channels used to synchronize reference sets
+	i.stopImportMonikerReferenceTracker(wg)
+
+	// Link sets of items to corresponding ranges and results.
 	i.linkReferenceResultsToRanges()
-	i.linkImportMonikersToRanges(wg)
-	i.emitContains()
+	i.linkImportMonikersToRanges()
+	i.linkContainsToRanges()
 
 	if err := i.emitter.Flush(); err != nil {
 		return errors.Wrap(err, "failed to write index to disk")
@@ -149,45 +155,43 @@ func (i *Indexer) Index() error {
 }
 
 func (i *Indexer) startImportMonikerReferenceTracker(wg *sync.WaitGroup) {
+	wg.Add(1)
+
 	go func() {
 		contained := struct{}{}
 
-		wg.Add(1)
-		for {
-			nextReference := <-i.importMonikerChannel
+		for nextReference := range i.importMonikerChannel {
+			monikerID := nextReference.monikerID
+			documentID := nextReference.documentID
+			rangeID := nextReference.rangeID
 
-			if nextReference.done {
-				wg.Done()
-				return
-			} else {
-				monikerID := nextReference.monikerID
-				documentID := nextReference.documentID
-				rangeID := nextReference.rangeID
-
-				if monikerID == 0 || documentID == 0 || rangeID == 0 {
-					panic(fmt.Sprintf("One of these is 0: %d %d %d", monikerID, documentID, rangeID))
-				}
-
-				monikerMap, ok := i.importMonikerReferences[monikerID]
-				if !ok {
-					monikerMap = map[uint64]map[uint64]setVal{}
-					i.importMonikerReferences[monikerID] = monikerMap
-				}
-
-				documentMap, ok := monikerMap[documentID]
-				if !ok {
-					documentMap = map[uint64]setVal{}
-					monikerMap[documentID] = documentMap
-				}
-
-				documentMap[rangeID] = contained
+			if monikerID == 0 || documentID == 0 || rangeID == 0 {
+				// TODO: We should add error logging/warning somehow for these to be easily reported back to user,
+				// but I have not had this happen at all in testing.
+				continue
 			}
+
+			monikerMap, ok := i.importMonikerReferences[monikerID]
+			if !ok {
+				monikerMap = map[uint64]map[uint64]setVal{}
+				i.importMonikerReferences[monikerID] = monikerMap
+			}
+
+			documentMap, ok := monikerMap[documentID]
+			if !ok {
+				documentMap = map[uint64]setVal{}
+				monikerMap[documentID] = documentMap
+			}
+
+			documentMap[rangeID] = contained
 		}
+
+		wg.Done()
 	}()
 }
 
 func (i *Indexer) stopImportMonikerReferenceTracker(wg *sync.WaitGroup) {
-	i.importMonikerChannel <- importMonikerReference{0, 0, 0, true}
+	close(i.importMonikerChannel)
 	wg.Wait()
 }
 
@@ -480,6 +484,9 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 	}
 
 	for ident, typeObj := range p.TypesInfo.Defs {
+		// Must cast because other we have errors from being unable to assign
+		// an ObjectLike to a types.Object due to missing things like `color` and other
+		// private methods.
 		var obj ObjectLike = typeObj
 
 		typeSwitchHeader := false
@@ -848,7 +855,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 }
 
 func (i *Indexer) addImportMonikerReference(monikerID, rangeID, documentID uint64) {
-	i.importMonikerChannel <- importMonikerReference{monikerID, documentID, rangeID, false}
+	i.importMonikerChannel <- importMonikerReference{monikerID, documentID, rangeID}
 }
 
 // ensureRangeFor returns a range identifier for the given object. If a range for the object has
@@ -893,9 +900,7 @@ func (i *Indexer) linkItemsToDefinitions(d *DefinitionInfo) {
 	}
 }
 
-func (i *Indexer) linkImportMonikersToRanges(wg *sync.WaitGroup) {
-	i.stopImportMonikerReferenceTracker(wg)
-
+func (i *Indexer) linkImportMonikersToRanges() {
 	for monikerID, documentReferences := range i.importMonikerReferences {
 		// emit one result set and reference result per monikerID
 		resultSetID := i.emitter.EmitResultSet()
@@ -906,11 +911,9 @@ func (i *Indexer) linkImportMonikersToRanges(wg *sync.WaitGroup) {
 
 		// Link the ranges correctly to the result
 		for documentID, rangeSet := range documentReferences {
-			rangeIDs := make([]uint64, len(rangeSet))
-			index := 0
+			rangeIDs := make([]uint64, 0, len(rangeSet))
 			for rangeID := range rangeSet {
-				rangeIDs[index] = rangeID
-				index += 1
+				rangeIDs = append(rangeIDs, rangeID)
 
 				_ = i.emitter.EmitNext(rangeID, resultSetID)
 			}
@@ -922,23 +925,23 @@ func (i *Indexer) linkImportMonikersToRanges(wg *sync.WaitGroup) {
 	}
 }
 
-// emitContains emits the contains relationship for all documents and the ranges that it contains.
-func (i *Indexer) emitContains() {
-	i.visitEachDocument("Emitting contains relations", i.emitContainsForDocument)
+// linkContainsToRanges emits the contains relationship for all documents and the ranges that it contains.
+func (i *Indexer) linkContainsToRanges() {
+	i.visitEachDocument("Emitting contains relations", i.linkContainsForDocument)
 
 	// TODO(efritz) - think about printing a title here
-	i.emitContainsForProject()
+	i.linkContainsForProject()
 }
 
 // emitContainsForProject emits a contains edge between a document and its ranges.
-func (i *Indexer) emitContainsForDocument(d *DocumentInfo) {
+func (i *Indexer) linkContainsForDocument(d *DocumentInfo) {
 	if len(d.DefinitionRangeIDs) > 0 || len(d.ReferenceRangeIDs) > 0 {
 		_ = i.emitter.EmitContains(d.DocumentID, union(d.DefinitionRangeIDs, d.ReferenceRangeIDs))
 	}
 }
 
-// emitContainsForProject emits a contains edge between the target project and all indexed documents.
-func (i *Indexer) emitContainsForProject() {
+// linkContainsForProject emits a contains edge between the target project and all indexed documents.
+func (i *Indexer) linkContainsForProject() {
 	documentIDs := make([]uint64, 0, len(i.documents))
 	for _, info := range i.documents {
 		documentIDs = append(documentIDs, info.DocumentID)
@@ -958,10 +961,10 @@ type DeclInfo struct {
 	Path   string
 }
 
+// Pick the filename that is the most idiomatic for the defintion of the package.
+// This will make jump to def always send you to a better go file than the $PKG_test.go, for example.
 func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
-	// Pick the filename that is the most idiomatic for the defintion of the package.
-	// This will make jump to def always send you to a better go file than the $PKG_test.go, for example.
-	packageDeclarations := []DeclInfo{}
+	packageDeclarations := make([]DeclInfo, 0, len(p.Syntax))
 	for _, f := range p.Syntax {
 		_, position := newPkgDeclaration(p, f)
 		packageDeclarations = append(packageDeclarations, DeclInfo{
@@ -1110,18 +1113,12 @@ func fileNameWithoutExtension(fileName string) string {
 }
 
 func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []DeclInfo {
+	packageNameEndsWithTest := strings.HasSuffix(packageName, "_test")
+
 	preferredPaths := []DeclInfo{}
-	if !strings.HasSuffix(packageName, "_test") {
-		for _, v := range possiblePaths {
-			if !strings.HasSuffix(v.Path, "_test.go") {
-				preferredPaths = append(preferredPaths, v)
-			}
-		}
-	} else {
-		for _, v := range possiblePaths {
-			if strings.HasSuffix(v.Path, "_test.go") {
-				preferredPaths = append(preferredPaths, v)
-			}
+	for _, v := range possiblePaths {
+		if packageNameEndsWithTest == strings.HasSuffix(v.Path, "_test.go") {
+			preferredPaths = append(preferredPaths, v)
 		}
 	}
 
