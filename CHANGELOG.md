@@ -11,6 +11,10 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+- See [Package Declarations](./docs/package_declarations.md)
+
+## Fixed
+
 ## v1.6.7
 
 ### Fixed
