@@ -156,6 +156,52 @@
           },
           {
             "node": {
+              "pathID": "/duplicate_path_id#init.main.go.2",
+              "documentation": {
+                "identifier": "init.main.go.2",
+                "newPage": false,
+                "searchKey": "gosrc.init",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func init()"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc init()\n```\n\ntwo inits in the same file is legal \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
+              "pathID": "/duplicate_path_id#init.main.go.3",
+              "documentation": {
+                "identifier": "init.main.go.3",
+                "newPage": false,
+                "searchKey": "gosrc.init",
+                "tags": [
+                  "function",
+                  "private"
+                ]
+              },
+              "label": {
+                "kind": "plaintext",
+                "value": "func init()"
+              },
+              "detail": {
+                "kind": "markdown",
+                "value": "```Go\nfunc init()\n```\n\nthree inits in the same file is legal \n\n"
+              },
+              "children": null
+            }
+          },
+          {
+            "node": {
               "pathID": "/duplicate_path_id#init.two.go",
               "documentation": {
                 "identifier": "init.two.go",
