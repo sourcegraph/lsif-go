@@ -45,4 +45,4 @@ references to `s` in this case will link back to the definition of this import.
 - `.` import. This will also only create a reference, because `.` does not
 create a new definition. It just pulls it into scope.
 
-![http_import](docs/media/http_import.png)
+![http_import](/docs/media/http_import.png)
