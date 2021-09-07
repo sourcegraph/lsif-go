@@ -32,17 +32,17 @@ import (
 
 - Regular `"fmt"` import. Creates only a reference to the moniker
 
-[fmt_import](/docs/media/fmt_import.png)
+![fmt_import](/docs/media/fmt_import.png)
 
 - Named `s "sort"` import. Creates both a reference and a definition. Any local
 references to `s` in this case will link back to the definition of this import.
 `"sort"` will still link to the external package.
 
-[sort_import](/docs/media/sort_import.png)
+![sort_import](/docs/media/sort_import.png)
 
-[s_definition](/docs/media/s_definition.png)
+![s_definition](/docs/media/s_definition.png)
 
 - `.` import. This will also only create a reference, because `.` does not
 create a new definition. It just pulls it into scope.
 
-[http_import](docs/media/http_import.png)
+![http_import](docs/media/http_import.png)
