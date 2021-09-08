@@ -540,7 +540,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 // - Defintion
 // - Reference
 //
-// This makes them a bit more complicated than other definitions.
+// See docs/structs.md for more information.
 func (i *Indexer) indexDefinitionForAnonymousField(p *packages.Package, document *DocumentInfo, ident *ast.Ident, typVar *types.Var, position token.Position) {
 	// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
 	startCol := position.Column - 1

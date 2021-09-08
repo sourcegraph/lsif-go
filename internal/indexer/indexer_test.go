@@ -543,6 +543,7 @@ func TestIndexer(t *testing.T) {
 		//       ^^^^^^^^^^^^---- ranges[1], for http.Handler, the entire definition
 		//
 		//            ^^^^^^^---- Separate range, for Handler reference
+		// See docs/structs.md
 		compareRange(t, ranges[0], 5, 1, 5, 5)
 		compareRange(t, ranges[1], 5, 1, 5, 13)
 
