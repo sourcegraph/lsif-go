@@ -11,13 +11,13 @@ All notable changes to `lsif-go` are documented in this file.
 
 ## Unreleased changes
 
+## Fixed
+
 - Many issues relating to package declarations, imports and structs have been fixed.
   - See [Package Declarations](./docs/package_declarations.md)
   - See [Imports](./docs/imports.md)
   - See [Structs](./docs/structs.md)
 - Additionally, package declarations are now indexed.
-
-## Fixed
 
 ## v1.6.7
 
