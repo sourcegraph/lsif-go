@@ -15,7 +15,7 @@ const languageGo = "go"
 // rangeForObject transforms the position of the given object (1-indexed) into an LSP range
 // (0-indexed). If the object is a quoted package name, the leading and trailing quotes are
 // stripped from the resulting range's bounds.
-func rangeForObject(obj types.Object, pos token.Position) (protocol.Pos, protocol.Pos) {
+func rangeForObject(obj ObjectLike, pos token.Position) (protocol.Pos, protocol.Pos) {
 	adjustment := 0
 	if pkgName, ok := obj.(*types.PkgName); ok && strings.HasPrefix(pkgName.Name(), `"`) {
 		adjustment = 1

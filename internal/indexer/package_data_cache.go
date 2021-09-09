@@ -182,6 +182,11 @@ func updateMonikerPath(monikerPath []string, node ast.Node) []string {
 			return addString(monikerPath, name.Name)
 		}
 
+		// Handle embedded types that are selectors, like http.Client
+		if selector, ok := q.Type.(*ast.SelectorExpr); ok {
+			return addString(monikerPath, selector.Sel.Name)
+		}
+
 	case *ast.TypeSpec:
 		// Add the top-level type spec (e.g. `type X struct` and `type Y interface`)
 		return addString(monikerPath, q.Name.String())
@@ -215,7 +220,7 @@ func childrenOf(n ast.Node) (children []ast.Node) {
 }
 
 // isField returns true if the given object is a field.
-func isField(obj types.Object) bool {
+func isField(obj ObjectLike) bool {
 	if v, ok := obj.(*types.Var); ok && v.IsField() {
 		return true
 	}
@@ -226,7 +231,7 @@ func isField(obj types.Object) bool {
 // is similar but distinct from the set of types from which we _extract_ hover text. See canExtractHoverText
 // for those types. This function returns true for the set of objects for which we actually call the methods
 // findHoverContents  or findExternalHoverContents (see hover.go).
-func shouldHaveHoverText(obj types.Object) bool {
+func shouldHaveHoverText(obj ObjectLike) bool {
 	switch obj.(type) {
 	case *types.Const:
 		return true

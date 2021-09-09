@@ -29,17 +29,24 @@ func getRepositoryRoot(t *testing.T) string {
 	return root
 }
 
+var getTestPackagesOnce sync.Once
+var cachedTestPackages []*packages.Package
+
 // getTestPackages loads the testdata package (and subpackages).
 func getTestPackages(t *testing.T) []*packages.Package {
-	packages, err := packages.Load(
-		&packages.Config{Mode: loadMode, Dir: getRepositoryRoot(t)},
-		"./...",
-	)
-	if err != nil {
-		t.Fatalf("unexpected error loading packages: %s", err)
-	}
+	getTestPackagesOnce.Do(func() {
+		var err error
 
-	return packages
+		cachedTestPackages, err = packages.Load(
+			&packages.Config{Mode: loadMode, Dir: getRepositoryRoot(t)},
+			"./...",
+		)
+		if err != nil {
+			t.Fatalf("unexpected error loading packages: %s", err)
+		}
+	})
+
+	return cachedTestPackages
 }
 
 // findDefinitionByName looks for a definition with the given name in the given packages. Returns
@@ -132,11 +139,31 @@ func findIndent(s string) (emptyLines int, indent int) {
 type capturingWriter struct {
 	m        sync.Mutex
 	elements []interface{}
+
+	// Quicker access for special types of nodes.
+	// Could add other node types if desired.
+	ranges    map[uint64]protocol.Range
+	documents map[uint64]protocol.Document
+	contains  map[uint64]uint64
 }
 
 func (w *capturingWriter) Write(v interface{}) {
 	w.m.Lock()
 	w.elements = append(w.elements, v)
+
+	// Store special elements for quicker access
+	switch elem := v.(type) {
+	case protocol.Range:
+		w.ranges[elem.ID] = elem
+	case protocol.Document:
+		w.documents[elem.ID] = elem
+	case protocol.Contains:
+		// A range is always only contained by one document.
+		for _, inV := range elem.InVs {
+			w.contains[inV] = elem.OutV
+		}
+	}
+
 	w.m.Unlock()
 }
 
@@ -145,36 +172,29 @@ func (w *capturingWriter) Flush() error {
 }
 
 // findDocumentURIByDocumentID returns the URI of the document with the given ID.
-func findDocumentURIByDocumentID(elements []interface{}, id uint64) string {
-	for _, elem := range elements {
-		switch v := elem.(type) {
-		case protocol.Document:
-			if v.ID == id {
-				return v.URI
-			}
-		}
+func findDocumentURIByDocumentID(w *capturingWriter, id uint64) string {
+	document, ok := w.documents[id]
+	if !ok {
+		return ""
 	}
 
-	return ""
+	return document.URI
 }
 
 // findRangeByID returns the range with the given identifier.
-func findRangeByID(elements []interface{}, id uint64) (protocol.Range, bool) {
-	for _, elem := range elements {
-		switch v := elem.(type) {
-		case protocol.Range:
-			if v.ID == id {
-				return v, true
-			}
-		}
+func findRangeByID(w *capturingWriter, id uint64) (protocol.Range, bool) {
+	r, ok := w.ranges[id]
+
+	if !ok {
+		return protocol.Range{}, false
 	}
 
-	return protocol.Range{}, false
+	return r, true
 }
 
 // findHoverResultByID returns the hover result object with the given identifier.
-func findHoverResultByID(elements []interface{}, id uint64) (protocol.HoverResult, bool) {
-	for _, elem := range elements {
+func findHoverResultByID(w *capturingWriter, id uint64) (protocol.HoverResult, bool) {
+	for _, elem := range w.elements {
 		switch v := elem.(type) {
 		case protocol.HoverResult:
 			if v.ID == id {
@@ -187,8 +207,8 @@ func findHoverResultByID(elements []interface{}, id uint64) (protocol.HoverResul
 }
 
 // findMonikerByID returns the moniker with the given identifier.
-func findMonikerByID(elements []interface{}, id uint64) (protocol.Moniker, bool) {
-	for _, elem := range elements {
+func findMonikerByID(w *capturingWriter, id uint64) (protocol.Moniker, bool) {
+	for _, elem := range w.elements {
 		switch v := elem.(type) {
 		case protocol.Moniker:
 			if v.ID == id {
@@ -201,8 +221,8 @@ func findMonikerByID(elements []interface{}, id uint64) (protocol.Moniker, bool)
 }
 
 // findPackageInformationByID returns the moniker with the given identifier.
-func findPackageInformationByID(elements []interface{}, id uint64) (protocol.PackageInformation, bool) {
-	for _, elem := range elements {
+func findPackageInformationByID(w *capturingWriter, id uint64) (protocol.PackageInformation, bool) {
+	for _, elem := range w.elements {
 		switch v := elem.(type) {
 		case protocol.PackageInformation:
 			if v.ID == id {
@@ -216,13 +236,15 @@ func findPackageInformationByID(elements []interface{}, id uint64) (protocol.Pac
 
 // findDefintionRangesByDefinitionResultID returns the ranges attached to the definition result with the given
 // identifier.
-func findDefintionRangesByDefinitionResultID(elements []interface{}, id uint64) (ranges []protocol.Range) {
+func findDefintionRangesByDefinitionResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	elements := w.elements
+
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case protocol.Item:
 			if e.OutV == id {
 				for _, inV := range e.InVs {
-					if r, ok := findRangeByID(elements, inV); ok {
+					if r, ok := findRangeByID(w, inV); ok {
 						ranges = append(ranges, r)
 					}
 				}
@@ -235,13 +257,15 @@ func findDefintionRangesByDefinitionResultID(elements []interface{}, id uint64) 
 
 // findReferenceRangesByReferenceResultID returns the ranges attached to the reference result with the given
 // identifier.
-func findReferenceRangesByReferenceResultID(elements []interface{}, id uint64) (ranges []protocol.Range) {
+func findReferenceRangesByReferenceResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	elements := w.elements
+
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case protocol.Item:
 			if e.OutV == id {
 				for _, inV := range e.InVs {
-					if r, ok := findRangeByID(elements, inV); ok {
+					if r, ok := findRangeByID(w, inV); ok {
 						ranges = append(ranges, r)
 					}
 				}
@@ -253,28 +277,22 @@ func findReferenceRangesByReferenceResultID(elements []interface{}, id uint64) (
 }
 
 // findDocumentURIContaining finds the URI of the document containing the given ID.
-func findDocumentURIContaining(elements []interface{}, id uint64) string {
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.Contains:
-			for _, inV := range e.InVs {
-				if inV == id {
-					return findDocumentURIByDocumentID(elements, e.OutV)
-				}
-			}
-		}
+func findDocumentURIContaining(w *capturingWriter, id uint64) string {
+	documentID, ok := w.contains[id]
+	if !ok {
+		return ""
 	}
 
-	return ""
+	return findDocumentURIByDocumentID(w, documentID)
 }
 
 // findRange returns the range in the given file with the given start line and character.
-func findRange(elements []interface{}, filename string, startLine, startCharacter int) (protocol.Range, bool) {
-	for _, elem := range elements {
+func findRange(w *capturingWriter, filename string, startLine, startCharacter int) (protocol.Range, bool) {
+	for _, elem := range w.elements {
 		switch v := elem.(type) {
 		case protocol.Range:
 			if v.Start.Line == startLine && v.Start.Character == startCharacter {
-				if findDocumentURIContaining(elements, v.ID) == filename {
+				if findDocumentURIContaining(w, v.ID) == filename {
 					return v, true
 				}
 			}
@@ -284,25 +302,43 @@ func findRange(elements []interface{}, filename string, startLine, startCharacte
 	return protocol.Range{}, false
 }
 
+// findAllRanges returns a list of ranges in the given file with the given start line and character.
+// This can be used to confirm that there is only one range that would match at a particular location
+func findAllRanges(w *capturingWriter, filename string, startLine, startCharacter int) []protocol.Range {
+	ranges := []protocol.Range{}
+	for _, elem := range w.elements {
+		switch v := elem.(type) {
+		case protocol.Range:
+			if v.Start.Line == startLine && v.Start.Character == startCharacter {
+				if findDocumentURIContaining(w, v.ID) == filename {
+					ranges = append(ranges, v)
+				}
+			}
+		}
+	}
+
+	return ranges
+}
+
 // findHoverResultByRangeOrResultSetID returns the hover result attached to the range or result
 // set with the given identifier.
-func findHoverResultByRangeOrResultSetID(elements []interface{}, id uint64) (protocol.HoverResult, bool) {
+func findHoverResultByRangeOrResultSetID(w *capturingWriter, id uint64) (protocol.HoverResult, bool) {
 	// First see if we're attached to a hover result directly
-	for _, elem := range elements {
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.TextDocumentHover:
 			if e.OutV == id {
-				return findHoverResultByID(elements, e.InV)
+				return findHoverResultByID(w, e.InV)
 			}
 		}
 	}
 
 	// Try to get the hover result of the result set attached to the given range or result set
-	for _, elem := range elements {
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.Next:
 			if e.OutV == id {
-				if result, ok := findHoverResultByRangeOrResultSetID(elements, e.InV); ok {
+				if result, ok := findHoverResultByRangeOrResultSetID(w, e.InV); ok {
 					return result, true
 				}
 			}
@@ -314,13 +350,15 @@ func findHoverResultByRangeOrResultSetID(elements []interface{}, id uint64) (pro
 
 // findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set
 // with the given identifier.
-func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id uint64) (ranges []protocol.Range) {
+func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	elements := w.elements
+
 	// First see if we're attached to definition result directly
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case protocol.TextDocumentDefinition:
 			if e.OutV == id {
-				ranges = append(ranges, findDefintionRangesByDefinitionResultID(elements, e.InV)...)
+				ranges = append(ranges, findDefintionRangesByDefinitionResultID(w, e.InV)...)
 			}
 		}
 	}
@@ -330,7 +368,7 @@ func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id uint64)
 		switch e := elem.(type) {
 		case protocol.Next:
 			if e.OutV == id {
-				ranges = append(ranges, findDefinitionRangesByRangeOrResultSetID(elements, e.InV)...)
+				ranges = append(ranges, findDefinitionRangesByRangeOrResultSetID(w, e.InV)...)
 			}
 		}
 	}
@@ -340,13 +378,15 @@ func findDefinitionRangesByRangeOrResultSetID(elements []interface{}, id uint64)
 
 // findReferenceRangesByRangeOrResultSetID returns the reference ranges attached to the range or result set with
 // the given identifier.
-func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id uint64) (ranges []protocol.Range) {
+func findReferenceRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	elements := w.elements
+
 	// First see if we're attached to reference result directly
 	for _, elem := range elements {
 		switch e := elem.(type) {
 		case protocol.TextDocumentReferences:
 			if e.OutV == id {
-				ranges = append(ranges, findReferenceRangesByReferenceResultID(elements, e.InV)...)
+				ranges = append(ranges, findReferenceRangesByReferenceResultID(w, e.InV)...)
 			}
 		}
 	}
@@ -356,7 +396,7 @@ func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id uint64) 
 		switch e := elem.(type) {
 		case protocol.Next:
 			if e.OutV == id {
-				ranges = append(ranges, findReferenceRangesByRangeOrResultSetID(elements, e.InV)...)
+				ranges = append(ranges, findReferenceRangesByRangeOrResultSetID(w, e.InV)...)
 			}
 		}
 	}
@@ -366,12 +406,12 @@ func findReferenceRangesByRangeOrResultSetID(elements []interface{}, id uint64) 
 
 // findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or  reference result
 // with the given identifier.
-func findMonikersByRangeOrReferenceResultID(elements []interface{}, id uint64) (monikers []protocol.Moniker) {
-	for _, elem := range elements {
+func findMonikersByRangeOrReferenceResultID(w *capturingWriter, id uint64) (monikers []protocol.Moniker) {
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.MonikerEdge:
 			if e.OutV == id {
-				if m, ok := findMonikerByID(elements, e.InV); ok {
+				if m, ok := findMonikerByID(w, e.InV); ok {
 					monikers = append(monikers, m)
 				}
 			}
@@ -379,11 +419,11 @@ func findMonikersByRangeOrReferenceResultID(elements []interface{}, id uint64) (
 	}
 
 	// Try to get the reference result of a result set attached to the given range or result set
-	for _, elem := range elements {
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.Next:
 			if e.OutV == id {
-				monikers = append(monikers, findMonikersByRangeOrReferenceResultID(elements, e.InV)...)
+				monikers = append(monikers, findMonikersByRangeOrReferenceResultID(w, e.InV)...)
 			}
 		}
 	}
@@ -392,23 +432,23 @@ func findMonikersByRangeOrReferenceResultID(elements []interface{}, id uint64) (
 }
 
 // findPackageInformationByMonikerID returns the package information vertexes attached to the moniker with the given identifier.
-func findPackageInformationByMonikerID(elements []interface{}, id uint64) (packageInformation []protocol.PackageInformation) {
-	for _, elem := range elements {
+func findPackageInformationByMonikerID(w *capturingWriter, id uint64) (packageInformation []protocol.PackageInformation) {
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.PackageInformationEdge:
 			if e.OutV == id {
-				if m, ok := findPackageInformationByID(elements, e.InV); ok {
+				if m, ok := findPackageInformationByID(w, e.InV); ok {
 					packageInformation = append(packageInformation, m)
 				}
 			}
 		}
 	}
 
-	for _, elem := range elements {
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.NextMonikerEdge:
 			if e.OutV == id {
-				packageInformation = append(packageInformation, findPackageInformationByMonikerID(elements, e.InV)...)
+				packageInformation = append(packageInformation, findPackageInformationByMonikerID(w, e.InV)...)
 			}
 		}
 	}
@@ -422,4 +462,14 @@ func splitMarkupContent(value string) []string {
 
 func unCodeFence(value string) string {
 	return strings.Replace(strings.Replace(value, "```go\n", "", -1), "\n```", "", -1)
+}
+
+func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, endLine, endCharacter int) {
+	if r.Start.Line != startLine || r.Start.Character != startCharacter || r.End.Line != endLine || r.End.Character != endCharacter {
+		t.Fatalf(
+			"incorrect range. want=[%d:%d,%d:%d) have=[%d:%d,%d:%d)",
+			startLine, startCharacter, endLine, endCharacter,
+			r.Start.Line, r.Start.Character, r.End.Line, r.End.Character,
+		)
+	}
 }

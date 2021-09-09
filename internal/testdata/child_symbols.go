@@ -1,4 +1,3 @@
-// Package testdata
 package testdata
 
 // Const is a constant equal to 5. It's the best constant I've ever written. 😹

@@ -1,0 +1,22 @@
+{
+  "pathID": "/cmd",
+  "documentation": {
+    "identifier": "cmd",
+    "newPage": true,
+    "searchKey": "",
+    "tags": []
+  },
+  "label": {
+    "kind": "plaintext",
+    "value": ""
+  },
+  "detail": {
+    "kind": "plaintext",
+    "value": ""
+  },
+  "children": [
+    {
+      "pathID": "/cmd/minimal_main"
+    }
+  ]
+}

@@ -10,8 +10,8 @@ import (
 // indent is used to format struct fields.
 const indent = "    "
 
-// typeString returns the string representation fo the given object's type.
-func typeString(obj types.Object) (signature string, extra string) {
+// typeString returns the string representation of the given object's type.
+func typeString(obj ObjectLike) (signature string, extra string) {
 	switch v := obj.(type) {
 	case *types.PkgName:
 		return fmt.Sprintf("package %s", v.Name()), ""
@@ -26,10 +26,20 @@ func typeString(obj types.Object) (signature string, extra string) {
 		}
 
 	case *types.Const:
-		return fmt.Sprintf("%s = %s", types.ObjectString(obj, packageQualifier), v.Val()), ""
+		return fmt.Sprintf("%s = %s", types.ObjectString(v, packageQualifier), v.Val()), ""
+
+	case *PkgDeclaration:
+		return fmt.Sprintf("package %s", v.name), ""
+
 	}
 
-	return types.ObjectString(obj, packageQualifier), ""
+	// Fall back to types.Object
+	//    All other cases of this should be this type. We only had to implement PkgDeclaration because
+	//    some fields are not exported in types.Object.
+	//
+	//    We expect any new ObjectLike items to be `types.Object` values.
+	v, _ := obj.(types.Object)
+	return types.ObjectString(v, packageQualifier), ""
 }
 
 // packageQualifier returns an empty string in order to remove the leading package

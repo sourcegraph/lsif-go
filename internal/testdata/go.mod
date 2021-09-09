@@ -1,3 +1,3 @@
 module github.com/sourcegraph/lsif-go/internal/testdata
 
-go 1.12
+go 1.16
