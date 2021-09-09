@@ -138,6 +138,9 @@ func (i *Indexer) Index() error {
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
+	if err := i.indexImplementations(); err != nil {
+		return err
+	}
 
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
@@ -197,6 +200,8 @@ func (i *Indexer) stopImportMonikerReferenceTracker(wg *sync.WaitGroup) {
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
 
+// var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName | packages.NeedCompiledGoFiles | packages.NeedExportsFile | packages.NeedTypesSizes | packages.NeedModule
+
 // cachedPackages makes sure that we only load packages once per execution
 var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
 
@@ -236,6 +241,7 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 		if deduplicate {
 			keep := make([]*packages.Package, 0, len(pkgs))
 			for _, pkg := range pkgs {
+				fmt.Println("considering", pkg)
 				if i.shouldVisitPackage(pkg, pkgs) {
 					keep = append(keep, pkg)
 				}
@@ -852,6 +858,95 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	}
 
 	return rangeID, true
+}
+
+// indexImplementations emits data for each implementation of an interface.
+func (i *Indexer) indexImplementations() error {
+	config := &packages.Config{
+		Mode: loadMode,
+		Dir:  i.projectRoot,
+		Logf: i.packagesLoadLogger,
+	}
+
+	deps := []*packages.Package{}
+	for _, dep := range i.dependencies {
+		fmt.Println("-----------", dep.Name)
+		name := dep.Name
+		name = strings.TrimPrefix(name, "https://")
+		name = strings.TrimPrefix(name, "https:/")
+		pkgs, err := packages.Load(config, name)
+		if err != nil {
+			return err
+		}
+		for _, pkg := range pkgs {
+			if len(pkg.Errors) > 0 {
+				fmt.Println(pkg.Errors)
+			}
+			if len(pkg.TypesInfo.Defs) != 0 {
+				fmt.Println("HAS SOMETHING", pkg.Name)
+			}
+		}
+		deps = append(deps, pkgs...)
+	}
+
+	interfaces := []*types.Interface{}
+	concreteTypes := []*types.Named{}
+	for _, pkg := range append(deps, i.packages...) {
+		fmt.Println("visiting package", pkg)
+		for _, obj := range pkg.TypesInfo.Defs {
+			if obj == nil {
+				continue
+			}
+
+			obj, ok := obj.(*types.TypeName)
+
+			// We ignore aliases 'type M = N' to avoid duplicate reporting
+			// of the Named type N.
+			if !ok || obj.IsAlias() {
+				continue
+			}
+
+			if named, ok := obj.Type().(*types.Named); ok {
+				if types.IsInterface(named) && types.NewMethodSet(named).Len() != 0 {
+					// TODO figure out non-exported interfaces
+					// should link within package? across packages?
+					interfaces = append(interfaces, named.Underlying().(*types.Interface))
+				} else {
+					concreteTypes = append(concreteTypes, named)
+				}
+			}
+		}
+	}
+
+	// Although it seems goofy, we consider concrete types defined
+	// in dependencies as implementing interfaces defined in the current project.
+	// gopls does this, too.
+
+	for _, i := range interfaces {
+		for _, c := range concreteTypes {
+			if types.AssignableTo(c, i) {
+				fmt.Println("can assign", c, "to", i)
+			}
+		}
+	}
+
+	return nil
+}
+
+// ensurePointer wraps T in a *types.Pointer if T is a named, non-interface
+// type. This is useful to make sure you consider a named type's full method
+// set.
+func ensurePointer(T types.Type) types.Type {
+	if _, ok := T.(*types.Named); ok && !IsInterface(T) {
+		return types.NewPointer(T)
+	}
+
+	return T
+}
+
+// IsInterface returns if a types.Type is an interface
+func IsInterface(T types.Type) bool {
+	return T != nil && types.IsInterface(T)
 }
 
 func (i *Indexer) addImportMonikerReference(monikerID, rangeID, documentID uint64) {
