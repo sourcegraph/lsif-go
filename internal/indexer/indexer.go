@@ -10,10 +10,12 @@ import (
 	"log"
 	"math"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 
 	"github.com/agnivade/levenshtein"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
@@ -139,7 +141,7 @@ func (i *Indexer) Index() error {
 	i.indexDefinitions()
 	i.indexReferences()
 	if err := i.indexImplementations(); err != nil {
-		return err
+		return errors.Wrap(err, "while indexing implementations")
 	}
 
 	// Stop any channels used to synchronize reference sets
@@ -862,75 +864,169 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 
 // indexImplementations emits data for each implementation of an interface.
 func (i *Indexer) indexImplementations() error {
-	config := &packages.Config{
-		Mode: loadMode,
-		Dir:  i.projectRoot,
-		Logf: i.packagesLoadLogger,
+	type def struct {
+		obj   types.Object
+		ident *ast.Ident
 	}
 
-	deps := []*packages.Package{}
-	for _, dep := range i.dependencies {
-		fmt.Println("-----------", dep.Name)
-		name := dep.Name
-		name = strings.TrimPrefix(name, "https://")
-		name = strings.TrimPrefix(name, "https:/")
-		pkgs, err := packages.Load(config, name)
-		if err != nil {
-			return err
-		}
+	// Returns all interfaces and concrete types defined in the given pkgs
+	extractTypes := func(pkgs []*packages.Package) ([]def, []def) {
+		interfaces := []def{}
+		concreteTypes := []def{}
 		for _, pkg := range pkgs {
-			if len(pkg.Errors) > 0 {
-				fmt.Println(pkg.Errors)
-			}
-			if len(pkg.TypesInfo.Defs) != 0 {
-				fmt.Println("HAS SOMETHING", pkg.Name)
-			}
-		}
-		deps = append(deps, pkgs...)
-	}
+			for ident, obj := range pkg.TypesInfo.Defs {
+				if obj == nil {
+					continue
+				}
 
-	interfaces := []*types.Interface{}
-	concreteTypes := []*types.Named{}
-	for _, pkg := range append(deps, i.packages...) {
-		fmt.Println("visiting package", pkg)
-		for _, obj := range pkg.TypesInfo.Defs {
-			if obj == nil {
-				continue
-			}
+				// We ignore aliases 'type M = N' to avoid duplicate reporting
+				// of the Named type N.
+				if obj, ok := obj.(*types.TypeName); !ok || obj.IsAlias() {
+					continue
+				}
 
-			obj, ok := obj.(*types.TypeName)
-
-			// We ignore aliases 'type M = N' to avoid duplicate reporting
-			// of the Named type N.
-			if !ok || obj.IsAlias() {
-				continue
-			}
-
-			if named, ok := obj.Type().(*types.Named); ok {
-				if types.IsInterface(named) && types.NewMethodSet(named).Len() != 0 {
+				if types.IsInterface(obj.Type()) && types.NewMethodSet(obj.Type()).Len() != 0 {
 					// TODO figure out non-exported interfaces
 					// should link within package? across packages?
-					interfaces = append(interfaces, named.Underlying().(*types.Interface))
+					interfaces = append(interfaces, def{obj: obj, ident: ident})
 				} else {
-					concreteTypes = append(concreteTypes, named)
+					concreteTypes = append(concreteTypes, def{obj: obj, ident: ident})
 				}
 			}
 		}
+
+		return interfaces, concreteTypes
 	}
 
-	// Although it seems goofy, we consider concrete types defined
-	// in dependencies as implementing interfaces defined in the current project.
-	// gopls does this, too.
+	// Load all dependencies
+	deps, err := i.loadDependencyPackages()
+	if err != nil {
+		return err
+	}
 
-	for _, i := range interfaces {
-		for _, c := range concreteTypes {
-			if types.AssignableTo(c, i) {
-				fmt.Println("can assign", c, "to", i)
+	localInterfaces, localConcreteTypes := extractTypes(i.packages)
+	remoteInterfaces, remoteConcreteTypes := extractTypes(deps)
+
+	fmt.Println("localInterfaces", len(localInterfaces))
+	fmt.Println("localConcreteTypes", len(localConcreteTypes))
+	fmt.Println("remoteInterfaces", len(remoteInterfaces))
+	fmt.Println("remoteConcreteTypes", len(remoteConcreteTypes))
+
+	// For each of these 4 pairs:
+	//
+	// - local concrete types -> local  interfaces
+	// - local concrete types -> remote interfaces
+	// - local interfaces     -> local  concrete types
+	// - local interfaces     -> remote concrete types
+	//
+	// We emit this structure:
+	//
+	// result set --- textDocument/implementations --> implementations
+	// implementations --- item --> (range for local, moniker for remote)
+
+	for _, lc := range localConcreteTypes {
+		d := i.getDefinitionInfo(lc.obj, lc.ident)
+		res := i.emitter.EmitImplementationResult()
+		i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
+
+		invs := []uint64{}
+		for _, li := range localInterfaces {
+			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
+				continue
 			}
+			invs = append(invs, i.getDefinitionInfo(li.obj, li.ident).RangeID)
+		}
+		if len(invs) > 0 {
+			i.emitter.EmitItem(res, invs, d.DocumentID)
+		}
+
+		for _, ri := range remoteInterfaces {
+			if !types.AssignableTo(lc.obj.Type(), ri.obj.Type()) {
+				continue
+			}
+			if ok := i.emitter.EmitMoniker("implementation", "gomod", i.emitImportMoniker()); !ok {
+				return fmt.Errorf("failed to emit import moniker for type %v and interface %v", lc, ri)
+			}
+		}
+	}
+
+	for _, li := range localInterfaces {
+		for _, lc := range localConcreteTypes {
+			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
+				continue
+			}
+		}
+
+		// Just like gopls, we consider concrete types defined
+		// in dependencies as implementing interfaces defined in the current project.
+		for _, rc := range remoteConcreteTypes {
+			if !types.AssignableTo(rc.obj.Type(), li.obj.Type()) {
+				continue
+			}
+			// emit implements moniker rrc.name
+			// emit moniker edge
 		}
 	}
 
 	return nil
+}
+
+func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
+	depNames := []string{"std"}
+
+	// List all deps
+	fixed := false
+	if fixed {
+		broken := map[string]interface{}{
+			"github.com/go-errors/errors": nil,
+			"github.com/pingcap/errors":   nil,
+		}
+		for _, dep := range i.dependencies {
+			name := dep.Name
+			name = strings.TrimPrefix(name, "https://")
+			name = strings.TrimPrefix(name, "https:/")
+			if _, ok := broken[dep.Name]; ok {
+				fmt.Printf("Skipping known error for %s: updates to go.mod needed; to update it: go mod tidy\n", name)
+				continue
+			}
+			depNames = append(depNames, dep.Name)
+		}
+	} else {
+		fmt.Println("TODO fix deps")
+	}
+
+	sort.Strings(depNames)
+
+	// Load all deps
+	deps := []*packages.Package{}
+	for _, depName := range depNames {
+		// Load the dep
+		config := &packages.Config{
+			Mode: loadMode,
+			Dir:  i.projectRoot,
+			Logf: i.packagesLoadLogger,
+		}
+		pkgs, err := packages.Load(config, depName)
+
+		// Check for errors
+		if err != nil {
+			return nil, fmt.Errorf("in packages.Load(%v): %v", depName, err)
+		}
+		for _, pkg := range pkgs {
+			var errs error
+			for _, err := range pkg.Errors {
+				multierror.Append(errs, err)
+			}
+			if errs != nil {
+				return nil, errs
+			}
+		}
+
+		// Append the dep
+		deps = append(deps, pkgs...)
+	}
+
+	return deps, nil
 }
 
 // ensurePointer wraps T in a *types.Pointer if T is a named, non-interface
