@@ -865,6 +865,7 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 // indexImplementations emits data for each implementation of an interface.
 func (i *Indexer) indexImplementations() error {
 	type def struct {
+		pkg   *packages.Package
 		obj   types.Object
 		ident *ast.Ident
 	}
@@ -888,9 +889,9 @@ func (i *Indexer) indexImplementations() error {
 				if types.IsInterface(obj.Type()) && types.NewMethodSet(obj.Type()).Len() != 0 {
 					// TODO figure out non-exported interfaces
 					// should link within package? across packages?
-					interfaces = append(interfaces, def{obj: obj, ident: ident})
+					interfaces = append(interfaces, def{pkg: pkg, obj: obj, ident: ident})
 				} else {
-					concreteTypes = append(concreteTypes, def{obj: obj, ident: ident})
+					concreteTypes = append(concreteTypes, def{pkg: pkg, obj: obj, ident: ident})
 				}
 			}
 		}
@@ -924,11 +925,9 @@ func (i *Indexer) indexImplementations() error {
 	// result set --- textDocument/implementations --> implementations
 	// implementations --- item --> (range for local, moniker for remote)
 
-	for _, lc := range localConcreteTypes {
-		d := i.getDefinitionInfo(lc.obj, lc.ident)
-		res := i.emitter.EmitImplementationResult()
-		i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
+	// TODO link methods together
 
+	for _, lc := range localConcreteTypes {
 		invs := []uint64{}
 		for _, li := range localInterfaces {
 			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
@@ -937,35 +936,64 @@ func (i *Indexer) indexImplementations() error {
 			invs = append(invs, i.getDefinitionInfo(li.obj, li.ident).RangeID)
 		}
 		if len(invs) > 0 {
+			d := i.getDefinitionInfo(lc.obj, lc.ident)
+			res := i.emitter.EmitImplementationResult()
+			i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
 			i.emitter.EmitItem(res, invs, d.DocumentID)
 		}
 
-		for _, ri := range remoteInterfaces {
-			if !types.AssignableTo(lc.obj.Type(), ri.obj.Type()) {
-				continue
-			}
-			if ok := i.emitter.EmitMoniker("implementation", "gomod", i.emitImportMoniker()); !ok {
-				return fmt.Errorf("failed to emit import moniker for type %v and interface %v", lc, ri)
-			}
-		}
+		// TODO
+		// _, document, ok := i.positionAndDocument(lc.pkg, lc.ident.Pos())
+		// if !ok {
+		// 	continue
+		// }
+		// for _, ri := range remoteInterfaces {
+		// 	if !types.AssignableTo(lc.obj.Type(), ri.obj.Type()) {
+		// 		continue
+		// 	}
+
+		// 	// This is wrong.
+		// 	//
+		// 	// Here's what it looks like:
+		// 	//
+		// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -next-> resultSet -moniker-> moniker
+		// 	//                                                                               ^^^^^^^^^^^^^^^^^ this should not be here
+		// 	//
+		// 	// Here's what it SHOULD look like:
+		// 	//
+		// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -moniker-> moniker
+		// 	if ok := i.emitImportMoniker(res, ri.pkg, ri.obj, document); !ok {
+		// 		return fmt.Errorf("failed to emit import moniker for type %v and interface %v", lc, ri)
+		// 	}
+		// }
 	}
 
 	for _, li := range localInterfaces {
+		invs := []uint64{}
 		for _, lc := range localConcreteTypes {
 			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
 				continue
 			}
+			invs = append(invs, i.getDefinitionInfo(lc.obj, lc.ident).RangeID)
+		}
+		if len(invs) > 0 {
+			d := i.getDefinitionInfo(li.obj, li.ident)
+			res := i.emitter.EmitImplementationResult()
+			i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
+			i.emitter.EmitItem(res, invs, d.DocumentID)
 		}
 
 		// Just like gopls, we consider concrete types defined
 		// in dependencies as implementing interfaces defined in the current project.
-		for _, rc := range remoteConcreteTypes {
-			if !types.AssignableTo(rc.obj.Type(), li.obj.Type()) {
-				continue
-			}
-			// emit implements moniker rrc.name
-			// emit moniker edge
-		}
+
+		// TODO
+		// for _, rc := range remoteConcreteTypes {
+		// 	if !types.AssignableTo(rc.obj.Type(), li.obj.Type()) {
+		// 		continue
+		// 	}
+		// 	// emit implements moniker rrc.name
+		// 	// emit moniker edge
+		// }
 	}
 
 	return nil
