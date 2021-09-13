@@ -52,7 +52,8 @@ func resolveModuleName(repo, name string) (string, error) {
 	// Determine the canonical code host of the current repository
 	repoRepoRoot, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
-		return "", err
+		help := "Make sure your git repo has a remote (git remote add git@github.com:owner/repo)"
+		return "", fmt.Errorf("%v\n\n%s", err, help)
 	}
 
 	return repoRepoRoot.Repo + suffix, nil
