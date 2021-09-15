@@ -957,7 +957,8 @@ func (i *Indexer) indexImplementations() error {
 	fmt.Println()
 	fmt.Println("Chris    Time :", durationChris)
 	fmt.Println("Pairwise Time :", durationPairwise)
-	comparePairs(localConcreteTypes, localInterfaces, pairsChris, pairsPairwise)
+	fmt.Println()
+	comparePairs(localConcreteTypes, localInterfaces, pairsChris, pairsPairwise, "Chris", "Pairwise")
 	fmt.Println()
 
 	// This is the original idea. We still have stuff left for this
@@ -1090,8 +1091,6 @@ func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*
 		}
 	}
 
-	// fmt.Println(ctm)
-
 nextLocalInterface:
 	for lii, li := range localInterfaces {
 		ms := types.NewMethodSet(li.obj.Type())
@@ -1141,7 +1140,7 @@ nextLocalInterface:
 	return pairs
 }
 
-func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intsets.Sparse) {
+func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intsets.Sparse, nameA, nameB string) {
 	difference := func(a, b map[int]*intsets.Sparse, f func(int, int)) {
 		for k, av := range a {
 			for _, ix := range av.AppendTo(nil) {
@@ -1153,10 +1152,10 @@ func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intse
 	}
 
 	difference(pairsA, pairsB, func(k, ix int) {
-		fmt.Println("A has, B doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
+		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
 	})
 	difference(pairsB, pairsA, func(k, ix int) {
-		fmt.Println("B has, A doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
+		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
 	})
 }
 
