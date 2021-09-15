@@ -12,9 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/slimsag/godocmd v0.0.0-20161025000126-a1005ad29fe3
 	github.com/sourcegraph/lsif-static-doc v0.0.0-20210831232443-e74f711cdf06
-	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210831223740-2eb532a72f6c
+	github.com/sourcegraph/sourcegraph/lib v0.0.0-20210914223954-cff3e4aaa732
 	golang.org/x/tools v0.1.3
 	mvdan.cc/gofumpt v0.1.1 // indirect
 )
-
-replace github.com/sourcegraph/sourcegraph/lib => /Users/chrismwendt/github.com/sourcegraph/sourcegraph/lib
