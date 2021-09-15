@@ -1035,13 +1035,9 @@ func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[in
 			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
 				ptr := types.NewPointer(lc.obj.Type())
 				if !types.AssignableTo(ptr, li.obj.Type()) {
-					fmt.Println("NOT Assignable:", lc.obj.Name(), "->", li.obj.Type())
 					continue
 				}
-
-				fmt.Println("POINTER Assignable:", lc.obj.Name(), "->", li.obj.Type())
 			}
-			fmt.Println("Assignable:", lc.obj.Name(), "->", li.obj.Type())
 			if _, ok := pairs[lci]; !ok {
 				pairs[lci] = &intsets.Sparse{}
 			}
@@ -1079,57 +1075,42 @@ func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*
 		return name + "" + parens(tuple(sig.Params())) + " " + parens2(tuple(sig.Results()))
 	}
 
-	ctm := map[string]map[int]struct{}{}
+	methodToConcreteTypes := map[string]*intsets.Sparse{}
 	for i, lc := range localConcreteTypes {
 		ms := combinedMethodSet(lc.obj.Type().(*types.Named))
 		for _, m := range ms {
 			s := key(m)
-			if _, ok := ctm[s]; !ok {
-				ctm[s] = map[int]struct{}{}
+			if _, ok := methodToConcreteTypes[s]; !ok {
+				methodToConcreteTypes[s] = &intsets.Sparse{}
 			}
-			ctm[s][i] = struct{}{}
+			methodToConcreteTypes[s].Insert(i)
 		}
 	}
 
 nextLocalInterface:
 	for lii, li := range localInterfaces {
-		ms := types.NewMethodSet(li.obj.Type())
-		if ms.Len() == 0 {
-			fmt.Println("empty interface")
+		ms := combinedMethodSet(li.obj.Type().(*types.Named))
+		if len(ms) == 0 {
+			// Empty interface
 			continue
 		}
-		lcsSoFar, ok := ctm[key(ms.At(0))]
+		lcsRemaining, ok := methodToConcreteTypes[key(ms[0])]
 		if !ok {
-			fmt.Println("ctm doesn't have", key(ms.At(0)))
+			// None of the concrete types have this method, so they
+			// can't implement this interface
 			continue
 		}
 
-		for i := 0; i < ms.Len(); i++ {
-			lcsWithMethod, ok := ctm[ms.At(i).Type().String()]
-			if !ok {
-				continue
-			}
-
-			keys := []int{}
-			for k := range lcsSoFar {
-				keys = append(keys, k)
-			}
-
-			for _, lci := range keys {
-				if _, ok := lcsWithMethod[lci]; !ok {
-					delete(lcsSoFar, lci)
-				}
-				if len(lcsSoFar) == 0 {
-					continue nextLocalInterface
-				}
+		for _, m := range ms[1:] {
+			lcsRemaining.IntersectionWith(methodToConcreteTypes[key(m)])
+			if lcsRemaining.Len() == 0 {
+				// None of the concrete types have all the methods checked so far,
+				// so move on to the next interface
+				continue nextLocalInterface
 			}
 		}
 
-		for lci := range lcsSoFar {
-			if false {
-				fmt.Println(localConcreteTypes[lci].obj.Name(), "implements", li.obj.Name())
-			}
-
+		for _, lci := range lcsRemaining.AppendTo(nil) {
 			if _, ok := pairs[lci]; !ok {
 				pairs[lci] = &intsets.Sparse{}
 			}
