@@ -966,10 +966,12 @@ func (i *Indexer) indexImplementations() error {
 
 	// TODO consider introspecing method sets to go FASTER
 
+	fmt.Println()
 	startPairwise := time.Now()
 	pairsPairwise := i.findPairwise(localInterfaces, localConcreteTypes)
 	durationPairwise := time.Since(startPairwise)
 
+	fmt.Println()
 	startChris := time.Now()
 	pairsChris := i.findChris(localInterfaces, localConcreteTypes)
 	durationChris := time.Since(startChris)
@@ -1104,21 +1106,31 @@ func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*
 			return els
 		}
 		parens := func(ss []string) string {
-			return "(" + strings.Join(ss, ",") + ")"
+			return "(" + strings.Join(ss, ", ") + ")"
 		}
-		parens2 := func(ss []string) string {
-			if len(ss) == 1 {
-				return strings.Join(ss, ",")
-			} else {
-				return parens(ss)
-			}
+
+		str := name + "" + parens(tuple(sig.Params()))
+		ret := tuple(sig.Results())
+		if len(ret) == 1 {
+			str += " " + ret[0]
+		} else if len(ret) > 1 {
+			str += " " + parens(ret)
 		}
-		return name + "" + parens(tuple(sig.Params())) + " " + parens2(tuple(sig.Results()))
+
+		return str
 	}
+
+	debug := false
 
 	methodToConcreteTypes := map[string]*intsets.Sparse{}
 	for i, lc := range localConcreteTypes {
 		ms := combinedMethodSet(lc.obj.Type().(*types.Named))
+		if debug {
+			fmt.Println(lc.obj.Name())
+			for _, m := range ms {
+				fmt.Println("  ", m)
+			}
+		}
 		for _, m := range ms {
 			s := key(m)
 			if _, ok := methodToConcreteTypes[s]; !ok {
@@ -1128,18 +1140,50 @@ func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*
 		}
 	}
 
+	if debug {
+		fmt.Println()
+		fmt.Println("methodToConcreteTypes")
+		for k, v := range methodToConcreteTypes {
+			names := []string{}
+			for _, i := range v.AppendTo(nil) {
+				names = append(names, localConcreteTypes[i].obj.Name())
+			}
+			fmt.Println(k, names)
+		}
+
+		fmt.Println()
+	}
+
 nextLocalInterface:
 	for lii, li := range localInterfaces {
+		if debug {
+			fmt.Println("Checking", li.obj.Name())
+		}
 		ms := combinedMethodSet(li.obj.Type().(*types.Named))
+		if debug {
+			for _, m := range ms {
+				fmt.Println("  -", key(m))
+			}
+		}
 		if len(ms) == 0 {
 			// Empty interface
 			continue
 		}
-		lcsRemaining, ok := methodToConcreteTypes[key(ms[0])]
+		lcsRemainingOriginal, ok := methodToConcreteTypes[key(ms[0])]
 		if !ok {
+			if debug {
+				fmt.Println("None have", ms[0])
+			}
 			// None of the concrete types have this method, so they
 			// can't implement this interface
 			continue
+		}
+		lcsRemaining := &intsets.Sparse{}
+		lcsRemaining.Copy(lcsRemainingOriginal)
+		if debug {
+			for _, lci := range lcsRemaining.AppendTo(nil) {
+				fmt.Println("  still has", localConcreteTypes[lci].obj.Name())
+			}
 		}
 
 		for _, m := range ms[1:] {
@@ -1147,12 +1191,23 @@ nextLocalInterface:
 			if !ok {
 				// None of the concrete types have this method, so they
 				// can't implement this interface
+				if debug {
+					fmt.Println("None have", m)
+				}
 				continue nextLocalInterface
+			}
+			if debug {
+				for _, lci := range lcsRemaining.AppendTo(nil) {
+					fmt.Println("  still has", localConcreteTypes[lci].obj.Name())
+				}
 			}
 			lcsRemaining.IntersectionWith(cts)
 			if lcsRemaining.Len() == 0 {
 				// None of the concrete types have all the methods checked so far,
 				// so move on to the next interface
+				if debug {
+					fmt.Println("NEXT", m)
+				}
 				continue nextLocalInterface
 			}
 		}
@@ -1162,6 +1217,9 @@ nextLocalInterface:
 				pairs[lci] = &intsets.Sparse{}
 			}
 			pairs[lci].Insert(lii)
+			if debug {
+				fmt.Println("Found", localConcreteTypes[lci].obj.Name(), "implements", localInterfaces[lii].obj.Name())
+			}
 		}
 	}
 
@@ -1180,10 +1238,10 @@ func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intse
 	}
 
 	difference(pairsA, pairsB, func(k, ix int) {
-		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
+		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", concreteTypes[k].obj, "IMPLEMENTS", interfaces[ix].obj)
 	})
 	difference(pairsB, pairsA, func(k, ix int) {
-		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
+		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", concreteTypes[k].obj, "IMPLEMENTS", interfaces[ix].obj)
 	})
 }
 
@@ -1211,6 +1269,22 @@ func combinedMethodSet(T *types.Named) []*types.Selection {
 			res = append(res, pm)
 		}
 	}
+
+	// switch t := T.Underlying().(type) {
+	// case *types.Struct:
+	// 	// add all methods of embedded structs
+	// 	for i := 0; i < t.NumFields(); i++ {
+	// 		f := t.Field(i)
+	// 		if inner, ok := f.Type().(*types.Named); ok && f.Embedded() {
+	// 			res = append(res, combinedMethodSet(inner)...)
+	// 		}
+	// 	}
+	// case *types.Interface:
+	// 	// add all methods of embedded interfaces
+	// 	for i := 0; i < t.NumEmbeddeds(); i++ {
+	// 		res = append(res, combinedMethodSet(t.Embedded(i))...)
+	// 	}
+	// }
 
 	return res
 }
