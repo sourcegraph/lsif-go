@@ -972,6 +972,84 @@ func (i *Indexer) indexImplementations() error {
 		// }
 	}
 
+	// TODO clean up this garbage
+	key := func(m *types.Selection) string {
+		name := m.Obj().Name()
+		sig := m.Type().(*types.Signature)
+		tuple := func(t *types.Tuple) []string {
+			els := []string{}
+			for i := 0; i < t.Len(); i++ {
+				els = append(els, t.At(i).Type().String())
+			}
+			return els
+		}
+		parens := func(ss []string) string {
+			return "(" + strings.Join(ss, ",") + ")"
+		}
+		parens2 := func(ss []string) string {
+			if len(ss) == 1 {
+				return strings.Join(ss, ",")
+			} else {
+				return parens(ss)
+			}
+		}
+		return name + "" + parens(tuple(sig.Params())) + " " + parens2(tuple(sig.Results()))
+	}
+
+	ctm := map[string]map[int]struct{}{}
+	for i, lc := range localConcreteTypes {
+		ms := types.NewMethodSet(lc.obj.Type())
+		for j := 0; j < ms.Len(); j++ {
+			s := key(ms.At(j))
+			fmt.Println("  ", s)
+			if _, ok := ctm[s]; !ok {
+				ctm[s] = map[int]struct{}{}
+			}
+			ctm[s][i] = struct{}{}
+		}
+	}
+
+	fmt.Println(ctm)
+
+nextLocalInterface:
+	for _, li := range localInterfaces {
+		ms := types.NewMethodSet(li.obj.Type())
+		if ms.Len() == 0 {
+			fmt.Println("empty interface")
+			continue
+		}
+		lcsSoFar, ok := ctm[key(ms.At(0))]
+		if !ok {
+			fmt.Println("ctm doesn't have", key(ms.At(0)))
+			continue
+		}
+
+		for i := 0; i < ms.Len(); i++ {
+			lcsWithMethod, ok := ctm[ms.At(i).Type().String()]
+			if !ok {
+				continue
+			}
+
+			keys := []int{}
+			for k := range lcsSoFar {
+				keys = append(keys, k)
+			}
+
+			for _, lci := range keys {
+				if _, ok := lcsWithMethod[lci]; !ok {
+					delete(lcsSoFar, lci)
+				}
+				if len(lcsSoFar) == 0 {
+					continue nextLocalInterface
+				}
+			}
+		}
+
+		for lci := range lcsSoFar {
+			fmt.Println(localConcreteTypes[lci].obj, "implements", li.obj)
+		}
+	}
+
 	for _, li := range localInterfaces {
 		invs := []uint64{}
 		for _, lc := range localConcreteTypes {
