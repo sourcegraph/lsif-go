@@ -584,6 +584,34 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedHttpIdentifier, httpIdentifier)
 		}
 	})
+
+	t.Run("should find implementations of an interface", func(t *testing.T) {
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "implementations.go"), 4, 5)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		implementations := findImplementationRangesByRangeOrResultSetID(w, r.ID)
+		if len(implementations) != 2 {
+			t.Fatalf("incorrect implementation count. want=%d have=%d", 2, len(implementations))
+		}
+
+		assertRanges(t, implementations, []string{"12:5-12:7", "16:5-16:7"})
+	})
+
+	t.Run("should find interfaces that a type implements", func(t *testing.T) {
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "implementations.go"), 12, 5)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+
+		implementations := findImplementationRangesByRangeOrResultSetID(w, r.ID)
+		if len(implementations) != 1 {
+			t.Fatalf("incorrect implementation count. want=%d have=%d", 1, len(implementations))
+		}
+
+		assertRanges(t, implementations, []string{"4:5-4:7"})
+	})
 }
 
 func TestIndexer_documentation(t *testing.T) {

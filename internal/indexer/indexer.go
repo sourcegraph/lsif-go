@@ -927,6 +927,10 @@ func (i *Indexer) indexImplementations() error {
 
 	// TODO link methods together
 
+	// TODO check AssignableTo only once
+
+	// TODO consider introspecing method sets to go FASTER
+
 	for _, lc := range localConcreteTypes {
 		invs := []uint64{}
 		for _, li := range localInterfaces {

@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"os"
@@ -235,30 +236,9 @@ func findPackageInformationByID(w *capturingWriter, id uint64) (protocol.Package
 	return protocol.PackageInformation{}, false
 }
 
-// findDefintionRangesByDefinitionResultID returns the ranges attached to the definition result with the given
+// findRangesByResultID returns the ranges attached to the definition result with the given
 // identifier.
-func findDefintionRangesByDefinitionResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
-	elements := w.elements
-
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.Item:
-			if e.OutV == id {
-				for _, inV := range e.InVs {
-					if r, ok := findRangeByID(w, inV); ok {
-						ranges = append(ranges, r)
-					}
-				}
-			}
-		}
-	}
-
-	return ranges
-}
-
-// findReferenceRangesByReferenceResultID returns the ranges attached to the reference result with the given
-// identifier.
-func findReferenceRangesByReferenceResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+func findRangesByResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
 	elements := w.elements
 
 	for _, elem := range elements {
@@ -359,7 +339,7 @@ func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ra
 		switch e := elem.(type) {
 		case protocol.TextDocumentDefinition:
 			if e.OutV == id {
-				ranges = append(ranges, findDefintionRangesByDefinitionResultID(w, e.InV)...)
+				ranges = append(ranges, findRangesByResultID(w, e.InV)...)
 			}
 		}
 	}
@@ -387,7 +367,7 @@ func findReferenceRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ran
 		switch e := elem.(type) {
 		case protocol.TextDocumentReferences:
 			if e.OutV == id {
-				ranges = append(ranges, findReferenceRangesByReferenceResultID(w, e.InV)...)
+				ranges = append(ranges, findRangesByResultID(w, e.InV)...)
 			}
 		}
 	}
@@ -398,6 +378,34 @@ func findReferenceRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ran
 		case protocol.Next:
 			if e.OutV == id {
 				ranges = append(ranges, findReferenceRangesByRangeOrResultSetID(w, e.InV)...)
+			}
+		}
+	}
+
+	return ranges
+}
+
+// findImplementationRangesByRangeOrResultSetID returns the implementation ranges attached to the range or result set with
+// the given identifier.
+func findImplementationRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	elements := w.elements
+
+	// First see if we're attached to implementation result directly
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.TextDocumentImplementation:
+			if e.OutV == id {
+				ranges = append(ranges, findRangesByResultID(w, e.InV)...)
+			}
+		}
+	}
+
+	// Try to get the implementation result of a result set attached to the given range or result set
+	for _, elem := range elements {
+		switch e := elem.(type) {
+		case protocol.Next:
+			if e.OutV == id {
+				ranges = append(ranges, findImplementationRangesByRangeOrResultSetID(w, e.InV)...)
 			}
 		}
 	}
@@ -472,5 +480,23 @@ func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, end
 			startLine, startCharacter, endLine, endCharacter,
 			r.Start.Line, r.Start.Character, r.End.Line, r.End.Character,
 		)
+	}
+}
+
+func assertRanges(t *testing.T, actual []protocol.Range, expected []string) {
+	m := map[string]struct{}{}
+	for _, r := range actual {
+		m[fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+
+	for _, e := range expected {
+		if _, ok := m[e]; !ok {
+			t.Fatalf("wanted range %s (have %v)", e, keys)
+		}
 	}
 }
