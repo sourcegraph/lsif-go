@@ -22,6 +22,7 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
+	"golang.org/x/tools/container/intsets"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -945,26 +946,19 @@ func (i *Indexer) indexImplementations() error {
 
 	// TODO consider introspecing method sets to go FASTER
 
+	startPairwise := time.Now()
+	pairsPairwise := i.findPairwise(localInterfaces, localConcreteTypes)
+	durationPairwise := time.Since(startPairwise)
+
 	startChris := time.Now()
-	i.findChrisIdea(localInterfaces, localConcreteTypes)
-	fmt.Println("### Chris Time:", time.Since(startChris))
+	pairsChris := i.findChris(localInterfaces, localConcreteTypes)
+	durationChris := time.Since(startChris)
 
-	// TODO: We should just keep lists of them by map -> interface, structs.
-	for _, lc := range localConcreteTypes {
-		for _, li := range localInterfaces {
-
-			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
-				ptr := types.NewPointer(lc.obj.Type())
-				if !types.AssignableTo(ptr, li.obj.Type()) {
-					fmt.Println("NOT Assignable:", lc.obj.Name(), "->", li.obj.Type())
-					continue
-				}
-
-				fmt.Println("POINTER Assignable:", lc.obj.Name(), "->", li.obj.Type())
-			}
-			fmt.Println("Assignable:", lc.obj.Name(), "->", li.obj.Type())
-		}
-	}
+	fmt.Println()
+	fmt.Println("Chris    Time :", durationChris)
+	fmt.Println("Pairwise Time :", durationPairwise)
+	comparePairs(localConcreteTypes, localInterfaces, pairsChris, pairsPairwise)
+	fmt.Println()
 
 	// This is the original idea. We still have stuff left for this
 	if false {
@@ -1030,8 +1024,35 @@ func (i *Indexer) indexImplementations() error {
 	return nil
 }
 
-func (i *Indexer) findChrisIdea(localInterfaces, localConcreteTypes []def) {
-	implementationsFound := 0
+func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[int]*intsets.Sparse {
+	pairs := map[int]*intsets.Sparse{}
+
+	// TODO: We should just keep lists of them by map -> interface, structs.
+	for lci, lc := range localConcreteTypes {
+		for lii, li := range localInterfaces {
+
+			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
+				ptr := types.NewPointer(lc.obj.Type())
+				if !types.AssignableTo(ptr, li.obj.Type()) {
+					fmt.Println("NOT Assignable:", lc.obj.Name(), "->", li.obj.Type())
+					continue
+				}
+
+				fmt.Println("POINTER Assignable:", lc.obj.Name(), "->", li.obj.Type())
+			}
+			fmt.Println("Assignable:", lc.obj.Name(), "->", li.obj.Type())
+			if _, ok := pairs[lci]; !ok {
+				pairs[lci] = &intsets.Sparse{}
+			}
+			pairs[lci].Insert(lii)
+		}
+	}
+
+	return pairs
+}
+
+func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*intsets.Sparse {
+	pairs := map[int]*intsets.Sparse{}
 
 	// TODO clean up this garbage
 	key := func(m *types.Selection) string {
@@ -1072,7 +1093,7 @@ func (i *Indexer) findChrisIdea(localInterfaces, localConcreteTypes []def) {
 	// fmt.Println(ctm)
 
 nextLocalInterface:
-	for _, li := range localInterfaces {
+	for lii, li := range localInterfaces {
 		ms := types.NewMethodSet(li.obj.Type())
 		if ms.Len() == 0 {
 			fmt.Println("empty interface")
@@ -1110,11 +1131,61 @@ nextLocalInterface:
 				fmt.Println(localConcreteTypes[lci].obj.Name(), "implements", li.obj.Name())
 			}
 
-			implementationsFound += 1
+			if _, ok := pairs[lci]; !ok {
+				pairs[lci] = &intsets.Sparse{}
+			}
+			pairs[lci].Insert(lii)
 		}
 	}
 
-	fmt.Println("## Chris Implementations Found:", implementationsFound)
+	return pairs
+}
+
+func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intsets.Sparse) {
+	difference := func(a, b map[int]*intsets.Sparse, f func(int, int)) {
+		for k, av := range a {
+			for _, ix := range av.AppendTo(nil) {
+				if bv, ok := b[k]; !ok || !bv.Has(ix) {
+					f(k, ix)
+				}
+			}
+		}
+	}
+
+	difference(pairsA, pairsB, func(k, ix int) {
+		fmt.Println("A has, B doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
+	})
+	difference(pairsB, pairsA, func(k, ix int) {
+		fmt.Println("B has, A doesn't:", concreteTypes[k].obj.Name(), "IMPLEMENTS", interfaces[ix].obj.Name())
+	})
+}
+
+// combinedMethodSet returns the method set for a named type T
+// merged with all the methods of *T that have different names than
+// the methods of T.
+//
+// combinedMethodSet is analogous to types/typeutil.IntuitiveMethodSet
+// but doesn't require a MethodSetCache.
+// TODO(gri) If this functionality doesn't change over time, consider
+// just calling IntuitiveMethodSet eventually.
+func combinedMethodSet(T *types.Named) []*types.Selection {
+	// method set for T
+	mset := types.NewMethodSet(T)
+	var res []*types.Selection
+	for i, n := 0, mset.Len(); i < n; i++ {
+		res = append(res, mset.At(i))
+	}
+
+	// add all *T methods with names different from T methods
+	pmset := types.NewMethodSet(types.NewPointer(T))
+	for i, n := 0, pmset.Len(); i < n; i++ {
+		pm := pmset.At(i)
+		if obj := pm.Obj(); mset.Lookup(obj.Pkg(), obj.Name()) == nil {
+			res = append(res, pm)
+		}
+	}
+
+	return res
 }
 
 func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
