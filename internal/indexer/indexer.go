@@ -1102,7 +1102,13 @@ nextLocalInterface:
 		}
 
 		for _, m := range ms[1:] {
-			lcsRemaining.IntersectionWith(methodToConcreteTypes[key(m)])
+			cts, ok := methodToConcreteTypes[key(m)]
+			if !ok {
+				// None of the concrete types have this method, so they
+				// can't implement this interface
+				continue nextLocalInterface
+			}
+			lcsRemaining.IntersectionWith(cts)
 			if lcsRemaining.Len() == 0 {
 				// None of the concrete types have all the methods checked so far,
 				// so move on to the next interface
