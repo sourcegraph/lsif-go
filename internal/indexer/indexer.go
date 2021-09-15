@@ -149,6 +149,8 @@ func (i *Indexer) Index() error {
 	}
 	fmt.Println("### Total Implement Time:", time.Since(implStart))
 
+	i.testTJ()
+
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
 
@@ -873,44 +875,62 @@ type def struct {
 	ident *ast.Ident
 }
 
+func (i *Indexer) testTJ() {
+	deps, err := i.loadDependencyPackages()
+	if err != nil {
+		return
+	}
+
+	start1 := time.Now()
+	extractTypes(deps)
+	fmt.Println("## Extract Types Combined:", time.Since(start1), "<==")
+
+	start2 := time.Now()
+	for _, dep := range deps {
+		extractTypes([]*packages.Package{dep})
+	}
+	fmt.Println("## Extract Types Separately:", time.Since(start2), "<==")
+}
+
+func extractTypes(pkgs []*packages.Package) ([]def, []def) {
+	interfaces := []def{}
+	concreteTypes := []def{}
+	for _, pkg := range pkgs {
+		for ident, obj := range pkg.TypesInfo.Defs {
+			if obj == nil {
+				continue
+			}
+
+			// We ignore aliases 'type M = N' to avoid duplicate reporting
+			// of the Named type N.
+			if obj, ok := obj.(*types.TypeName); !ok || obj.IsAlias() {
+				continue
+			}
+
+			methodLen := types.NewMethodSet(obj.Type()).Len()
+			if methodLen == 0 {
+				// fmt.Println("OH NO NO NO", obj.Name())
+				continue
+			}
+
+			if types.IsInterface(obj.Type()) {
+				// TODO figure out non-exported interfaces
+				// should link within package? across packages?
+				interfaces = append(interfaces, def{pkg: pkg, obj: obj, ident: ident})
+			} else {
+				concreteTypes = append(concreteTypes, def{pkg: pkg, obj: obj, ident: ident})
+			}
+		}
+	}
+
+	return interfaces, concreteTypes
+}
+
 // indexImplementations emits data for each implementation of an interface.
 func (i *Indexer) indexImplementations() error {
 	fmt.Println("=== Implementations orig")
 
 	// Returns all interfaces and concrete types defined in the given pkgs
-	extractTypes := func(pkgs []*packages.Package) ([]def, []def) {
-		interfaces := []def{}
-		concreteTypes := []def{}
-		for _, pkg := range pkgs {
-			for ident, obj := range pkg.TypesInfo.Defs {
-				if obj == nil {
-					continue
-				}
-
-				// We ignore aliases 'type M = N' to avoid duplicate reporting
-				// of the Named type N.
-				if obj, ok := obj.(*types.TypeName); !ok || obj.IsAlias() {
-					continue
-				}
-
-				methodLen := types.NewMethodSet(obj.Type()).Len()
-				if methodLen == 0 {
-					// fmt.Println("OH NO NO NO", obj.Name())
-					continue
-				}
-
-				if types.IsInterface(obj.Type()) {
-					// TODO figure out non-exported interfaces
-					// should link within package? across packages?
-					interfaces = append(interfaces, def{pkg: pkg, obj: obj, ident: ident})
-				} else {
-					concreteTypes = append(concreteTypes, def{pkg: pkg, obj: obj, ident: ident})
-				}
-			}
-		}
-
-		return interfaces, concreteTypes
-	}
 
 	// Load all dependencies
 	deps, err := i.loadDependencyPackages()
@@ -1031,17 +1051,38 @@ func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[in
 	// TODO: We should just keep lists of them by map -> interface, structs.
 	for lci, lc := range localConcreteTypes {
 		for lii, li := range localInterfaces {
+			switch V := li.obj.Type().Underlying().(type) {
+			case *types.Interface:
+				// if false && lc.obj.Name() == "stepsExecTUI" && li.obj.Name() == "StepsExecutionUI" {
+				// 	fmt.Println("==============")
+				// 	fmt.Println("lc: Type", lc.obj.Type())
+				// 	fmt.Printf("li: Type %s // %T\n", li.obj.Type(), li.obj.Type().Underlying())
+				// 	fmt.Println("li: Type", li.obj.Type())
 
-			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
-				ptr := types.NewPointer(lc.obj.Type())
-				if !types.AssignableTo(ptr, li.obj.Type()) {
+				// 	a, b := types.MissingMethod(T, V, false)
+				// 	fmt.Println("Missing Methods    :", a, b)
+
+				// 	ptr_T := types.NewPointer(T)
+				// 	a, b = types.MissingMethod(ptr_T, V, false)
+				// 	fmt.Println("Missing Methods ptr:", a, b)
+				// 	panic("AHHHHHHH 1")
+				// }
+
+				raw_T := lc.obj.Type()
+				T := types.NewPointer(raw_T)
+
+				if !types.Implements(T, V) {
 					continue
 				}
+
+				if _, ok := pairs[lci]; !ok {
+					pairs[lci] = &intsets.Sparse{}
+				}
+				pairs[lci].Insert(lii)
+			default:
+				panic("NO TODAY")
 			}
-			if _, ok := pairs[lci]; !ok {
-				pairs[lci] = &intsets.Sparse{}
-			}
-			pairs[lci].Insert(lii)
+
 		}
 	}
 
