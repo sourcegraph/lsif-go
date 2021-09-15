@@ -1081,9 +1081,9 @@ func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*
 
 	ctm := map[string]map[int]struct{}{}
 	for i, lc := range localConcreteTypes {
-		ms := types.NewMethodSet(lc.obj.Type())
-		for j := 0; j < ms.Len(); j++ {
-			s := key(ms.At(j))
+		ms := combinedMethodSet(lc.obj.Type().(*types.Named))
+		for _, m := range ms {
+			s := key(m)
 			if _, ok := ctm[s]; !ok {
 				ctm[s] = map[int]struct{}{}
 			}
