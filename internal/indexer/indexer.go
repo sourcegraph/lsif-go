@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/agnivade/levenshtein"
 	"github.com/hashicorp/go-multierror"
@@ -140,9 +141,12 @@ func (i *Indexer) Index() error {
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
+
+	implStart := time.Now()
 	if err := i.indexImplementations(); err != nil {
 		return errors.Wrap(err, "while indexing implementations")
 	}
+	fmt.Println("### Total Implement Time:", time.Since(implStart))
 
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
@@ -243,7 +247,7 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 		if deduplicate {
 			keep := make([]*packages.Package, 0, len(pkgs))
 			for _, pkg := range pkgs {
-				fmt.Println("considering", pkg)
+				// fmt.Println("considering", pkg)
 				if i.shouldVisitPackage(pkg, pkgs) {
 					keep = append(keep, pkg)
 				}
@@ -862,13 +866,15 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	return rangeID, true
 }
 
+type def struct {
+	pkg   *packages.Package
+	obj   types.Object
+	ident *ast.Ident
+}
+
 // indexImplementations emits data for each implementation of an interface.
 func (i *Indexer) indexImplementations() error {
-	type def struct {
-		pkg   *packages.Package
-		obj   types.Object
-		ident *ast.Ident
-	}
+	fmt.Println("=== Implementations orig")
 
 	// Returns all interfaces and concrete types defined in the given pkgs
 	extractTypes := func(pkgs []*packages.Package) ([]def, []def) {
@@ -886,7 +892,13 @@ func (i *Indexer) indexImplementations() error {
 					continue
 				}
 
-				if types.IsInterface(obj.Type()) && types.NewMethodSet(obj.Type()).Len() != 0 {
+				methodLen := types.NewMethodSet(obj.Type()).Len()
+				if methodLen == 0 {
+					// fmt.Println("OH NO NO NO", obj.Name())
+					continue
+				}
+
+				if types.IsInterface(obj.Type()) {
 					// TODO figure out non-exported interfaces
 					// should link within package? across packages?
 					interfaces = append(interfaces, def{pkg: pkg, obj: obj, ident: ident})
@@ -905,8 +917,10 @@ func (i *Indexer) indexImplementations() error {
 		return err
 	}
 
+	start2 := time.Now()
 	localInterfaces, localConcreteTypes := extractTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := extractTypes(deps)
+	fmt.Println("## Extract Types:", time.Since(start2), "<==")
 
 	fmt.Println("localInterfaces", len(localInterfaces))
 	fmt.Println("localConcreteTypes", len(localConcreteTypes))
@@ -931,46 +945,93 @@ func (i *Indexer) indexImplementations() error {
 
 	// TODO consider introspecing method sets to go FASTER
 
+	startChris := time.Now()
+	i.findChrisIdea(localInterfaces, localConcreteTypes)
+	fmt.Println("### Chris Time:", time.Since(startChris))
+
+	// TODO: We should just keep lists of them by map -> interface, structs.
 	for _, lc := range localConcreteTypes {
-		invs := []uint64{}
 		for _, li := range localInterfaces {
+
 			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
-				continue
+				ptr := types.NewPointer(lc.obj.Type())
+				if !types.AssignableTo(ptr, li.obj.Type()) {
+					fmt.Println("NOT Assignable:", lc.obj.Name(), "->", li.obj.Type())
+					continue
+				}
+
+				fmt.Println("POINTER Assignable:", lc.obj.Name(), "->", li.obj.Type())
 			}
-			invs = append(invs, i.getDefinitionInfo(li.obj, li.ident).RangeID)
+			fmt.Println("Assignable:", lc.obj.Name(), "->", li.obj.Type())
 		}
-		if len(invs) > 0 {
-			d := i.getDefinitionInfo(lc.obj, lc.ident)
-			res := i.emitter.EmitImplementationResult()
-			i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
-			i.emitter.EmitItem(res, invs, d.DocumentID)
-		}
-
-		// TODO
-		// _, document, ok := i.positionAndDocument(lc.pkg, lc.ident.Pos())
-		// if !ok {
-		// 	continue
-		// }
-		// for _, ri := range remoteInterfaces {
-		// 	if !types.AssignableTo(lc.obj.Type(), ri.obj.Type()) {
-		// 		continue
-		// 	}
-
-		// 	// This is wrong.
-		// 	//
-		// 	// Here's what it looks like:
-		// 	//
-		// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -next-> resultSet -moniker-> moniker
-		// 	//                                                                               ^^^^^^^^^^^^^^^^^ this should not be here
-		// 	//
-		// 	// Here's what it SHOULD look like:
-		// 	//
-		// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -moniker-> moniker
-		// 	if ok := i.emitImportMoniker(res, ri.pkg, ri.obj, document); !ok {
-		// 		return fmt.Errorf("failed to emit import moniker for type %v and interface %v", lc, ri)
-		// 	}
-		// }
 	}
+
+	// This is the original idea. We still have stuff left for this
+	if false {
+		for _, lc := range localConcreteTypes {
+			invs := []uint64{}
+			for _, li := range localInterfaces {
+				if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
+					continue
+				}
+				invs = append(invs, i.getDefinitionInfo(li.obj, li.ident).RangeID)
+			}
+			if len(invs) > 0 {
+				d := i.getDefinitionInfo(lc.obj, lc.ident)
+				res := i.emitter.EmitImplementationResult()
+				i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
+				i.emitter.EmitItem(res, invs, d.DocumentID)
+			}
+			// 	// This is wrong.
+			// 	//
+			// 	// Here's what it looks like:
+			// 	//
+			// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -next-> resultSet -moniker-> moniker
+			// 	//                                                                               ^^^^^^^^^^^^^^^^^ this should not be here
+			// 	//
+			// 	// Here's what it SHOULD look like:
+			// 	//
+			// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -moniker-> moniker
+			// 	if ok := i.emitImportMoniker(res, ri.pkg, ri.obj, document); !ok {
+			// 		return fmt.Errorf("failed to emit import moniker for type %v and interface %v", lc, ri)
+			// 	}
+			// }
+		}
+
+		for _, li := range localInterfaces {
+			invs := []uint64{}
+			for _, lc := range localConcreteTypes {
+				if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
+					continue
+				}
+				invs = append(invs, i.getDefinitionInfo(lc.obj, lc.ident).RangeID)
+			}
+			if len(invs) > 0 {
+				d := i.getDefinitionInfo(li.obj, li.ident)
+				res := i.emitter.EmitImplementationResult()
+				i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
+				i.emitter.EmitItem(res, invs, d.DocumentID)
+			}
+
+			// Just like gopls, we consider concrete types defined
+			// in dependencies as implementing interfaces defined in the current project.
+
+			// TODO
+			// for _, rc := range remoteConcreteTypes {
+			// 	if !types.AssignableTo(rc.obj.Type(), li.obj.Type()) {
+			// 		continue
+			// 	}
+			// 	// emit implements moniker rrc.name
+			// 	// emit moniker edge
+			// }
+		}
+	}
+
+	return nil
+}
+
+func (i *Indexer) findChrisIdea(localInterfaces, localConcreteTypes []def) {
+	implementationsFound := 0
 
 	// TODO clean up this garbage
 	key := func(m *types.Selection) string {
@@ -1001,7 +1062,6 @@ func (i *Indexer) indexImplementations() error {
 		ms := types.NewMethodSet(lc.obj.Type())
 		for j := 0; j < ms.Len(); j++ {
 			s := key(ms.At(j))
-			fmt.Println("  ", s)
 			if _, ok := ctm[s]; !ok {
 				ctm[s] = map[int]struct{}{}
 			}
@@ -1009,7 +1069,7 @@ func (i *Indexer) indexImplementations() error {
 		}
 	}
 
-	fmt.Println(ctm)
+	// fmt.Println(ctm)
 
 nextLocalInterface:
 	for _, li := range localInterfaces {
@@ -1046,39 +1106,15 @@ nextLocalInterface:
 		}
 
 		for lci := range lcsSoFar {
-			fmt.Println(localConcreteTypes[lci].obj, "implements", li.obj)
-		}
-	}
-
-	for _, li := range localInterfaces {
-		invs := []uint64{}
-		for _, lc := range localConcreteTypes {
-			if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
-				continue
+			if false {
+				fmt.Println(localConcreteTypes[lci].obj.Name(), "implements", li.obj.Name())
 			}
-			invs = append(invs, i.getDefinitionInfo(lc.obj, lc.ident).RangeID)
-		}
-		if len(invs) > 0 {
-			d := i.getDefinitionInfo(li.obj, li.ident)
-			res := i.emitter.EmitImplementationResult()
-			i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
-			i.emitter.EmitItem(res, invs, d.DocumentID)
-		}
 
-		// Just like gopls, we consider concrete types defined
-		// in dependencies as implementing interfaces defined in the current project.
-
-		// TODO
-		// for _, rc := range remoteConcreteTypes {
-		// 	if !types.AssignableTo(rc.obj.Type(), li.obj.Type()) {
-		// 		continue
-		// 	}
-		// 	// emit implements moniker rrc.name
-		// 	// emit moniker edge
-		// }
+			implementationsFound += 1
+		}
 	}
 
-	return nil
+	fmt.Println("## Chris Implementations Found:", implementationsFound)
 }
 
 func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
