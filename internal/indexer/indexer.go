@@ -939,83 +939,24 @@ func (i *Indexer) indexImplementations() error {
 	// TODO prune interfaces/types that are not exported
 	// TODO prune interfaces/types by method count
 
-	fmt.Println()
-	startPairwise := time.Now()
-	pairsPairwise := i.findPairwise(localInterfaces, localConcreteTypes)
-	durationPairwise := time.Since(startPairwise)
-
-	fmt.Println()
-	startChris := time.Now()
-	pairsChris := i.buildImplementationRelation(localInterfaces, localConcreteTypes)
-	durationChris := time.Since(startChris)
-
-	fmt.Println()
-	fmt.Println("Chris    Time :", durationChris)
-	fmt.Println("Pairwise Time :", durationPairwise)
-	fmt.Println()
-	comparePairs(localConcreteTypes, localInterfaces, pairsChris, pairsPairwise, "Chris", "Pairwise")
-	fmt.Println()
-
-	// This is the original idea. We still have stuff left for this
-	if false {
-		for _, lc := range localConcreteTypes {
+	emitImplementations := func(relation map[int]*intsets.Sparse, leftDefs, rightDefs []def) {
+		for left, rights := range relation {
 			invs := []uint64{}
-			for _, li := range localInterfaces {
-				if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
-					continue
-				}
-				invs = append(invs, i.getDefinitionInfo(li.obj, li.ident).RangeID)
+			for _, right := range rights.AppendTo(nil) {
+				invs = append(invs, i.getDefinitionInfo(rightDefs[right].obj, rightDefs[right].ident).RangeID)
 			}
-			if len(invs) > 0 {
-				d := i.getDefinitionInfo(lc.obj, lc.ident)
-				res := i.emitter.EmitImplementationResult()
-				i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
-				i.emitter.EmitItem(res, invs, d.DocumentID)
-			}
-			// 	// This is wrong.
-			// 	//
-			// 	// Here's what it looks like:
-			// 	//
-			// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -next-> resultSet -moniker-> moniker
-			// 	//                                                                               ^^^^^^^^^^^^^^^^^ this should not be here
-			// 	//
-			// 	// Here's what it SHOULD look like:
-			// 	//
-			// 	// 	 range -next-> resultSet -textDocument/implementation-> implementationResult -moniker-> moniker
-			// 	if ok := i.emitImportMoniker(res, ri.pkg, ri.obj, document); !ok {
-			// 		return fmt.Errorf("failed to emit import moniker for type %v and interface %v", lc, ri)
-			// 	}
-			// }
-		}
-
-		for _, li := range localInterfaces {
-			invs := []uint64{}
-			for _, lc := range localConcreteTypes {
-				if !types.AssignableTo(lc.obj.Type(), li.obj.Type()) {
-					continue
-				}
-				invs = append(invs, i.getDefinitionInfo(lc.obj, lc.ident).RangeID)
-			}
-			if len(invs) > 0 {
-				d := i.getDefinitionInfo(li.obj, li.ident)
-				res := i.emitter.EmitImplementationResult()
-				i.emitter.EmitTextDocumentImplementation(d.ResultSetID, res)
-				i.emitter.EmitItem(res, invs, d.DocumentID)
-			}
-
-			// Just like gopls, we consider concrete types defined
-			// in dependencies as implementing interfaces defined in the current project.
-
-			// TODO
-			// for _, rc := range remoteConcreteTypes {
-			// 	if !types.AssignableTo(rc.obj.Type(), li.obj.Type()) {
-			// 		continue
-			// 	}
-			// 	// emit implements moniker rrc.name
-			// 	// emit moniker edge
-			// }
+			defInfo := i.getDefinitionInfo(leftDefs[left].obj, leftDefs[left].ident)
+			implementationResult := i.emitter.EmitImplementationResult()
+			i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
+			i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
 		}
 	}
+
+	relation := i.buildImplementationRelation(localInterfaces, localConcreteTypes)
+	emitImplementations(relation, localConcreteTypes, localInterfaces)
+	emitImplementations(invert(relation), localInterfaces, localConcreteTypes)
+
+	// TODO remote
 
 	return nil
 }
@@ -1159,6 +1100,19 @@ func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intse
 	difference(pairsB, pairsA, func(k, ix int) {
 		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", concreteTypes[k].obj, "IMPLEMENTS", interfaces[ix].obj)
 	})
+}
+
+func invert(relation map[int]*intsets.Sparse) map[int]*intsets.Sparse {
+	inverse := map[int]*intsets.Sparse{}
+	for k, v := range relation {
+		for _, i := range v.AppendTo(nil) {
+			if _, ok := inverse[i]; !ok {
+				inverse[i] = &intsets.Sparse{}
+			}
+			inverse[i].Insert(k)
+		}
+	}
+	return inverse
 }
 
 // listMethods returns the method set for a named type T
