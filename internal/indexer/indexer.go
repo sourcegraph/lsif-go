@@ -1141,15 +1141,24 @@ func listMethods(T *types.Named) []*types.Selection {
 }
 
 func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
-	// List all deps
+	// List all import paths
 	output, err := command.Run(i.projectRoot, "go", "list", "all")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %v\n%s", err, output)
 	}
+	pkgSet := map[string]struct{}{}
+	for _, pkg := range i.packages {
+		pkgSet[pkg.PkgPath] = struct{}{}
+	}
 	depNames := []string{"std"}
-	depNames = append(depNames, strings.Split(output, "\n")...)
+	for _, dep := range strings.Split(output, "\n") {
+		if _, ok := pkgSet[dep]; !ok {
+			// It's a dependency
+			depNames = append(depNames, dep)
+		}
+	}
 
-	// Load all deps
+	// Load all dependnecy import paths
 	config := &packages.Config{
 		Mode: loadMode,
 		Dir:  i.projectRoot,
