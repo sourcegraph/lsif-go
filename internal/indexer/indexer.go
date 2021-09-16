@@ -914,10 +914,10 @@ func (i *Indexer) indexImplementations() error {
 		return err
 	}
 
-	start2 := time.Now()
+	start1 := time.Now()
 	localInterfaces, localConcreteTypes := extractTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := extractTypes(deps)
-	fmt.Println("## Extract Types:", time.Since(start2), "<==")
+	fmt.Println("## Extract Types:", time.Since(start1), "<==")
 
 	fmt.Println("localInterfaces", len(localInterfaces))
 	fmt.Println("localConcreteTypes", len(localConcreteTypes))
@@ -927,74 +927,95 @@ func (i *Indexer) indexImplementations() error {
 	// TODO prune interfaces/types that are not exported
 	// TODO prune interfaces/types by method count
 
-	const local = 0
-	const remote = 1
-	const invertNo = false
-	const invertYes = true
+	checkPairwise := true
 
-	emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
-		relation := i.buildImplementationRelation(concreteTypes, interfaces)
-		leftDefs, rightDefs := concreteTypes, interfaces
+	if !checkPairwise {
+		const local = 0
+		const remote = 1
+		const invertNo = false
+		const invertYes = true
 
-		if shouldInvert {
-			relation = invert(relation)
-			leftDefs, rightDefs = rightDefs, leftDefs
-		}
+		emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
+			relation := i.buildImplementationRelation(concreteTypes, interfaces)
+			leftDefs, rightDefs := concreteTypes, interfaces
 
-		for left, rights := range relation {
-			switch rightKind {
-			case local:
-				// Emit this structure:
-				//
-				// resultSet ---textDocument/implementation--> implementationResult (--item--> range)+
-				// ^^^^^^^^^ already exists                                         ^^^^^^^^^^^^^^^^^^ 1 or more
-				invs := []uint64{}
-				for _, right := range rights.AppendTo(nil) {
-					invs = append(invs, i.getDefinitionInfo(rightDefs[right].obj, rightDefs[right].ident).RangeID)
+			if shouldInvert {
+				relation = invert(relation)
+				leftDefs, rightDefs = rightDefs, leftDefs
+			}
+
+			for left, rights := range relation {
+				switch rightKind {
+				case local:
+					// Emit this structure:
+					//
+					// resultSet ---textDocument/implementation--> implementationResult (--item--> range)+
+					// ^^^^^^^^^ already exists                                         ^^^^^^^^^^^^^^^^^^ 1 or more
+					invs := []uint64{}
+					for _, right := range rights.AppendTo(nil) {
+						invs = append(invs, i.getDefinitionInfo(rightDefs[right].obj, rightDefs[right].ident).RangeID)
+					}
+					defInfo := i.getDefinitionInfo(leftDefs[left].obj, leftDefs[left].ident)
+					implementationResult := i.emitter.EmitImplementationResult()
+					i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
+					i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
+				case remote:
+					fmt.Println("LET'S GOOOOOO")
+				default:
+					panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
 				}
-				defInfo := i.getDefinitionInfo(leftDefs[left].obj, leftDefs[left].ident)
-				implementationResult := i.emitter.EmitImplementationResult()
-				i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
-				i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
-			case remote:
-				fmt.Println("LET'S GOOOOOO")
-			default:
-				panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
 			}
 		}
-	}
 
-	emitImplementations(localConcreteTypes, localInterfaces, local, invertNo)
-	emitImplementations(localConcreteTypes, localInterfaces, local, invertYes)
-	emitImplementations(localConcreteTypes, remoteInterfaces, remote, invertNo)
-	emitImplementations(remoteConcreteTypes, localInterfaces, remote, invertYes)
+		emitImplementations(localConcreteTypes, localInterfaces, local, invertNo)
+		emitImplementations(localConcreteTypes, localInterfaces, local, invertYes)
+		emitImplementations(localConcreteTypes, remoteInterfaces, remote, invertNo)
+		emitImplementations(remoteConcreteTypes, localInterfaces, remote, invertYes)
+	} else {
+		fmt.Println()
+		start2 := time.Now()
+		ogPairs := i.findOriginalPairwise(localInterfaces, localConcreteTypes)
+		fmt.Println("## Original:", time.Since(start2))
+
+		fmt.Println()
+		start3 := time.Now()
+		smartPairs := i.findSmarterPairwise(localInterfaces, localConcreteTypes)
+		fmt.Println("## New:", time.Since(start3))
+
+		comparePairs(localConcreteTypes, localInterfaces, ogPairs, smartPairs, "original", "Smart")
+	}
 
 	return nil
 }
 
-func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[int]*intsets.Sparse {
+// Saved for later
+// if false && lc.obj.Name() == "stepsExecTUI" && li.obj.Name() == "StepsExecutionUI" {
+// 	fmt.Println("==============")
+// 	fmt.Println("lc: Type", lc.obj.Type())
+// 	fmt.Printf("li: Type %s // %T\n", li.obj.Type(), li.obj.Type().Underlying())
+// 	fmt.Println("li: Type", li.obj.Type())
+
+// 	a, b := types.MissingMethod(T, V, false)
+// 	fmt.Println("Missing Methods    :", a, b)
+
+// 	ptr_T := types.NewPointer(T)
+// 	a, b = types.MissingMethod(ptr_T, V, false)
+// 	fmt.Println("Missing Methods ptr:", a, b)
+// 	panic("AHHHHHHH 1")
+// }
+
+func (i *Indexer) findOriginalPairwise(localInterfaces, localConcreteTypes []def) map[int]*intsets.Sparse {
 	pairs := map[int]*intsets.Sparse{}
+
+	comparisons := 0
 
 	// TODO: We should just keep lists of them by map -> interface, structs.
 	for lci, lc := range localConcreteTypes {
 		for lii, li := range localInterfaces {
+			comparisons += 1
+
 			switch V := li.obj.Type().Underlying().(type) {
 			case *types.Interface:
-				// if false && lc.obj.Name() == "stepsExecTUI" && li.obj.Name() == "StepsExecutionUI" {
-				// 	fmt.Println("==============")
-				// 	fmt.Println("lc: Type", lc.obj.Type())
-				// 	fmt.Printf("li: Type %s // %T\n", li.obj.Type(), li.obj.Type().Underlying())
-				// 	fmt.Println("li: Type", li.obj.Type())
-
-				// 	a, b := types.MissingMethod(T, V, false)
-				// 	fmt.Println("Missing Methods    :", a, b)
-
-				// 	ptr_T := types.NewPointer(T)
-				// 	a, b = types.MissingMethod(ptr_T, V, false)
-				// 	fmt.Println("Missing Methods ptr:", a, b)
-				// 	panic("AHHHHHHH 1")
-				// }
-
 				raw_T := lc.obj.Type()
 				T := types.NewPointer(raw_T)
 
@@ -1013,6 +1034,77 @@ func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[in
 		}
 	}
 
+	fmt.Println("-> ORIGINAL COMPARISON:", comparisons)
+
+	return pairs
+}
+
+func (i *Indexer) findSmarterPairwise(localInterfaces, localConcreteTypes []def) map[int]*intsets.Sparse {
+	pairs := map[int]*intsets.Sparse{}
+
+	type defWithIndex struct {
+		def
+		idx int
+	}
+
+	mapToMethodLen := func(defs []def) (map[int][]defWithIndex, int) {
+		m := map[int][]defWithIndex{}
+
+		maxLen := 0
+		for idx, d := range defs {
+			methodLen := len(listMethods(d.obj.Type().(*types.Named)))
+
+			sameLength, ok := m[methodLen]
+			if !ok {
+				sameLength = []defWithIndex{}
+			}
+
+			m[methodLen] = append(sameLength, defWithIndex{d, idx})
+
+			maxLen = int(math.Max(float64(maxLen), float64(methodLen)))
+		}
+
+		return m, maxLen
+	}
+
+	concreteMap, maxConcreate := mapToMethodLen(localConcreteTypes)
+	interfaceMap, _ := mapToMethodLen(localInterfaces)
+
+	comparisons := 0
+	// TODO: We should just keep lists of them by map -> interface, structs.
+	for interfaceLen, interfaces := range interfaceMap {
+		for i := interfaceLen; i <= maxConcreate; i++ {
+			for _, li := range interfaces {
+				lii := li.idx
+
+				// for concreteLen, lc := range concreteMap {
+				for _, lc := range concreteMap[i] {
+					lci := lc.idx
+
+					switch V := li.obj.Type().Underlying().(type) {
+					case *types.Interface:
+						raw_T := lc.obj.Type()
+						T := types.NewPointer(raw_T)
+
+						comparisons += 1
+						if !types.Implements(T, V) {
+							continue
+						}
+
+						if _, ok := pairs[lci]; !ok {
+							pairs[lci] = &intsets.Sparse{}
+						}
+						pairs[lci].Insert(lii)
+					default:
+						panic("NO TODAY")
+					}
+				}
+			}
+
+		}
+	}
+
+	fmt.Println("NEW COMPARISONS", comparisons)
 	return pairs
 }
 
