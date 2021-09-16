@@ -940,6 +940,21 @@ func (i *Indexer) indexImplementations() error {
 		const invertNo = false
 		const invertYes = true
 
+		positionToImplementationResult := map[string]uint64{}
+		ensureImplementationResult := func(d def) uint64 {
+			position, _, _ := i.positionAndDocument(d.pkg, d.ident.Pos())
+			if v, ok := positionToImplementationResult[position.String()]; ok {
+				return v
+			}
+			defInfo := i.getDefinitionInfo(d.obj, d.ident)
+			implementationResult := i.emitter.EmitImplementationResult()
+			i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
+
+			positionToImplementationResult[position.String()] = implementationResult
+
+			return implementationResult
+		}
+
 		emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
 			relation := i.buildImplementationRelation(concreteTypes, interfaces)
 			leftDefs, rightDefs := concreteTypes, interfaces
@@ -949,23 +964,33 @@ func (i *Indexer) indexImplementations() error {
 				leftDefs, rightDefs = rightDefs, leftDefs
 			}
 
-			for left, rights := range relation {
+			for lefti, rights := range relation {
+				left := leftDefs[lefti]
+
 				switch rightKind {
 				case local:
 					// Emit this structure:
 					//
-					// resultSet ---textDocument/implementation--> implementationResult (--item--> range)+
-					// ^^^^^^^^^ already exists                                         ^^^^^^^^^^^^^^^^^^ 1 or more
+					// resultSet ---textDocument/implementation--> implementationResult --item--> range
+					// ^^^^^^^^^ already exists                                                   ^^^^^ 1 or more
 					invs := []uint64{}
-					for _, right := range rights.AppendTo(nil) {
-						invs = append(invs, i.getDefinitionInfo(rightDefs[right].obj, rightDefs[right].ident).RangeID)
+					for _, righti := range rights.AppendTo(nil) {
+						right := rightDefs[righti]
+						invs = append(invs, i.getDefinitionInfo(right.obj, right.ident).RangeID)
 					}
-					defInfo := i.getDefinitionInfo(leftDefs[left].obj, leftDefs[left].ident)
-					implementationResult := i.emitter.EmitImplementationResult()
-					i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
+					defInfo := i.getDefinitionInfo(left.obj, left.ident)
+					implementationResult := ensureImplementationResult(left)
 					i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
 				case remote:
-					// fmt.Println("LET'S GOOOOOO")
+					implementationResult := ensureImplementationResult(left)
+					for _, righti := range rights.AppendTo(nil) {
+						right := rightDefs[righti]
+						monikerID := i.emitter.EmitMoniker("implementation", "gomod", joinMonikerParts(
+							makeMonikerPackage(right.obj),
+							makeMonikerIdentifier(i.packageDataCache, right.pkg, right.obj),
+						))
+						i.emitter.EmitMonikerEdge(implementationResult, monikerID)
+					}
 				default:
 					panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
 				}
