@@ -10,14 +10,13 @@ import (
 	"log"
 	"math"
 	"path"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/agnivade/levenshtein"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/lsif-go/internal/command"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
@@ -148,8 +147,6 @@ func (i *Indexer) Index() error {
 		return errors.Wrap(err, "while indexing implementations")
 	}
 	fmt.Println("### Total Implement Time:", time.Since(implStart))
-
-	i.testTJ()
 
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
@@ -875,23 +872,6 @@ type def struct {
 	ident *ast.Ident
 }
 
-func (i *Indexer) testTJ() {
-	deps, err := i.loadDependencyPackages()
-	if err != nil {
-		return
-	}
-
-	start1 := time.Now()
-	extractTypes(deps)
-	fmt.Println("## Extract Types Combined:", time.Since(start1), "<==")
-
-	start2 := time.Now()
-	for _, dep := range deps {
-		extractTypes([]*packages.Package{dep})
-	}
-	fmt.Println("## Extract Types Separately:", time.Since(start2), "<==")
-}
-
 func extractTypes(pkgs []*packages.Package) ([]def, []def) {
 	interfaces := []def{}
 	concreteTypes := []def{}
@@ -928,10 +908,6 @@ func extractTypes(pkgs []*packages.Package) ([]def, []def) {
 
 // indexImplementations emits data for each implementation of an interface.
 func (i *Indexer) indexImplementations() error {
-	fmt.Println("=== Implementations orig")
-
-	// Returns all interfaces and concrete types defined in the given pkgs
-
 	// Load all dependencies
 	deps, err := i.loadDependencyPackages()
 	if err != nil {
@@ -1211,61 +1187,21 @@ func listMethods(T *types.Named) []*types.Selection {
 }
 
 func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
-	depNames := []string{"std"}
-
 	// List all deps
-	fixed := false
-	if fixed {
-		broken := map[string]interface{}{
-			"github.com/go-errors/errors": nil,
-			"github.com/pingcap/errors":   nil,
-		}
-		for _, dep := range i.dependencies {
-			name := dep.Name
-			name = strings.TrimPrefix(name, "https://")
-			name = strings.TrimPrefix(name, "https:/")
-			if _, ok := broken[dep.Name]; ok {
-				fmt.Printf("Skipping known error for %s: updates to go.mod needed; to update it: go mod tidy\n", name)
-				continue
-			}
-			depNames = append(depNames, dep.Name)
-		}
-	} else {
-		fmt.Println("TODO fix deps")
+	output, err := command.Run(i.projectRoot, "go", "list", "all")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packages: %v\n%s", err, output)
 	}
-
-	sort.Strings(depNames)
+	depNames := []string{"std"}
+	depNames = append(depNames, strings.Split(output, "\n")...)
 
 	// Load all deps
-	deps := []*packages.Package{}
-	for _, depName := range depNames {
-		// Load the dep
-		config := &packages.Config{
-			Mode: loadMode,
-			Dir:  i.projectRoot,
-			Logf: i.packagesLoadLogger,
-		}
-		pkgs, err := packages.Load(config, depName)
-
-		// Check for errors
-		if err != nil {
-			return nil, fmt.Errorf("in packages.Load(%v): %v", depName, err)
-		}
-		for _, pkg := range pkgs {
-			var errs error
-			for _, err := range pkg.Errors {
-				multierror.Append(errs, err)
-			}
-			if errs != nil {
-				return nil, errs
-			}
-		}
-
-		// Append the dep
-		deps = append(deps, pkgs...)
+	config := &packages.Config{
+		Mode: loadMode,
+		Dir:  i.projectRoot,
+		Logf: i.packagesLoadLogger,
 	}
-
-	return deps, nil
+	return packages.Load(config, depNames...)
 }
 
 // ensurePointer wraps T in a *types.Pointer if T is a named, non-interface
