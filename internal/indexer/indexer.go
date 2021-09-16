@@ -883,11 +883,17 @@ func extractTypes(pkgs []*packages.Package) ([]def, []def) {
 
 			// We ignore aliases 'type M = N' to avoid duplicate reporting
 			// of the Named type N.
-			if obj, ok := obj.(*types.TypeName); !ok || obj.IsAlias() {
+			if _, ok := obj.(*types.TypeName); !ok {
 				continue
 			}
 
-			methodLen := types.NewMethodSet(obj.Type()).Len()
+			if _, ok := obj.Type().(*types.Named); !ok {
+				continue
+			}
+
+			// methodLen := types.NewMethodSet(obj.Type()).Len()
+			// methodLen := listMethods(obj.Type())
+			methodLen := len(listMethods(obj.Type().(*types.Named)))
 			if methodLen == 0 {
 				// fmt.Println("OH NO NO NO", obj.Name())
 				continue
@@ -928,7 +934,6 @@ func (i *Indexer) indexImplementations() error {
 	// TODO prune interfaces/types by method count
 
 	doTheRealThing := true
-
 	if doTheRealThing {
 		const local = 0
 		const remote = 1
@@ -960,29 +965,36 @@ func (i *Indexer) indexImplementations() error {
 					i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
 					i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
 				case remote:
-					fmt.Println("LET'S GOOOOOO")
+					// fmt.Println("LET'S GOOOOOO")
 				default:
 					panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
 				}
 			}
 		}
 
+		start1 := time.Now()
 		emitImplementations(localConcreteTypes, localInterfaces, local, invertNo)
 		emitImplementations(localConcreteTypes, localInterfaces, local, invertYes)
 		emitImplementations(localConcreteTypes, remoteInterfaces, remote, invertNo)
 		emitImplementations(remoteConcreteTypes, localInterfaces, remote, invertYes)
+		fmt.Println("## emitting Time:", time.Since(start1))
 	} else {
+		start1 := time.Now()
+		implPairs := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
+		fmt.Println("## Keys:", time.Since(start1))
+
 		fmt.Println()
 		start2 := time.Now()
 		ogPairs := i.findOriginalPairwise(localInterfaces, localConcreteTypes)
 		fmt.Println("## Original:", time.Since(start2))
 
-		fmt.Println()
 		start3 := time.Now()
 		smartPairs := i.findSmarterPairwise(localInterfaces, localConcreteTypes)
 		fmt.Println("## New:", time.Since(start3))
 
-		comparePairs(localConcreteTypes, localInterfaces, ogPairs, smartPairs, "original", "Smart")
+		comparePairs(localConcreteTypes, localInterfaces, implPairs, smartPairs, "Keys", "Smart")
+		fmt.Println()
+		comparePairs(localConcreteTypes, localInterfaces, ogPairs, smartPairs, "Original", "Smart")
 	}
 
 	return nil
@@ -1087,7 +1099,7 @@ func (i *Indexer) findSmarterPairwise(localInterfaces, localConcreteTypes []def)
 						T := types.NewPointer(raw_T)
 
 						comparisons += 1
-						if !types.Implements(T, V) {
+						if !types.AssignableTo(T, V) {
 							continue
 						}
 
@@ -1129,14 +1141,25 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) m
 		signature := m.Type().(*types.Signature)
 		returnTypes := tuple(signature.Results())
 
-		ret := m.Obj().Name() + "" + parens(tuple(signature.Params()))
+		ret := m.Obj().Name() + parens(tuple(signature.Params()))
 		if len(returnTypes) == 1 {
 			ret += " " + returnTypes[0]
 		} else if len(returnTypes) > 1 {
 			ret += " " + parens(returnTypes)
 		}
+
 		return ret
 	}
+
+	// type: 1111
+	// ifce: 1011
+	// ->    1011
+
+	// Types are T
+	// Interfaces are I
+
+	// Average Methods: M_T ~ 50
+	// M_I
 
 	// Build a map from methods to all their receivers (concrete types that define those methods).
 	methodToReceivers := map[string]*intsets.Sparse{}
@@ -1151,6 +1174,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) m
 	}
 
 	// Loop over all the interfaces and find the concrete types that implement them.
+interfaceLoop:
 	for i, interfase := range interfaces {
 		methods := listMethods(interfase.obj.Type().(*types.Named))
 
@@ -1163,15 +1187,23 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) m
 		// Types that implement this interface are the intersection
 		// of all sets of receivers of all methods in this interface.
 		candidateTypes := &intsets.Sparse{}
-		for mi, method := range methods {
+
+		if initialReceivers, ok := methodToReceivers[canonical(methods[0])]; !ok {
+			continue interfaceLoop
+		} else {
+			candidateTypes.Copy(initialReceivers)
+		}
+
+		for _, method := range methods[1:] {
 			receivers, ok := methodToReceivers[canonical(method)]
 			if !ok {
-				receivers = &intsets.Sparse{}
+				continue interfaceLoop
 			}
-			if mi == 0 {
-				candidateTypes.Copy(receivers)
-			}
+
 			candidateTypes.IntersectionWith(receivers)
+			if candidateTypes.IsEmpty() {
+				continue interfaceLoop
+			}
 		}
 
 		// Add the implementations to the relation.
@@ -1197,12 +1229,21 @@ func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intse
 		}
 	}
 
+	numDifferences := 0
 	difference(pairsA, pairsB, func(k, ix int) {
-		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", concreteTypes[k].obj, "IMPLEMENTS", interfaces[ix].obj)
+		numDifferences += 1
+		conc := concreteTypes[k]
+		iface := interfaces[ix]
+		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", conc.obj.Pkg().Path(), conc.obj.Name(), "IMPLEMENTS", iface.obj.Pkg().Path(), iface.obj.Name())
 	})
 	difference(pairsB, pairsA, func(k, ix int) {
-		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", concreteTypes[k].obj, "IMPLEMENTS", interfaces[ix].obj)
+		numDifferences += 1
+		conc := concreteTypes[k]
+		iface := interfaces[ix]
+		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", conc.obj.Pkg().Path(), conc.obj.Name(), "IMPLEMENTS", iface.obj.Pkg().Path(), iface.obj.Name())
 	})
+
+	fmt.Println("Total Differences:", numDifferences)
 }
 
 func invert(relation map[int]*intsets.Sparse) map[int]*intsets.Sparse {
