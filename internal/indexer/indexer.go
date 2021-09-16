@@ -927,9 +927,9 @@ func (i *Indexer) indexImplementations() error {
 	// TODO prune interfaces/types that are not exported
 	// TODO prune interfaces/types by method count
 
-	checkPairwise := true
+	doTheRealThing := true
 
-	if !checkPairwise {
+	if doTheRealThing {
 		const local = 0
 		const remote = 1
 		const invertNo = false
