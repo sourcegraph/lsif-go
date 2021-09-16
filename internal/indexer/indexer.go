@@ -924,39 +924,50 @@ func (i *Indexer) indexImplementations() error {
 	fmt.Println("remoteInterfaces", len(remoteInterfaces))
 	fmt.Println("remoteConcreteTypes", len(remoteConcreteTypes))
 
-	// For each of these 4 pairs:
-	//
-	// - local concrete types -> local  interfaces
-	// - local concrete types -> remote interfaces
-	// - local interfaces     -> local  concrete types
-	// - local interfaces     -> remote concrete types
-	//
-	// We emit this structure:
-	//
-	// result set --- textDocument/implementations --> implementations
-	// implementations --- item --> (range for local, moniker for remote)
-
 	// TODO prune interfaces/types that are not exported
 	// TODO prune interfaces/types by method count
 
-	emitImplementations := func(relation map[int]*intsets.Sparse, leftDefs, rightDefs []def) {
+	const local = 0
+	const remote = 1
+	const invertNo = false
+	const invertYes = true
+
+	emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
+		relation := i.buildImplementationRelation(concreteTypes, interfaces)
+		leftDefs, rightDefs := concreteTypes, interfaces
+
+		if shouldInvert {
+			relation = invert(relation)
+			leftDefs, rightDefs = rightDefs, leftDefs
+		}
+
 		for left, rights := range relation {
-			invs := []uint64{}
-			for _, right := range rights.AppendTo(nil) {
-				invs = append(invs, i.getDefinitionInfo(rightDefs[right].obj, rightDefs[right].ident).RangeID)
+			switch rightKind {
+			case local:
+				// Emit this structure:
+				//
+				// resultSet ---textDocument/implementation--> implementationResult (--item--> range)+
+				// ^^^^^^^^^ already exists                                         ^^^^^^^^^^^^^^^^^^ 1 or more
+				invs := []uint64{}
+				for _, right := range rights.AppendTo(nil) {
+					invs = append(invs, i.getDefinitionInfo(rightDefs[right].obj, rightDefs[right].ident).RangeID)
+				}
+				defInfo := i.getDefinitionInfo(leftDefs[left].obj, leftDefs[left].ident)
+				implementationResult := i.emitter.EmitImplementationResult()
+				i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
+				i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
+			case remote:
+				fmt.Println("LET'S GOOOOOO")
+			default:
+				panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
 			}
-			defInfo := i.getDefinitionInfo(leftDefs[left].obj, leftDefs[left].ident)
-			implementationResult := i.emitter.EmitImplementationResult()
-			i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
-			i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
 		}
 	}
 
-	relation := i.buildImplementationRelation(localInterfaces, localConcreteTypes)
-	emitImplementations(relation, localConcreteTypes, localInterfaces)
-	emitImplementations(invert(relation), localInterfaces, localConcreteTypes)
-
-	// TODO remote
+	emitImplementations(localConcreteTypes, localInterfaces, local, invertNo)
+	emitImplementations(localConcreteTypes, localInterfaces, local, invertYes)
+	emitImplementations(localConcreteTypes, remoteInterfaces, remote, invertNo)
+	emitImplementations(remoteConcreteTypes, localInterfaces, remote, invertYes)
 
 	return nil
 }
@@ -1006,7 +1017,7 @@ func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[in
 }
 
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(interfaces, concreteTypes []def) map[int]*intsets.Sparse {
+func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) map[int]*intsets.Sparse {
 	relation := map[int]*intsets.Sparse{}
 
 	// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
