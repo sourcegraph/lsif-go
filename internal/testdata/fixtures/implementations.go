@@ -18,3 +18,6 @@ type T2 int
 
 func (r T2) F1() {}
 func (r T2) F2() {}
+
+type A1 = T1
+type A12 = A1

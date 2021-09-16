@@ -483,20 +483,46 @@ func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, end
 	}
 }
 
-func assertRanges(t *testing.T, actual []protocol.Range, expected []string) {
-	m := map[string]struct{}{}
+func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg string) {
+	stringify := func(r protocol.Range) string {
+		return fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
+	}
+
+	actuals := map[string]struct{}{}
 	for _, r := range actual {
-		m[fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)] = struct{}{}
+		actuals[stringify(r)] = struct{}{}
 	}
 
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+	expecteds := map[string]struct{}{}
+	for _, r := range expected {
+		expecteds[r] = struct{}{}
 	}
 
-	for _, e := range expected {
-		if _, ok := m[e]; !ok {
-			t.Fatalf("wanted range %s (have %v)", e, keys)
+	missings := []string{}
+	extras := []string{}
+
+	for r, _ := range expecteds {
+		if _, ok := actuals[r]; !ok {
+			missings = append(missings, r)
 		}
 	}
+
+	for r, _ := range actuals {
+		if _, ok := expecteds[r]; !ok {
+			extras = append(extras, r)
+		}
+	}
+
+	if len(missings) == 0 && len(extras) == 0 {
+		return
+	}
+
+	s := []string{msg + ":"}
+	if len(missings) > 0 {
+		s = append(s, fmt.Sprintf("missing [%s]", strings.Join(missings, ", ")))
+	}
+	if len(extras) > 0 {
+		s = append(s, fmt.Sprintf("extra [%s]", strings.Join(extras, ", ")))
+	}
+	t.Fatal(strings.Join(s, ", "))
 }
