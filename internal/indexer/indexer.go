@@ -960,11 +960,8 @@ func (i *Indexer) indexImplementations() error {
 	// result set --- textDocument/implementations --> implementations
 	// implementations --- item --> (range for local, moniker for remote)
 
-	// TODO link methods together
-
-	// TODO check AssignableTo only once
-
-	// TODO consider introspecing method sets to go FASTER
+	// TODO prune interfaces/types that are not exported
+	// TODO prune interfaces/types by method count
 
 	fmt.Println()
 	startPairwise := time.Now()
@@ -973,7 +970,7 @@ func (i *Indexer) indexImplementations() error {
 
 	fmt.Println()
 	startChris := time.Now()
-	pairsChris := i.findChris(localInterfaces, localConcreteTypes)
+	pairsChris := i.buildImplementationRelation(localInterfaces, localConcreteTypes)
 	durationChris := time.Since(startChris)
 
 	fmt.Println()
@@ -1091,139 +1088,82 @@ func (i *Indexer) findPairwise(localInterfaces, localConcreteTypes []def) map[in
 	return pairs
 }
 
-func (i *Indexer) findChris(localInterfaces, localConcreteTypes []def) map[int]*intsets.Sparse {
-	pairs := map[int]*intsets.Sparse{}
+// buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
+func (i *Indexer) buildImplementationRelation(interfaces, concreteTypes []def) map[int]*intsets.Sparse {
+	relation := map[int]*intsets.Sparse{}
 
-	// TODO clean up this garbage
-	key := func(m *types.Selection) string {
-		name := m.Obj().Name()
-		sig := m.Type().(*types.Signature)
+	// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
+	canonical := func(m *types.Selection) string {
 		tuple := func(t *types.Tuple) []string {
-			els := []string{}
+			strs := []string{}
 			for i := 0; i < t.Len(); i++ {
-				els = append(els, t.At(i).Type().String())
+				strs = append(strs, t.At(i).Type().String())
 			}
-			return els
-		}
-		parens := func(ss []string) string {
-			return "(" + strings.Join(ss, ", ") + ")"
+			return strs
 		}
 
-		str := name + "" + parens(tuple(sig.Params()))
-		ret := tuple(sig.Results())
-		if len(ret) == 1 {
-			str += " " + ret[0]
-		} else if len(ret) > 1 {
-			str += " " + parens(ret)
+		parens := func(strs []string) string {
+			return "(" + strings.Join(strs, ", ") + ")"
 		}
 
-		return str
+		signature := m.Type().(*types.Signature)
+		returnTypes := tuple(signature.Results())
+
+		ret := m.Obj().Name() + "" + parens(tuple(signature.Params()))
+		if len(returnTypes) == 1 {
+			ret += " " + returnTypes[0]
+		} else if len(returnTypes) > 1 {
+			ret += " " + parens(returnTypes)
+		}
+		return ret
 	}
 
-	debug := false
-
-	methodToConcreteTypes := map[string]*intsets.Sparse{}
-	for i, lc := range localConcreteTypes {
-		ms := combinedMethodSet(lc.obj.Type().(*types.Named))
-		if debug {
-			fmt.Println(lc.obj.Name())
-			for _, m := range ms {
-				fmt.Println("  ", m)
+	// Build a map from methods to all their receivers (concrete types that define those methods).
+	methodToReceivers := map[string]*intsets.Sparse{}
+	for i, t := range concreteTypes {
+		for _, method := range listMethods(t.obj.Type().(*types.Named)) {
+			key := canonical(method)
+			if _, ok := methodToReceivers[key]; !ok {
+				methodToReceivers[key] = &intsets.Sparse{}
 			}
-		}
-		for _, m := range ms {
-			s := key(m)
-			if _, ok := methodToConcreteTypes[s]; !ok {
-				methodToConcreteTypes[s] = &intsets.Sparse{}
-			}
-			methodToConcreteTypes[s].Insert(i)
+			methodToReceivers[key].Insert(i)
 		}
 	}
 
-	if debug {
-		fmt.Println()
-		fmt.Println("methodToConcreteTypes")
-		for k, v := range methodToConcreteTypes {
-			names := []string{}
-			for _, i := range v.AppendTo(nil) {
-				names = append(names, localConcreteTypes[i].obj.Name())
-			}
-			fmt.Println(k, names)
-		}
+	// Loop over all the interfaces and find the concrete types that implement them.
+	for i, interfase := range interfaces {
+		methods := listMethods(interfase.obj.Type().(*types.Named))
 
-		fmt.Println()
-	}
-
-nextLocalInterface:
-	for lii, li := range localInterfaces {
-		if debug {
-			fmt.Println("Checking", li.obj.Name())
-		}
-		ms := combinedMethodSet(li.obj.Type().(*types.Named))
-		if debug {
-			for _, m := range ms {
-				fmt.Println("  -", key(m))
-			}
-		}
-		if len(ms) == 0 {
-			// Empty interface
+		if len(methods) == 0 {
+			// Empty interface - skip it.
 			continue
 		}
-		lcsRemainingOriginal, ok := methodToConcreteTypes[key(ms[0])]
-		if !ok {
-			if debug {
-				fmt.Println("None have", ms[0])
-			}
-			// None of the concrete types have this method, so they
-			// can't implement this interface
-			continue
-		}
-		lcsRemaining := &intsets.Sparse{}
-		lcsRemaining.Copy(lcsRemainingOriginal)
-		if debug {
-			for _, lci := range lcsRemaining.AppendTo(nil) {
-				fmt.Println("  still has", localConcreteTypes[lci].obj.Name())
-			}
-		}
 
-		for _, m := range ms[1:] {
-			cts, ok := methodToConcreteTypes[key(m)]
+		// Find all the concrete types that implement this interface.
+		// Types that implement this interface are the intersection
+		// of all sets of receivers of all methods in this interface.
+		candidateTypes := &intsets.Sparse{}
+		for mi, method := range methods {
+			receivers, ok := methodToReceivers[canonical(method)]
 			if !ok {
-				// None of the concrete types have this method, so they
-				// can't implement this interface
-				if debug {
-					fmt.Println("None have", m)
-				}
-				continue nextLocalInterface
+				receivers = &intsets.Sparse{}
 			}
-			if debug {
-				for _, lci := range lcsRemaining.AppendTo(nil) {
-					fmt.Println("  still has", localConcreteTypes[lci].obj.Name())
-				}
+			if mi == 0 {
+				candidateTypes.Copy(receivers)
 			}
-			lcsRemaining.IntersectionWith(cts)
-			if lcsRemaining.Len() == 0 {
-				// None of the concrete types have all the methods checked so far,
-				// so move on to the next interface
-				if debug {
-					fmt.Println("NEXT", m)
-				}
-				continue nextLocalInterface
-			}
+			candidateTypes.IntersectionWith(receivers)
 		}
 
-		for _, lci := range lcsRemaining.AppendTo(nil) {
-			if _, ok := pairs[lci]; !ok {
-				pairs[lci] = &intsets.Sparse{}
+		// Add the implementations to the relation.
+		for _, ty := range candidateTypes.AppendTo(nil) {
+			if _, ok := relation[ty]; !ok {
+				relation[ty] = &intsets.Sparse{}
 			}
-			pairs[lci].Insert(lii)
-			if debug {
-				fmt.Println("Found", localConcreteTypes[lci].obj.Name(), "implements", localInterfaces[lii].obj.Name())
-			}
+			relation[ty].Insert(i)
 		}
 	}
 
-	return pairs
+	return relation
 }
 
 func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intsets.Sparse, nameA, nameB string) {
@@ -1245,15 +1185,12 @@ func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intse
 	})
 }
 
-// combinedMethodSet returns the method set for a named type T
+// listMethods returns the method set for a named type T
 // merged with all the methods of *T that have different names than
 // the methods of T.
 //
-// combinedMethodSet is analogous to types/typeutil.IntuitiveMethodSet
-// but doesn't require a MethodSetCache.
-// TODO(gri) If this functionality doesn't change over time, consider
-// just calling IntuitiveMethodSet eventually.
-func combinedMethodSet(T *types.Named) []*types.Selection {
+// Copied from https://github.com/golang/tools/blob/1a7ca93429f83e087f7d44d35c0e9ea088fc722e/cmd/godex/print.go#L355
+func listMethods(T *types.Named) []*types.Selection {
 	// method set for T
 	mset := types.NewMethodSet(T)
 	var res []*types.Selection
@@ -1269,22 +1206,6 @@ func combinedMethodSet(T *types.Named) []*types.Selection {
 			res = append(res, pm)
 		}
 	}
-
-	// switch t := T.Underlying().(type) {
-	// case *types.Struct:
-	// 	// add all methods of embedded structs
-	// 	for i := 0; i < t.NumFields(); i++ {
-	// 		f := t.Field(i)
-	// 		if inner, ok := f.Type().(*types.Named); ok && f.Embedded() {
-	// 			res = append(res, combinedMethodSet(inner)...)
-	// 		}
-	// 	}
-	// case *types.Interface:
-	// 	// add all methods of embedded interfaces
-	// 	for i := 0; i < t.NumEmbeddeds(); i++ {
-	// 		res = append(res, combinedMethodSet(t.Embedded(i))...)
-	// 	}
-	// }
 
 	return res
 }
