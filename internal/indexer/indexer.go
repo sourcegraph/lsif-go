@@ -951,6 +951,8 @@ func (i *Indexer) indexImplementations() error {
 			return defInfo.ResultSetID
 		}
 
+		monikerKeyToID := map[string]uint64{}
+
 		emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
 			relation := i.buildImplementationRelation(concreteTypes, interfaces)
 			leftDefs, rightDefs := concreteTypes, interfaces
@@ -982,10 +984,16 @@ func (i *Indexer) indexImplementations() error {
 					resultSet := ensureResultSet(left)
 					for _, righti := range rights.AppendTo(nil) {
 						right := rightDefs[righti]
-						monikerID := i.emitter.EmitMoniker("implementation", "gomod", joinMonikerParts(
+						identifier := joinMonikerParts(
 							makeMonikerPackage(right.obj),
 							makeMonikerIdentifier(i.packageDataCache, right.pkg, right.obj),
-						))
+						)
+						key := "implementation:gomod:%s" + identifier
+						monikerID, ok := monikerKeyToID[key]
+						if !ok {
+							monikerID = i.emitter.EmitMoniker("implementation", "gomod", identifier)
+							monikerKeyToID[key] = monikerID
+						}
 						i.emitter.EmitMonikerEdge(resultSet, monikerID)
 					}
 				default:
