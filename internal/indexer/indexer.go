@@ -940,19 +940,15 @@ func (i *Indexer) indexImplementations() error {
 		const invertNo = false
 		const invertYes = true
 
-		positionToImplementationResult := map[string]uint64{}
-		ensureImplementationResult := func(d def) uint64 {
+		positionToResultSet := map[string]uint64{}
+		ensureResultSet := func(d def) uint64 {
 			position, _, _ := i.positionAndDocument(d.pkg, d.ident.Pos())
-			if v, ok := positionToImplementationResult[position.String()]; ok {
+			if v, ok := positionToResultSet[position.String()]; ok {
 				return v
 			}
 			defInfo := i.getDefinitionInfo(d.obj, d.ident)
-			implementationResult := i.emitter.EmitImplementationResult()
-			i.emitter.EmitTextDocumentImplementation(defInfo.ResultSetID, implementationResult)
-
-			positionToImplementationResult[position.String()] = implementationResult
-
-			return implementationResult
+			positionToResultSet[position.String()] = defInfo.ResultSetID
+			return defInfo.ResultSetID
 		}
 
 		emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
@@ -978,18 +974,19 @@ func (i *Indexer) indexImplementations() error {
 						right := rightDefs[righti]
 						invs = append(invs, i.getDefinitionInfo(right.obj, right.ident).RangeID)
 					}
-					defInfo := i.getDefinitionInfo(left.obj, left.ident)
-					implementationResult := ensureImplementationResult(left)
-					i.emitter.EmitItem(implementationResult, invs, defInfo.DocumentID)
+					resultSet := ensureResultSet(left)
+					implementationResult := i.emitter.EmitImplementationResult()
+					i.emitter.EmitTextDocumentImplementation(resultSet, implementationResult)
+					i.emitter.EmitItem(implementationResult, invs, i.getDefinitionInfo(left.obj, left.ident).DocumentID)
 				case remote:
-					implementationResult := ensureImplementationResult(left)
+					resultSet := ensureResultSet(left)
 					for _, righti := range rights.AppendTo(nil) {
 						right := rightDefs[righti]
 						monikerID := i.emitter.EmitMoniker("implementation", "gomod", joinMonikerParts(
 							makeMonikerPackage(right.obj),
 							makeMonikerIdentifier(i.packageDataCache, right.pkg, right.obj),
 						))
-						i.emitter.EmitMonikerEdge(implementationResult, monikerID)
+						i.emitter.EmitMonikerEdge(resultSet, monikerID)
 					}
 				default:
 					panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
