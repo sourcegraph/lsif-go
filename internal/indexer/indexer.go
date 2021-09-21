@@ -873,7 +873,7 @@ type def struct {
 	defInfo  *DefinitionInfo
 }
 
-func (i *Indexer) extractTypes(pkgs []*packages.Package) ([]def, []def) {
+func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]def, []def) {
 	interfaces := []def{}
 	concreteTypes := []def{}
 	for _, pkg := range pkgs {
@@ -924,8 +924,8 @@ func (i *Indexer) indexImplementations() error {
 	}
 
 	start1 := time.Now()
-	localInterfaces, localConcreteTypes := i.extractTypes(i.packages)
-	remoteInterfaces, remoteConcreteTypes := i.extractTypes(deps)
+	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
+	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(deps)
 	fmt.Println("## Extract Types:", time.Since(start1), "<==")
 
 	fmt.Println("localInterfaces", len(localInterfaces))
