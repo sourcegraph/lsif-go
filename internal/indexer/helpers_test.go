@@ -329,18 +329,15 @@ func findHoverResultByRangeOrResultSetID(w *capturingWriter, id uint64) (protoco
 	return protocol.HoverResult{}, false
 }
 
-// findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set
-// with the given identifier.
-func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+// findRangesByRangeOrResultSetID returns the ranges attached to the range or result set
+// with the given identifier that pass the filter.
+func findRangesByRangeOrResultSetID(w *capturingWriter, id uint64, getInvAndOutV func(elem interface{}) (uint64, uint64, bool)) (ranges []protocol.Range) {
 	elements := w.elements
 
 	// First see if we're attached to definition result directly
 	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.TextDocumentDefinition:
-			if e.OutV == id {
-				ranges = append(ranges, findRangesByResultID(w, e.InV)...)
-			}
+		if inV, outV, ok := getInvAndOutV(elem); ok && outV == id {
+			ranges = append(ranges, findRangesByResultID(w, inV)...)
 		}
 	}
 
@@ -349,68 +346,45 @@ func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ra
 		switch e := elem.(type) {
 		case protocol.Next:
 			if e.OutV == id {
-				ranges = append(ranges, findDefinitionRangesByRangeOrResultSetID(w, e.InV)...)
+				ranges = append(ranges, findRangesByRangeOrResultSetID(w, e.InV, getInvAndOutV)...)
 			}
 		}
 	}
 
 	return ranges
+}
+
+// findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set
+// with the given identifier.
+func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	return findRangesByRangeOrResultSetID(w, id, func(elem interface{}) (uint64, uint64, bool) {
+		if e, ok := elem.(protocol.TextDocumentDefinition); ok {
+			return e.InV, e.OutV, true
+		}
+		return 0, 0, false
+	})
 }
 
 // findReferenceRangesByRangeOrResultSetID returns the reference ranges attached to the range or result set with
 // the given identifier.
 func findReferenceRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
-	elements := w.elements
-
-	// First see if we're attached to reference result directly
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.TextDocumentReferences:
-			if e.OutV == id {
-				ranges = append(ranges, findRangesByResultID(w, e.InV)...)
-			}
+	return findRangesByRangeOrResultSetID(w, id, func(elem interface{}) (uint64, uint64, bool) {
+		if e, ok := elem.(protocol.TextDocumentReferences); ok {
+			return e.InV, e.OutV, true
 		}
-	}
-
-	// Try to get the reference result of a result set attached to the given range or result set
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.Next:
-			if e.OutV == id {
-				ranges = append(ranges, findReferenceRangesByRangeOrResultSetID(w, e.InV)...)
-			}
-		}
-	}
-
-	return ranges
+		return 0, 0, false
+	})
 }
 
 // findImplementationRangesByRangeOrResultSetID returns the implementation ranges attached to the range or result set with
 // the given identifier.
 func findImplementationRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
-	elements := w.elements
-
-	// First see if we're attached to implementation result directly
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.TextDocumentImplementation:
-			if e.OutV == id {
-				ranges = append(ranges, findRangesByResultID(w, e.InV)...)
-			}
+	return findRangesByRangeOrResultSetID(w, id, func(elem interface{}) (uint64, uint64, bool) {
+		if e, ok := elem.(protocol.TextDocumentImplementation); ok {
+			return e.InV, e.OutV, true
 		}
-	}
-
-	// Try to get the implementation result of a result set attached to the given range or result set
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.Next:
-			if e.OutV == id {
-				ranges = append(ranges, findImplementationRangesByRangeOrResultSetID(w, e.InV)...)
-			}
-		}
-	}
-
-	return ranges
+		return 0, 0, false
+	})
 }
 
 // findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or  reference result
@@ -531,7 +505,7 @@ func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg 
 	}
 
 	// Report differences
-	errors := []string{msg + ":"}
+	errors := []string{}
 	if len(missings) > 0 {
 		errors = append(errors, fmt.Sprintf("missing [%s]", strings.Join(missings, ", ")))
 	}
