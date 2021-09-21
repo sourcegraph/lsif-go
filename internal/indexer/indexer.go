@@ -455,26 +455,6 @@ func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *pac
 	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, false, ident)
 }
 
-// getAllReferencedPackages returns a slice of packages containing the index target packages
-// as well as each directly imported package (but no transitively imported packages). The
-// resulting slice contains no duplicates.
-func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.Package) {
-	allPackages := map[*packages.Package]struct{}{}
-	for _, p := range pkgs {
-		allPackages[p] = struct{}{}
-
-		for _, i := range p.Imports {
-			allPackages[i] = struct{}{}
-		}
-	}
-
-	for pkg := range allPackages {
-		flattened = append(flattened, pkg)
-	}
-
-	return flattened
-}
-
 // indexDefinitions emits data for each definition in an index target package. This will emit
 // a result set, a definition result, a hover result, and export monikers attached to each range.
 // This method will also populate each document's definition range identifier slice.
@@ -1098,34 +1078,6 @@ interfaceLoop:
 	return relation
 }
 
-func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intsets.Sparse, nameA, nameB string) {
-	difference := func(a, b map[int]*intsets.Sparse, f func(int, int)) {
-		for k, av := range a {
-			for _, ix := range av.AppendTo(nil) {
-				if bv, ok := b[k]; !ok || !bv.Has(ix) {
-					f(k, ix)
-				}
-			}
-		}
-	}
-
-	numDifferences := 0
-	difference(pairsA, pairsB, func(k, ix int) {
-		numDifferences += 1
-		conc := concreteTypes[k]
-		iface := interfaces[ix]
-		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", conc.typeName.Pkg().Path(), conc.typeName.Name(), "IMPLEMENTS", iface.typeName.Pkg().Path(), iface.typeName.Name())
-	})
-	difference(pairsB, pairsA, func(k, ix int) {
-		numDifferences += 1
-		conc := concreteTypes[k]
-		iface := interfaces[ix]
-		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", conc.typeName.Pkg().Path(), conc.typeName.Name(), "IMPLEMENTS", iface.typeName.Pkg().Path(), iface.typeName.Name())
-	})
-
-	fmt.Println("Total Differences:", numDifferences)
-}
-
 func invert(relation map[int]*intsets.Sparse) map[int]*intsets.Sparse {
 	inverse := map[int]*intsets.Sparse{}
 	for k, v := range relation {
@@ -1189,17 +1141,6 @@ func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
 		Logf: i.packagesLoadLogger,
 	}
 	return packages.Load(config, depNames...)
-}
-
-// ensurePointer wraps T in a *types.Pointer if T is a named, non-interface
-// type. This is useful to make sure you consider a named type's full method
-// set.
-func ensurePointer(T types.Type) types.Type {
-	if _, ok := T.(*types.Named); ok && !IsInterface(T) {
-		return types.NewPointer(T)
-	}
-
-	return T
 }
 
 // IsInterface returns if a types.Type is an interface
