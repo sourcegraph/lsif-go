@@ -870,9 +870,10 @@ type def struct {
 	pkg      *packages.Package
 	typeName *types.TypeName
 	ident    *ast.Ident
+	defInfo  *DefinitionInfo
 }
 
-func extractTypes(pkgs []*packages.Package) ([]def, []def) {
+func (i *Indexer) extractTypes(pkgs []*packages.Package) ([]def, []def) {
 	interfaces := []def{}
 	concreteTypes := []def{}
 	for _, pkg := range pkgs {
@@ -900,12 +901,13 @@ func extractTypes(pkgs []*packages.Package) ([]def, []def) {
 				continue
 			}
 
+			d := def{pkg: pkg, typeName: typeName, ident: ident, defInfo: i.getDefinitionInfo(typeName, ident)}
 			if types.IsInterface(obj.Type()) {
 				// TODO figure out non-exported interfaces
 				// should link within package? across packages?
-				interfaces = append(interfaces, def{pkg: pkg, typeName: typeName, ident: ident})
+				interfaces = append(interfaces, d)
 			} else {
-				concreteTypes = append(concreteTypes, def{pkg: pkg, typeName: typeName, ident: ident})
+				concreteTypes = append(concreteTypes, d)
 			}
 		}
 	}
@@ -922,8 +924,8 @@ func (i *Indexer) indexImplementations() error {
 	}
 
 	start1 := time.Now()
-	localInterfaces, localConcreteTypes := extractTypes(i.packages)
-	remoteInterfaces, remoteConcreteTypes := extractTypes(deps)
+	localInterfaces, localConcreteTypes := i.extractTypes(i.packages)
+	remoteInterfaces, remoteConcreteTypes := i.extractTypes(deps)
 	fmt.Println("## Extract Types:", time.Since(start1), "<==")
 
 	fmt.Println("localInterfaces", len(localInterfaces))
@@ -938,17 +940,6 @@ func (i *Indexer) indexImplementations() error {
 	const remote = 1
 	const invertNo = false
 	const invertYes = true
-
-	positionToResultSet := map[string]uint64{}
-	ensureResultSet := func(d def) uint64 {
-		position, _, _ := i.positionAndDocument(d.pkg, d.ident.Pos())
-		if v, ok := positionToResultSet[position.String()]; ok {
-			return v
-		}
-		defInfo := i.getDefinitionInfo(d.typeName, d.ident)
-		positionToResultSet[position.String()] = defInfo.ResultSetID
-		return defInfo.ResultSetID
-	}
 
 	monikerKeyToID := map[string]uint64{}
 
@@ -975,12 +966,10 @@ func (i *Indexer) indexImplementations() error {
 					right := rightDefs[righti]
 					invs = append(invs, i.getDefinitionInfo(right.typeName, right.ident).RangeID)
 				}
-				resultSet := ensureResultSet(left)
 				implementationResult := i.emitter.EmitImplementationResult()
-				i.emitter.EmitTextDocumentImplementation(resultSet, implementationResult)
+				i.emitter.EmitTextDocumentImplementation(left.defInfo.ResultSetID, implementationResult)
 				i.emitter.EmitItem(implementationResult, invs, i.getDefinitionInfo(left.typeName, left.ident).DocumentID)
 			case remote:
-				resultSet := ensureResultSet(left)
 				for _, righti := range rights.AppendTo(nil) {
 					right := rightDefs[righti]
 					identifier := joinMonikerParts(
@@ -993,7 +982,7 @@ func (i *Indexer) indexImplementations() error {
 						monikerID = i.emitter.EmitMoniker("implementation", "gomod", identifier)
 						monikerKeyToID[key] = monikerID
 					}
-					i.emitter.EmitMonikerEdge(resultSet, monikerID)
+					i.emitter.EmitMonikerEdge(left.defInfo.ResultSetID, monikerID)
 				}
 			default:
 				panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
