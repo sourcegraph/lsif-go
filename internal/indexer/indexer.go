@@ -867,9 +867,9 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 }
 
 type def struct {
-	pkg   *packages.Package
-	obj   types.Object
-	ident *ast.Ident
+	pkg      *packages.Package
+	typeName *types.TypeName
+	ident    *ast.Ident
 }
 
 func extractTypes(pkgs []*packages.Package) ([]def, []def) {
@@ -883,7 +883,8 @@ func extractTypes(pkgs []*packages.Package) ([]def, []def) {
 
 			// We ignore aliases 'type M = N' to avoid duplicate reporting
 			// of the Named type N.
-			if _, ok := obj.(*types.TypeName); !ok {
+			typeName, ok := obj.(*types.TypeName)
+			if !ok {
 				continue
 			}
 
@@ -902,9 +903,9 @@ func extractTypes(pkgs []*packages.Package) ([]def, []def) {
 			if types.IsInterface(obj.Type()) {
 				// TODO figure out non-exported interfaces
 				// should link within package? across packages?
-				interfaces = append(interfaces, def{pkg: pkg, obj: obj, ident: ident})
+				interfaces = append(interfaces, def{pkg: pkg, typeName: typeName, ident: ident})
 			} else {
-				concreteTypes = append(concreteTypes, def{pkg: pkg, obj: obj, ident: ident})
+				concreteTypes = append(concreteTypes, def{pkg: pkg, typeName: typeName, ident: ident})
 			}
 		}
 	}
@@ -944,7 +945,7 @@ func (i *Indexer) indexImplementations() error {
 		if v, ok := positionToResultSet[position.String()]; ok {
 			return v
 		}
-		defInfo := i.getDefinitionInfo(d.obj, d.ident)
+		defInfo := i.getDefinitionInfo(d.typeName, d.ident)
 		positionToResultSet[position.String()] = defInfo.ResultSetID
 		return defInfo.ResultSetID
 	}
@@ -972,19 +973,19 @@ func (i *Indexer) indexImplementations() error {
 				invs := []uint64{}
 				for _, righti := range rights.AppendTo(nil) {
 					right := rightDefs[righti]
-					invs = append(invs, i.getDefinitionInfo(right.obj, right.ident).RangeID)
+					invs = append(invs, i.getDefinitionInfo(right.typeName, right.ident).RangeID)
 				}
 				resultSet := ensureResultSet(left)
 				implementationResult := i.emitter.EmitImplementationResult()
 				i.emitter.EmitTextDocumentImplementation(resultSet, implementationResult)
-				i.emitter.EmitItem(implementationResult, invs, i.getDefinitionInfo(left.obj, left.ident).DocumentID)
+				i.emitter.EmitItem(implementationResult, invs, i.getDefinitionInfo(left.typeName, left.ident).DocumentID)
 			case remote:
 				resultSet := ensureResultSet(left)
 				for _, righti := range rights.AppendTo(nil) {
 					right := rightDefs[righti]
 					identifier := joinMonikerParts(
-						makeMonikerPackage(right.obj),
-						makeMonikerIdentifier(i.packageDataCache, right.pkg, right.obj),
+						makeMonikerPackage(right.typeName),
+						makeMonikerIdentifier(i.packageDataCache, right.pkg, right.typeName),
 					)
 					key := "implementation:gomod:%s" + identifier
 					monikerID, ok := monikerKeyToID[key]
@@ -1054,7 +1055,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) m
 	// Build a map from methods to all their receivers (concrete types that define those methods).
 	methodToReceivers := map[string]*intsets.Sparse{}
 	for i, t := range concreteTypes {
-		for _, method := range listMethods(t.obj.Type().(*types.Named)) {
+		for _, method := range listMethods(t.typeName.Type().(*types.Named)) {
 			key := canonical(method)
 			if _, ok := methodToReceivers[key]; !ok {
 				methodToReceivers[key] = &intsets.Sparse{}
@@ -1066,7 +1067,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) m
 	// Loop over all the interfaces and find the concrete types that implement them.
 interfaceLoop:
 	for i, interfase := range interfaces {
-		methods := listMethods(interfase.obj.Type().(*types.Named))
+		methods := listMethods(interfase.typeName.Type().(*types.Named))
 
 		if len(methods) == 0 {
 			// Empty interface - skip it.
@@ -1124,13 +1125,13 @@ func comparePairs(concreteTypes, interfaces []def, pairsA, pairsB map[int]*intse
 		numDifferences += 1
 		conc := concreteTypes[k]
 		iface := interfaces[ix]
-		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", conc.obj.Pkg().Path(), conc.obj.Name(), "IMPLEMENTS", iface.obj.Pkg().Path(), iface.obj.Name())
+		fmt.Println("❌", nameA, "has,", nameB, "doesn't:", conc.typeName.Pkg().Path(), conc.typeName.Name(), "IMPLEMENTS", iface.typeName.Pkg().Path(), iface.typeName.Name())
 	})
 	difference(pairsB, pairsA, func(k, ix int) {
 		numDifferences += 1
 		conc := concreteTypes[k]
 		iface := interfaces[ix]
-		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", conc.obj.Pkg().Path(), conc.obj.Name(), "IMPLEMENTS", iface.obj.Pkg().Path(), iface.obj.Name())
+		fmt.Println("❌", nameB, "has,", nameA, "doesn't:", conc.typeName.Pkg().Path(), conc.typeName.Name(), "IMPLEMENTS", iface.typeName.Pkg().Path(), iface.typeName.Name())
 	})
 
 	fmt.Println("Total Differences:", numDifferences)
