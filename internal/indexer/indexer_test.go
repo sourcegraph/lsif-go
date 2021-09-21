@@ -489,15 +489,15 @@ func TestIndexer(t *testing.T) {
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
 		ranges := findAllRanges(w, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
+		assertRanges(t, ranges, []string{"5:1-5:5", "5:1-5:13"}, "http and http.Handler")
 		// line: http.Handler
-		//       ^^^^------------ ranges[0], for http package reference
-		//       ^^^^^^^^^^^^---- ranges[1], for http.Handler, the entire definition
+		//       ^^^^------------ httpRange, for http package reference
+		//       ^^^^^^^^^^^^---- anonymousFieldRange, for http.Handler, the entire definition
 		//
 		//            ^^^^^^^---- Separate range, for Handler reference
 		// See docs/structs.md
-		assertRanges(t, ranges, []string{"5:1-5:5", "5:1-5:13"}, "http and http.Handler")
-
-		anonymousFieldRange := ranges[1]
+		httpRange := mustRange(t, ranges, "5:1-5:5")
+		anonymousFieldRange := mustRange(t, ranges, "5:1-5:13")
 
 		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID), []string{"5:1-5:13"}, "definition")
 
@@ -515,7 +515,6 @@ func TestIndexer(t *testing.T) {
 		}
 
 		// Check to make sure that the http range still correctly links to the external package.
-		httpRange := ranges[0]
 		httpMonikers := findMonikersByRangeOrReferenceResultID(w, httpRange.ID)
 		if len(httpMonikers) != 1 {
 			t.Fatalf("incorrect http monikers count. want=%d have=%d %+v", 1, len(httpMonikers), httpMonikers)

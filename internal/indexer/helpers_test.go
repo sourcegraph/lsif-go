@@ -483,19 +483,29 @@ func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, end
 	}
 }
 
+func stringifyRange(r protocol.Range) string {
+	return fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
+}
+
+func mustRange(t *testing.T, ranges []protocol.Range, needle string) protocol.Range {
+	for _, r := range ranges {
+		if stringifyRange(r) == needle {
+			return r
+		}
+	}
+	t.Fatalf("mustRange: range not found %s", needle)
+	panic("this should never happen")
+}
+
 // assertRanges throws an error if the expected and actual range sets are not equal.
 func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg string) {
-	stringify := func(r protocol.Range) string {
-		return fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
-	}
-
 	actuals := map[string]struct{}{}
 	duplicates := []string{}
 	for _, r := range actual {
-		if _, ok := actuals[stringify(r)]; ok {
-			duplicates = append(duplicates, stringify(r))
+		if _, ok := actuals[stringifyRange(r)]; ok {
+			duplicates = append(duplicates, stringifyRange(r))
 		} else {
-			actuals[stringify(r)] = struct{}{}
+			actuals[stringifyRange(r)] = struct{}{}
 		}
 	}
 
