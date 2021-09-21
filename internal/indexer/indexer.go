@@ -944,11 +944,11 @@ func (i *Indexer) indexImplementations() error {
 				invs := []uint64{}
 				for _, righti := range rights.AppendTo(nil) {
 					right := rightDefs[righti]
-					invs = append(invs, i.getDefinitionInfo(right.typeName, right.ident).RangeID)
+					invs = append(invs, right.defInfo.RangeID)
 				}
 				implementationResult := i.emitter.EmitImplementationResult()
 				i.emitter.EmitTextDocumentImplementation(left.defInfo.ResultSetID, implementationResult)
-				i.emitter.EmitItem(implementationResult, invs, i.getDefinitionInfo(left.typeName, left.ident).DocumentID)
+				i.emitter.EmitItem(implementationResult, invs, left.defInfo.DocumentID)
 			case remote:
 				for _, righti := range rights.AppendTo(nil) {
 					right := rightDefs[righti]
