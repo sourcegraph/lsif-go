@@ -533,12 +533,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		implementations := findImplementationRangesByRangeOrResultSetID(w, r.ID)
-		if len(implementations) != 4 {
-			t.Fatalf("incorrect implementation count. want=%d have=%d", 4, len(implementations))
-		}
-
-		assertRanges(t, implementations, []string{"12:5-12:7", "16:5-16:7", "22:5-22:8", "21:5-21:7"}, "implementations of I1")
+		assertRanges(t, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"12:5-12:7", "16:5-16:7", "22:5-22:8", "21:5-21:7"}, "implementations of I1")
 	})
 
 	t.Run("should find interfaces that a type implements", func(t *testing.T) {
@@ -547,12 +542,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		implementations := findImplementationRangesByRangeOrResultSetID(w, r.ID)
-		if len(implementations) != 1 {
-			t.Fatalf("incorrect implementation count. want=%d have=%d", 1, len(implementations))
-		}
-
-		assertRanges(t, implementations, []string{"4:5-4:7"}, "what A1 implements")
+		assertRanges(t, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
 	})
 }
 

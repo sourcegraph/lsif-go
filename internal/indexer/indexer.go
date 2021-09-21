@@ -853,12 +853,9 @@ type def struct {
 	defInfo  *DefinitionInfo
 }
 
-type interfaceDef def
-type concreteTypeDef def
-
-func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]interfaceDef, []concreteTypeDef) {
-	interfaces := []interfaceDef{}
-	concreteTypes := []concreteTypeDef{}
+func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]def, []def) {
+	interfaces := []def{}
+	concreteTypes := []def{}
 	for _, pkg := range pkgs {
 		for ident, obj := range pkg.TypesInfo.Defs {
 			if obj == nil {
@@ -888,9 +885,9 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 			if types.IsInterface(obj.Type()) {
 				// TODO figure out non-exported interfaces
 				// should link within package? across packages?
-				interfaces = append(interfaces, interfaceDef(d))
+				interfaces = append(interfaces, d)
 			} else {
-				concreteTypes = append(concreteTypes, concreteTypeDef(d))
+				concreteTypes = append(concreteTypes, d)
 			}
 		}
 	}
@@ -919,58 +916,47 @@ func (i *Indexer) indexImplementations() error {
 	// TODO prune interfaces/types that are not exported
 	// TODO prune interfaces/types by method count
 
-	const invertNo = false
-	const invertYes = true
-
 	monikerKeyToID := map[string]uint64{}
 
-	emitImplementations := func(concreteTypes []concreteTypeDef, interfaces []interfaceDef, shouldInvert bool, f func(left def, rights *intsets.Sparse, rightDefs []def)) {
-		relation := i.buildImplementationRelation(concreteTypes, interfaces)
-
-		cts := []def{}
-		for _, ct := range concreteTypes {
-			cts = append(cts, def(ct))
-		}
-		ifs := []def{}
-		for _, ifz := range interfaces {
-			ifs = append(ifs, def(ifz))
+	forEachImplementation := func(rel relation, f func(from def, to []def)) {
+		m := map[int][]def{}
+		for _, e := range rel.edges {
+			if _, ok := m[e.from]; !ok {
+				m[e.from] = []def{}
+			}
+			m[e.from] = append(m[e.from], rel.nodes[e.to])
 		}
 
-		leftDefs, rightDefs := cts, ifs
-
-		if shouldInvert {
-			relation = invert(relation)
-			leftDefs, rightDefs = rightDefs, leftDefs
-		}
-
-		for lefti, rights := range relation {
-			left := leftDefs[lefti]
-
-			f(left, rights, rightDefs)
+		for fromi, tos := range m {
+			f(rel.nodes[fromi], tos)
 		}
 	}
 
-	localf := func(left def, rights *intsets.Sparse, rightDefs []def) {
+	emitLocalImplementation := func(from def, tos []def) {
+		fmt.Println("--- emitLocalImplementation from:", from.typeName.Name())
+		for _, to := range tos {
+			fmt.Println("--- - to:", to.typeName.Name())
+		}
+
 		// Emit this structure:
 		//
 		// resultSet ---textDocument/implementation--> implementationResult --item--> range
 		// ^^^^^^^^^ already exists                                                   ^^^^^ 1 or more
 		invs := []uint64{}
-		for _, righti := range rights.AppendTo(nil) {
-			right := rightDefs[righti]
-			invs = append(invs, right.defInfo.RangeID)
+		for _, to := range tos {
+			invs = append(invs, to.defInfo.RangeID)
 		}
 		implementationResult := i.emitter.EmitImplementationResult()
-		i.emitter.EmitTextDocumentImplementation(left.defInfo.ResultSetID, implementationResult)
-		i.emitter.EmitItem(implementationResult, invs, left.defInfo.DocumentID)
+		i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
+		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
+		fmt.Println("--- emitLocalImplementation emitting stuff:", from.defInfo.ResultSetID, invs, from.defInfo.DocumentID)
 	}
 
-	remotef := func(left def, rights *intsets.Sparse, rightDefs []def) {
-		for _, righti := range rights.AppendTo(nil) {
-			right := rightDefs[righti]
+	emitRemoteImplementation := func(from def, tos []def) {
+		for _, to := range tos {
 			identifier := joinMonikerParts(
-				makeMonikerPackage(right.typeName),
-				makeMonikerIdentifier(i.packageDataCache, right.pkg, right.typeName),
+				makeMonikerPackage(to.typeName),
+				makeMonikerIdentifier(i.packageDataCache, to.pkg, to.typeName),
 			)
 			key := "implementation:gomod:%s" + identifier
 			monikerID, ok := monikerKeyToID[key]
@@ -978,23 +964,40 @@ func (i *Indexer) indexImplementations() error {
 				monikerID = i.emitter.EmitMoniker("implementation", "gomod", identifier)
 				monikerKeyToID[key] = monikerID
 			}
-			i.emitter.EmitMonikerEdge(left.defInfo.ResultSetID, monikerID)
+			i.emitter.EmitMonikerEdge(from.defInfo.ResultSetID, monikerID)
 		}
 	}
 
 	start2 := time.Now()
-	emitImplementations(localConcreteTypes, localInterfaces, invertNo, localf)
-	emitImplementations(localConcreteTypes, localInterfaces, invertYes, localf)
-	emitImplementations(localConcreteTypes, remoteInterfaces, invertNo, remotef)
-	emitImplementations(remoteConcreteTypes, localInterfaces, invertYes, remotef)
+	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
+	forEachImplementation(localRelation, emitLocalImplementation)
+	forEachImplementation(invert(localRelation), emitLocalImplementation)
+	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, remoteInterfaces), emitRemoteImplementation)
+	forEachImplementation(invert(i.buildImplementationRelation(remoteConcreteTypes, localInterfaces)), emitRemoteImplementation)
 	fmt.Println("## emitting Time:", time.Since(start2))
 
 	return nil
 }
 
+type edge struct {
+	from, to int
+}
+
+type relation struct {
+	edges []edge
+	nodes []def
+}
+
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(concreteTypes []concreteTypeDef, interfaces []interfaceDef) map[int]*intsets.Sparse {
-	relation := map[int]*intsets.Sparse{}
+func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) relation {
+	rel := relation{
+		edges: []edge{},
+		nodes: append(concreteTypes, interfaces...),
+	}
+
+	ix := func(i int) int {
+		return len(concreteTypes) + i
+	}
 
 	// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
 	canonical := func(m *types.Selection) string {
@@ -1022,16 +1025,6 @@ func (i *Indexer) buildImplementationRelation(concreteTypes []concreteTypeDef, i
 
 		return ret
 	}
-
-	// type: 1111
-	// ifce: 1011
-	// ->    1011
-
-	// Types are T
-	// Interfaces are I
-
-	// Average Methods: M_T ~ 50
-	// M_I
 
 	// Build a map from methods to all their receivers (concrete types that define those methods).
 	methodToReceivers := map[string]*intsets.Sparse{}
@@ -1080,25 +1073,20 @@ interfaceLoop:
 
 		// Add the implementations to the relation.
 		for _, ty := range candidateTypes.AppendTo(nil) {
-			if _, ok := relation[ty]; !ok {
-				relation[ty] = &intsets.Sparse{}
-			}
-			relation[ty].Insert(i)
+			rel.edges = append(rel.edges, edge{ty, ix(i)})
 		}
 	}
 
-	return relation
+	return rel
 }
 
-func invert(relation map[int]*intsets.Sparse) map[int]*intsets.Sparse {
-	inverse := map[int]*intsets.Sparse{}
-	for k, v := range relation {
-		for _, i := range v.AppendTo(nil) {
-			if _, ok := inverse[i]; !ok {
-				inverse[i] = &intsets.Sparse{}
-			}
-			inverse[i].Insert(k)
-		}
+func invert(rel relation) relation {
+	inverse := relation{
+		edges: []edge{},
+		nodes: rel.nodes,
+	}
+	for _, e := range rel.edges {
+		inverse.edges = append(inverse.edges, edge{from: e.to, to: e.from})
 	}
 	return inverse
 }
