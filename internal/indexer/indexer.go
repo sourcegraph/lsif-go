@@ -903,18 +903,10 @@ func (i *Indexer) indexImplementations() error {
 		return err
 	}
 
-	start1 := time.Now()
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(deps)
-	fmt.Println("## Extract Types:", time.Since(start1), "<==")
-
-	fmt.Println("localInterfaces", len(localInterfaces))
-	fmt.Println("localConcreteTypes", len(localConcreteTypes))
-	fmt.Println("remoteInterfaces", len(remoteInterfaces))
-	fmt.Println("remoteConcreteTypes", len(remoteConcreteTypes))
 
 	// TODO prune interfaces/types that are not exported
-	// TODO prune interfaces/types by method count
 
 	monikerKeyToID := map[string]uint64{}
 
@@ -933,11 +925,6 @@ func (i *Indexer) indexImplementations() error {
 	}
 
 	emitLocalImplementation := func(from def, tos []def) {
-		fmt.Println("--- emitLocalImplementation from:", from.typeName.Name())
-		for _, to := range tos {
-			fmt.Println("--- - to:", to.typeName.Name())
-		}
-
 		// Emit this structure:
 		//
 		// resultSet ---textDocument/implementation--> implementationResult --item--> range
@@ -949,7 +936,6 @@ func (i *Indexer) indexImplementations() error {
 		implementationResult := i.emitter.EmitImplementationResult()
 		i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
 		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
-		fmt.Println("--- emitLocalImplementation emitting stuff:", from.defInfo.ResultSetID, invs, from.defInfo.DocumentID)
 	}
 
 	emitRemoteImplementation := func(from def, tos []def) {
@@ -968,13 +954,11 @@ func (i *Indexer) indexImplementations() error {
 		}
 	}
 
-	start2 := time.Now()
 	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
 	forEachImplementation(localRelation, emitLocalImplementation)
 	forEachImplementation(invert(localRelation), emitLocalImplementation)
 	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, remoteInterfaces), emitRemoteImplementation)
 	forEachImplementation(invert(i.buildImplementationRelation(remoteConcreteTypes, localInterfaces)), emitRemoteImplementation)
-	fmt.Println("## emitting Time:", time.Since(start2))
 
 	return nil
 }
@@ -992,10 +976,19 @@ type relation struct {
 func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) relation {
 	rel := relation{
 		edges: []edge{},
+		// Put concrete types and interfaces in the same slice to give them all unique indexes
 		nodes: append(concreteTypes, interfaces...),
 	}
 
-	ix := func(i int) int {
+	// Translates a `concreteTypes` index into a `nodes` index
+	concreteTypeIxToNodeIx := func(i int) int {
+		// Concrete type nodes come first
+		return 0 + i
+	}
+
+	// Translates an `interfaces` index into a `nodes` index
+	interfaceIxToNodeIx := func(i int) int {
+		// Interface nodes come after the concrete types
 		return len(concreteTypes) + i
 	}
 
@@ -1073,7 +1066,7 @@ interfaceLoop:
 
 		// Add the implementations to the relation.
 		for _, ty := range candidateTypes.AppendTo(nil) {
-			rel.edges = append(rel.edges, edge{ty, ix(i)})
+			rel.edges = append(rel.edges, edge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(i)})
 		}
 	}
 
