@@ -236,7 +236,7 @@ func findPackageInformationByID(w *capturingWriter, id uint64) (protocol.Package
 	return protocol.PackageInformation{}, false
 }
 
-// findRangesByResultID returns the ranges attached to the definition result with the given
+// findRangesByResultID returns the ranges attached to the result set with the given
 // identifier.
 func findRangesByResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
 	elements := w.elements
@@ -483,14 +483,20 @@ func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, end
 	}
 }
 
+// assertRanges throws an error if the expected and actual range sets are not equal.
 func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg string) {
 	stringify := func(r protocol.Range) string {
 		return fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
 	}
 
 	actuals := map[string]struct{}{}
+	duplicates := []string{}
 	for _, r := range actual {
-		actuals[stringify(r)] = struct{}{}
+		if _, ok := actuals[stringify(r)]; ok {
+			duplicates = append(duplicates, stringify(r))
+		} else {
+			actuals[stringify(r)] = struct{}{}
+		}
 	}
 
 	expecteds := map[string]struct{}{}
@@ -498,31 +504,34 @@ func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg 
 		expecteds[r] = struct{}{}
 	}
 
+	// Detect missing ranges
 	missings := []string{}
-	extras := []string{}
-
-	for r, _ := range expecteds {
+	for r := range expecteds {
 		if _, ok := actuals[r]; !ok {
 			missings = append(missings, r)
 		}
 	}
 
-	for r, _ := range actuals {
+	// Detect extra ranges
+	extras := []string{}
+	for r := range actuals {
 		if _, ok := expecteds[r]; !ok {
 			extras = append(extras, r)
 		}
 	}
 
-	if len(missings) == 0 && len(extras) == 0 {
-		return
-	}
-
-	s := []string{msg + ":"}
+	// Report differences
+	errors := []string{msg + ":"}
 	if len(missings) > 0 {
-		s = append(s, fmt.Sprintf("missing [%s]", strings.Join(missings, ", ")))
+		errors = append(errors, fmt.Sprintf("missing [%s]", strings.Join(missings, ", ")))
 	}
 	if len(extras) > 0 {
-		s = append(s, fmt.Sprintf("extra [%s]", strings.Join(extras, ", ")))
+		errors = append(errors, fmt.Sprintf("extra [%s]", strings.Join(extras, ", ")))
 	}
-	t.Fatal(strings.Join(s, ", "))
+	if len(duplicates) > 0 {
+		errors = append(errors, fmt.Sprintf("duplicates [%s]", strings.Join(duplicates, ", ")))
+	}
+	if len(errors) > 1 {
+		t.Fatalf("%s: %s", msg, strings.Join(errors, " "))
+	}
 }

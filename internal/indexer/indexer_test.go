@@ -83,13 +83,7 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("Could not find range for 'package testdata'")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Errorf("Definitions: %+v\n", definitions)
-		}
-
-		def := definitions[0]
-		compareRange(t, def, 2, 8, 2, 16)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"2:8-2:16"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -110,13 +104,7 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("Could not find range for 'package secret'")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Errorf("Definitions: %+v\n", definitions)
-		}
-
-		def := definitions[0]
-		compareRange(t, def, 1, 8, 1, 14)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"1:8-1:14"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -178,12 +166,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
-		}
-
-		compareRange(t, definitions[0], 15, 1, 15, 5)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"15:1-15:5"}, "definition")
 	})
 
 	t.Run("check wg references", func(t *testing.T) {
@@ -245,11 +228,7 @@ func TestIndexer(t *testing.T) {
 		//
 		// Check definition links
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, intReference.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
-		}
-		compareRange(t, definitions[0], 3, 8, 3, 21)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, intReference.ID), []string{"3:8-3:21"}, "references")
 
 		//
 		// Check reference links
@@ -300,12 +279,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-		}
-
-		compareRange(t, definitions[0], 7, 5, 7, 17)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"7:5-7:17"}, "definition")
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -342,17 +316,12 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-		}
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"6:5-6:11"}, "definition")
 
 		p, _ := findDefinitionByName(t, indexer.packages, "Burger")
 		if p.Name != "secret" {
 			t.Fatalf("incorrect definition source package. want=%s have=%s", "secret", p.Name)
 		}
-
-		compareRange(t, definitions[0], 6, 5, 6, 11)
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -389,12 +358,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-		}
-
-		compareRange(t, definitions[0], 9, 5, 9, 14)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"9:5-9:14"}, "definition")
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -432,20 +396,17 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 2 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
-		}
-
-		sort.Slice(definitions, func(i, j int) bool {
-			return definitions[i].Start.Line < definitions[j].Start.Line
-		})
-
-		// Original definition
-		compareRange(t, definitions[0], 4, 5, 4, 10)
-
-		// Definition through the moniker
-		compareRange(t, definitions[1], 11, 1, 11, 6)
+		assertRanges(
+			t,
+			findDefinitionRangesByRangeOrResultSetID(w, r.ID),
+			[]string{
+				// Original definition
+				"4:5-4:10",
+				// Definition through the moniker
+				"11:1-11:6",
+			},
+			"definitions",
+		)
 
 		// Expect to find the reference from the definition and for the time we instantiate it in the function.
 		references := findReferenceRangesByRangeOrResultSetID(w, r.ID)
@@ -473,13 +434,9 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 2 {
-			t.Fatalf("Failed to get the correct definitions: %+v\n", definitions)
-		}
-
-		definition := definitions[0]
-		compareRange(t, definition, 4, 1, 4, 2)
+		x := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
+		// TODO 2 definitions are emitted here but have the same range. Seems like a bug.
+		assertRanges(t, []protocol.Range{x[0]}, []string{"4:1-4:2"}, "definitions")
 	})
 
 	t.Run("check named import reference: non-'.' import", func(t *testing.T) {
@@ -532,31 +489,17 @@ func TestIndexer(t *testing.T) {
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
 		ranges := findAllRanges(w, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
-		if len(ranges) != 2 {
-			t.Fatalf("Incorrect number of ranges: %v", ranges)
-		}
-
-		sort.Slice(ranges, func(i, j int) bool {
-			return ranges[i].End.Character < ranges[j].End.Character
-		})
-
 		// line: http.Handler
 		//       ^^^^------------ ranges[0], for http package reference
 		//       ^^^^^^^^^^^^---- ranges[1], for http.Handler, the entire definition
 		//
 		//            ^^^^^^^---- Separate range, for Handler reference
 		// See docs/structs.md
-		compareRange(t, ranges[0], 5, 1, 5, 5)
-		compareRange(t, ranges[1], 5, 1, 5, 13)
+		assertRanges(t, ranges, []string{"5:1-5:5", "5:1-5:13"}, "http and http.Handler")
 
 		anonymousFieldRange := ranges[1]
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrect definition count. want=%d have=%d %v", 1, len(definitions), definitions)
-		}
-
-		compareRange(t, definitions[0], 5, 1, 5, 13)
+		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID), []string{"5:1-5:13"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, anonymousFieldRange.ID)
 		if len(monikers) != 1 {
