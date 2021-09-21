@@ -853,9 +853,12 @@ type def struct {
 	defInfo  *DefinitionInfo
 }
 
-func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]def, []def) {
-	interfaces := []def{}
-	concreteTypes := []def{}
+type interfaceDef def
+type concreteTypeDef def
+
+func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]interfaceDef, []concreteTypeDef) {
+	interfaces := []interfaceDef{}
+	concreteTypes := []concreteTypeDef{}
 	for _, pkg := range pkgs {
 		for ident, obj := range pkg.TypesInfo.Defs {
 			if obj == nil {
@@ -885,9 +888,9 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 			if types.IsInterface(obj.Type()) {
 				// TODO figure out non-exported interfaces
 				// should link within package? across packages?
-				interfaces = append(interfaces, d)
+				interfaces = append(interfaces, interfaceDef(d))
 			} else {
-				concreteTypes = append(concreteTypes, d)
+				concreteTypes = append(concreteTypes, concreteTypeDef(d))
 			}
 		}
 	}
@@ -916,16 +919,24 @@ func (i *Indexer) indexImplementations() error {
 	// TODO prune interfaces/types that are not exported
 	// TODO prune interfaces/types by method count
 
-	const local = 0
-	const remote = 1
 	const invertNo = false
 	const invertYes = true
 
 	monikerKeyToID := map[string]uint64{}
 
-	emitImplementations := func(concreteTypes, interfaces []def, rightKind int, shouldInvert bool) {
+	emitImplementations := func(concreteTypes []concreteTypeDef, interfaces []interfaceDef, shouldInvert bool, f func(left def, rights *intsets.Sparse, rightDefs []def)) {
 		relation := i.buildImplementationRelation(concreteTypes, interfaces)
-		leftDefs, rightDefs := concreteTypes, interfaces
+
+		cts := []def{}
+		for _, ct := range concreteTypes {
+			cts = append(cts, def(ct))
+		}
+		ifs := []def{}
+		for _, ifz := range interfaces {
+			ifs = append(ifs, def(ifz))
+		}
+
+		leftDefs, rightDefs := cts, ifs
 
 		if shouldInvert {
 			relation = invert(relation)
@@ -935,53 +946,54 @@ func (i *Indexer) indexImplementations() error {
 		for lefti, rights := range relation {
 			left := leftDefs[lefti]
 
-			switch rightKind {
-			case local:
-				// Emit this structure:
-				//
-				// resultSet ---textDocument/implementation--> implementationResult --item--> range
-				// ^^^^^^^^^ already exists                                                   ^^^^^ 1 or more
-				invs := []uint64{}
-				for _, righti := range rights.AppendTo(nil) {
-					right := rightDefs[righti]
-					invs = append(invs, right.defInfo.RangeID)
-				}
-				implementationResult := i.emitter.EmitImplementationResult()
-				i.emitter.EmitTextDocumentImplementation(left.defInfo.ResultSetID, implementationResult)
-				i.emitter.EmitItem(implementationResult, invs, left.defInfo.DocumentID)
-			case remote:
-				for _, righti := range rights.AppendTo(nil) {
-					right := rightDefs[righti]
-					identifier := joinMonikerParts(
-						makeMonikerPackage(right.typeName),
-						makeMonikerIdentifier(i.packageDataCache, right.pkg, right.typeName),
-					)
-					key := "implementation:gomod:%s" + identifier
-					monikerID, ok := monikerKeyToID[key]
-					if !ok {
-						monikerID = i.emitter.EmitMoniker("implementation", "gomod", identifier)
-						monikerKeyToID[key] = monikerID
-					}
-					i.emitter.EmitMonikerEdge(left.defInfo.ResultSetID, monikerID)
-				}
-			default:
-				panic(fmt.Sprintf("unrecognized rightKind %d", rightKind))
+			f(left, rights, rightDefs)
+		}
+	}
+
+	localf := func(left def, rights *intsets.Sparse, rightDefs []def) {
+		// Emit this structure:
+		//
+		// resultSet ---textDocument/implementation--> implementationResult --item--> range
+		// ^^^^^^^^^ already exists                                                   ^^^^^ 1 or more
+		invs := []uint64{}
+		for _, righti := range rights.AppendTo(nil) {
+			right := rightDefs[righti]
+			invs = append(invs, right.defInfo.RangeID)
+		}
+		implementationResult := i.emitter.EmitImplementationResult()
+		i.emitter.EmitTextDocumentImplementation(left.defInfo.ResultSetID, implementationResult)
+		i.emitter.EmitItem(implementationResult, invs, left.defInfo.DocumentID)
+	}
+
+	remotef := func(left def, rights *intsets.Sparse, rightDefs []def) {
+		for _, righti := range rights.AppendTo(nil) {
+			right := rightDefs[righti]
+			identifier := joinMonikerParts(
+				makeMonikerPackage(right.typeName),
+				makeMonikerIdentifier(i.packageDataCache, right.pkg, right.typeName),
+			)
+			key := "implementation:gomod:%s" + identifier
+			monikerID, ok := monikerKeyToID[key]
+			if !ok {
+				monikerID = i.emitter.EmitMoniker("implementation", "gomod", identifier)
+				monikerKeyToID[key] = monikerID
 			}
+			i.emitter.EmitMonikerEdge(left.defInfo.ResultSetID, monikerID)
 		}
 	}
 
 	start2 := time.Now()
-	emitImplementations(localConcreteTypes, localInterfaces, local, invertNo)
-	emitImplementations(localConcreteTypes, localInterfaces, local, invertYes)
-	emitImplementations(localConcreteTypes, remoteInterfaces, remote, invertNo)
-	emitImplementations(remoteConcreteTypes, localInterfaces, remote, invertYes)
+	emitImplementations(localConcreteTypes, localInterfaces, invertNo, localf)
+	emitImplementations(localConcreteTypes, localInterfaces, invertYes, localf)
+	emitImplementations(localConcreteTypes, remoteInterfaces, invertNo, remotef)
+	emitImplementations(remoteConcreteTypes, localInterfaces, invertYes, remotef)
 	fmt.Println("## emitting Time:", time.Since(start2))
 
 	return nil
 }
 
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) map[int]*intsets.Sparse {
+func (i *Indexer) buildImplementationRelation(concreteTypes []concreteTypeDef, interfaces []interfaceDef) map[int]*intsets.Sparse {
 	relation := map[int]*intsets.Sparse{}
 
 	// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
