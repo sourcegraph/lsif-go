@@ -473,33 +473,33 @@ func mustRange(t *testing.T, ranges []protocol.Range, needle string) protocol.Ra
 
 // assertRanges throws an error if the expected and actual range sets are not equal.
 func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg string) {
-	actuals := map[string]struct{}{}
+	actualSet := map[string]struct{}{}
 	duplicates := []string{}
 	for _, r := range actual {
-		if _, ok := actuals[stringifyRange(r)]; ok {
+		if _, ok := actualSet[stringifyRange(r)]; ok {
 			duplicates = append(duplicates, stringifyRange(r))
 		} else {
-			actuals[stringifyRange(r)] = struct{}{}
+			actualSet[stringifyRange(r)] = struct{}{}
 		}
 	}
 
-	expecteds := map[string]struct{}{}
+	expectedSet := map[string]struct{}{}
 	for _, r := range expected {
-		expecteds[r] = struct{}{}
+		expectedSet[r] = struct{}{}
 	}
 
 	// Detect missing ranges
 	missings := []string{}
-	for r := range expecteds {
-		if _, ok := actuals[r]; !ok {
+	for r := range expectedSet {
+		if _, ok := actualSet[r]; !ok {
 			missings = append(missings, r)
 		}
 	}
 
 	// Detect extra ranges
 	extras := []string{}
-	for r := range actuals {
-		if _, ok := expecteds[r]; !ok {
+	for r := range actualSet {
+		if _, ok := expectedSet[r]; !ok {
 			extras = append(extras, r)
 		}
 	}
@@ -515,7 +515,7 @@ func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg 
 	if len(duplicates) > 0 {
 		errors = append(errors, fmt.Sprintf("duplicates [%s]", strings.Join(duplicates, ", ")))
 	}
-	if len(errors) > 1 {
+	if len(errors) > 0 {
 		t.Fatalf("%s: %s", msg, strings.Join(errors, " "))
 	}
 }
