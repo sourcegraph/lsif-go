@@ -503,7 +503,7 @@ func assertRanges(t *testing.T, w *capturingWriter, actual []protocol.Range, exp
 			key1 := stringifyFileRange(w.documents[w.contains[actual[i].ID]].URI, actual[i])
 			key2 := stringifyFileRange(w.documents[w.contains[actual[j].ID]].URI, actual[j])
 			if key1 == key2 {
-				t.Fatalf("duplicate range %s", key1)
+				t.Fatalf("duplicate range %s\n%v", key1, actual)
 			}
 		}
 	}

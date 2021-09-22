@@ -848,10 +848,12 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 }
 
 type def struct {
-	pkg      *packages.Package
-	typeName *types.TypeName
-	ident    *ast.Ident
-	defInfo  *DefinitionInfo
+	pkg           *packages.Package
+	typeName      *types.TypeName
+	ident         *ast.Ident
+	defInfo       *DefinitionInfo
+	methods       []*types.Selection
+	methodsByName map[string]*types.Selection
 }
 
 func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]def, []def) {
@@ -874,15 +876,24 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 				continue
 			}
 
-			// methodLen := types.NewMethodSet(obj.Type()).Len()
-			// methodLen := listMethods(obj.Type())
-			methodLen := len(listMethods(obj.Type().(*types.Named)))
-			if methodLen == 0 {
-				// fmt.Println("OH NO NO NO", obj.Name())
+			methods := listMethods(obj.Type().(*types.Named))
+			if len(methods) == 0 {
 				continue
 			}
 
-			d := def{pkg: pkg, typeName: typeName, ident: ident, defInfo: i.getDefinitionInfo(typeName, ident)}
+			methodsByName := map[string]*types.Selection{}
+			for _, m := range methods {
+				methodsByName[m.Obj().Name()] = m
+			}
+
+			d := def{
+				pkg:           pkg,
+				typeName:      typeName,
+				ident:         ident,
+				defInfo:       i.getDefinitionInfo(typeName, ident),
+				methods:       methods,
+				methodsByName: methodsByName,
+			}
 			if types.IsInterface(obj.Type()) {
 				// TODO figure out non-exported interfaces
 				// should link within package? across packages?
@@ -928,6 +939,29 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 		implementationResult := i.emitter.EmitImplementationResult()
 		i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
 		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
+
+		fmt.Println("=============")
+		fmt.Println("  Ident:", from.ident)
+	methodLoop:
+		for name, method := range from.methodsByName {
+			fromMethod := i.getDefinitionInfo(method.Obj(), nil)
+			methodInvs := []uint64{}
+			for _, to := range tos {
+				toMethod, ok := to.methodsByName[name]
+				if !ok {
+					fmt.Println("SKIPPING", name)
+					continue methodLoop
+				}
+
+				toObj := toMethod.Obj()
+				methodInvs = append(methodInvs, i.getDefinitionInfo(toObj, nil).RangeID)
+			}
+
+			fmt.Println("Implemented Method:", method)
+			implementationResult := i.emitter.EmitImplementationResult()
+			i.emitter.EmitTextDocumentImplementation(fromMethod.ResultSetID, implementationResult)
+			i.emitter.EmitItem(implementationResult, methodInvs, fromMethod.DocumentID)
+		}
 	}
 
 	emitRemoteImplementation := func(from def, tos []def) {
@@ -1007,7 +1041,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) r
 	// Build a map from methods to all their receivers (concrete types that define those methods).
 	methodToReceivers := map[string]*intsets.Sparse{}
 	for i, t := range concreteTypes {
-		for _, method := range listMethods(t.typeName.Type().(*types.Named)) {
+		for _, method := range t.methods {
 			key := canonical(method)
 			if _, ok := methodToReceivers[key]; !ok {
 				methodToReceivers[key] = &intsets.Sparse{}
@@ -1019,7 +1053,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) r
 	// Loop over all the interfaces and find the concrete types that implement them.
 interfaceLoop:
 	for i, interfase := range interfaces {
-		methods := listMethods(interfase.typeName.Type().(*types.Named))
+		methods := interfase.methods
 
 		if len(methods) == 0 {
 			// Empty interface - skip it.

@@ -487,9 +487,21 @@ func TestIndexer(t *testing.T) {
 		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
 	})
 
+	t.Run("should find interfaces that a type implements", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 21, 5)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
+	})
+
 	t.Run("should not find unexported implementations", func(t *testing.T) {
 		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "pkg/pkg.go"), 2, 5)
 		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"implementations.go:28:5-28:32"}, "interfaces that pkg/main.go:Foo implements")
+	})
+
+	t.Run("should find implementations of an interface: method", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 5, 1)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"14:12-14:13", "18:12-18:13"}, "implementations of I1")
 	})
 }
 
@@ -587,6 +599,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/duplicate_path_id":                                                                                                  true,
 		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/illegal_multiple_mains":                                                                                             true,
 		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/cmd/minimal_main":                                                                                                   true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/pkg":                                                                                                                true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,
