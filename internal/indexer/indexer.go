@@ -128,6 +128,11 @@ func (i *Indexer) Index() error {
 		return errors.Wrap(err, "failed to load packages")
 	}
 
+	deps, err := i.loadDependencyPackages()
+	if err != nil {
+		return errors.Wrap(err, "failed to load dependencies")
+	}
+
 	wg := new(sync.WaitGroup)
 	// Start any channels used to synchronize reference sets
 	i.startImportMonikerReferenceTracker(wg)
@@ -140,10 +145,7 @@ func (i *Indexer) Index() error {
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
-
-	if err := i.indexImplementations(); err != nil {
-		return errors.Wrap(err, "while indexing implementations")
-	}
+	i.indexImplementations(deps)
 
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
@@ -893,12 +895,7 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 }
 
 // indexImplementations emits data for each implementation of an interface.
-func (i *Indexer) indexImplementations() error {
-	// Load all dependencies
-	deps, err := i.loadDependencyPackages()
-	if err != nil {
-		return err
-	}
+func (i *Indexer) indexImplementations(deps []*packages.Package) {
 
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(deps)
@@ -953,8 +950,6 @@ func (i *Indexer) indexImplementations() error {
 	forEachImplementation(invert(localRelation), emitLocalImplementation)
 	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, remoteInterfaces), emitRemoteImplementation)
 	forEachImplementation(invert(i.buildImplementationRelation(remoteConcreteTypes, localInterfaces)), emitRemoteImplementation)
-
-	return nil
 }
 
 type edge struct {
