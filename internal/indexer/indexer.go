@@ -56,6 +56,7 @@ type Indexer struct {
 	defined                                  map[string]map[int]struct{}             // set of defined ranges (filename, offset)
 	hoverResultCache                         map[string]uint64                       // cache key -> hoverResultID
 	importMonikerIDs                         map[string]uint64                       // identifier:packageInformationID -> monikerID
+	implementationMonikerIDs                 map[string]uint64                       // identifier:packageInformationID -> monikerID
 	importMonikerReferences                  map[uint64]map[uint64]map[uint64]setVal // monikerKey -> documentID -> Set(rangeID)
 	packageInformationIDs                    map[string]uint64                       // name -> packageInformationID
 	packageDataCache                         *PackageDataCache                       // hover text and moniker path cache
@@ -92,31 +93,32 @@ func New(
 	outputOptions output.Options,
 ) *Indexer {
 	return &Indexer{
-		repositoryRoot:          repositoryRoot,
-		repositoryRemote:        repositoryRemote,
-		projectRoot:             projectRoot,
-		toolInfo:                toolInfo,
-		moduleName:              moduleName,
-		moduleVersion:           moduleVersion,
-		dependencies:            dependencies,
-		emitter:                 writer.NewEmitter(jsonWriter),
-		outputOptions:           outputOptions,
-		consts:                  map[interface{}]*DefinitionInfo{},
-		funcs:                   map[interface{}]*DefinitionInfo{},
-		imports:                 map[interface{}]*DefinitionInfo{},
-		labels:                  map[interface{}]*DefinitionInfo{},
-		types:                   map[interface{}]*DefinitionInfo{},
-		vars:                    map[interface{}]*DefinitionInfo{},
-		documents:               map[string]*DocumentInfo{},
-		ranges:                  map[string]map[int]uint64{},
-		defined:                 map[string]map[int]struct{}{},
-		hoverResultCache:        map[string]uint64{},
-		importMonikerIDs:        map[string]uint64{},
-		importMonikerReferences: map[uint64]map[uint64]map[uint64]setVal{},
-		packageInformationIDs:   map[string]uint64{},
-		packageDataCache:        packageDataCache,
-		stripedMutex:            newStripedMutex(),
-		importMonikerChannel:    make(chan importMonikerReference, 512),
+		repositoryRoot:           repositoryRoot,
+		repositoryRemote:         repositoryRemote,
+		projectRoot:              projectRoot,
+		toolInfo:                 toolInfo,
+		moduleName:               moduleName,
+		moduleVersion:            moduleVersion,
+		dependencies:             dependencies,
+		emitter:                  writer.NewEmitter(jsonWriter),
+		outputOptions:            outputOptions,
+		consts:                   map[interface{}]*DefinitionInfo{},
+		funcs:                    map[interface{}]*DefinitionInfo{},
+		imports:                  map[interface{}]*DefinitionInfo{},
+		labels:                   map[interface{}]*DefinitionInfo{},
+		types:                    map[interface{}]*DefinitionInfo{},
+		vars:                     map[interface{}]*DefinitionInfo{},
+		documents:                map[string]*DocumentInfo{},
+		ranges:                   map[string]map[int]uint64{},
+		defined:                  map[string]map[int]struct{}{},
+		hoverResultCache:         map[string]uint64{},
+		importMonikerIDs:         map[string]uint64{},
+		implementationMonikerIDs: map[string]uint64{},
+		importMonikerReferences:  map[uint64]map[uint64]map[uint64]setVal{},
+		packageInformationIDs:    map[string]uint64{},
+		packageDataCache:         packageDataCache,
+		stripedMutex:             newStripedMutex(),
+		importMonikerChannel:     make(chan importMonikerReference, 512),
 	}
 }
 
@@ -928,20 +930,9 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
 	}
 
-	monikerKeyToID := map[string]uint64{}
 	emitRemoteImplementation := func(from def, tos []def) {
 		for _, to := range tos {
-			identifier := joinMonikerParts(
-				makeMonikerPackage(to.typeName),
-				makeMonikerIdentifier(i.packageDataCache, to.pkg, to.typeName),
-			)
-			key := "implementation:gomod:%s" + identifier
-			monikerID, ok := monikerKeyToID[key]
-			if !ok {
-				monikerID = i.emitter.EmitMoniker("implementation", "gomod", identifier)
-				monikerKeyToID[key] = monikerID
-			}
-			i.emitter.EmitMonikerEdge(from.defInfo.ResultSetID, monikerID)
+			i.emitImplementationMoniker(from.defInfo.ResultSetID, to.pkg, to.typeName)
 		}
 	}
 

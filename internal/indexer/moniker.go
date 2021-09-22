@@ -75,6 +75,32 @@ func (i *Indexer) emitImportMoniker(rangeID uint64, p *packages.Package, obj Obj
 	return false
 }
 
+// emitImplementationMoniker emits an implementation moniker for the given object linked to the given source
+// identifier (either a range or a result set identifier). This will also emit links between
+// the moniker vertex and the package information vertex representing the dependency containing
+// the identifier.
+func (i *Indexer) emitImplementationMoniker(resultSet uint64, p *packages.Package, obj ObjectLike) bool {
+	pkg := makeMonikerPackage(obj)
+	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
+
+	for _, moduleName := range packagePrefixes(pkg) {
+		if module, ok := i.dependencies[moduleName]; ok {
+			// Lazily emit package information vertex
+			packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
+
+			// Lazily emit moniker vertex
+			monikerID := i.ensureImplementationMoniker(monikerIdentifier, packageInformationID)
+
+			// Link the result set to the moniker
+			i.emitter.EmitMonikerEdge(resultSet, monikerID)
+
+			return true
+		}
+	}
+
+	return false
+}
+
 // packagePrefixes returns all prefix of the go package path. For example, the package
 // `foo/bar/baz` will return the slice containing `foo/bar/baz`, `foo/bar`, and `foo`.
 func packagePrefixes(packageName string) []string {
@@ -134,6 +160,22 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 	monikerID = i.emitter.EmitMoniker("import", "gomod", identifier)
 	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageInformationID)
 	i.importMonikerIDs[key] = monikerID
+	return monikerID
+}
+
+// ensureImplementationMoniker returns the identifier of a moniker vertex with the give identifier
+// attached to the given package information identifier. A vertex will be emitted only if
+// one with the same key has not yet been emitted.
+func (i *Indexer) ensureImplementationMoniker(identifier string, packageInformationID uint64) uint64 {
+	key := fmt.Sprintf("%s:%d", identifier, packageInformationID)
+
+	if monikerID, ok := i.implementationMonikerIDs[key]; ok {
+		return monikerID
+	}
+
+	monikerID := i.emitter.EmitMoniker("implementation", "gomod", identifier)
+	_ = i.emitter.EmitPackageInformationEdge(monikerID, packageInformationID)
+	i.implementationMonikerIDs[key] = monikerID
 	return monikerID
 }
 
