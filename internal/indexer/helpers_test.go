@@ -283,6 +283,16 @@ func findRange(w *capturingWriter, filename string, startLine, startCharacter in
 	return protocol.Range{}, false
 }
 
+// mustRange returns the range in the given file with the given start line and character.
+func mustRange(t *testing.T, w *capturingWriter, filename string, startLine, startCharacter int) protocol.Range {
+	r, ok := findRange(w, filename, startLine, startCharacter)
+	if !ok {
+		t.Fatalf("no range at %s:%d:%d", filename, startLine, startCharacter)
+		panic("should never happen")
+	}
+	return r
+}
+
 // findAllRanges returns a list of ranges in the given file with the given start line and character.
 // This can be used to confirm that there is only one range that would match at a particular location
 func findAllRanges(w *capturingWriter, filename string, startLine, startCharacter int) []protocol.Range {
@@ -465,7 +475,7 @@ func stringifyFileRange(f string, r protocol.Range) string {
 	return fmt.Sprintf("%s:%s", f, stringifyRange(r))
 }
 
-func mustRange(t *testing.T, ranges []protocol.Range, needle string) protocol.Range {
+func mustGetRangeInSlice(t *testing.T, ranges []protocol.Range, needle string) protocol.Range {
 	for _, r := range ranges {
 		if stringifyRange(r) == needle {
 			return r
