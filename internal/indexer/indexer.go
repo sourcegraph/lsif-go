@@ -12,7 +12,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/agnivade/levenshtein"
 	"github.com/pkg/errors"
@@ -142,11 +141,9 @@ func (i *Indexer) Index() error {
 	i.indexDefinitions()
 	i.indexReferences()
 
-	implStart := time.Now()
 	if err := i.indexImplementations(); err != nil {
 		return errors.Wrap(err, "while indexing implementations")
 	}
-	fmt.Println("### Total Implement Time:", time.Since(implStart))
 
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
@@ -906,10 +903,6 @@ func (i *Indexer) indexImplementations() error {
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(deps)
 
-	// TODO prune interfaces/types that are not exported
-
-	monikerKeyToID := map[string]uint64{}
-
 	forEachImplementation := func(rel relation, f func(from def, to []def)) {
 		m := map[int][]def{}
 		for _, e := range rel.edges {
@@ -938,6 +931,7 @@ func (i *Indexer) indexImplementations() error {
 		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
 	}
 
+	monikerKeyToID := map[string]uint64{}
 	emitRemoteImplementation := func(from def, tos []def) {
 		for _, to := range tos {
 			identifier := joinMonikerParts(
@@ -1009,7 +1003,12 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) r
 		signature := m.Type().(*types.Signature)
 		returnTypes := tuple(signature.Results())
 
-		ret := m.Obj().Name() + parens(tuple(signature.Params()))
+		ret := ""
+		if !m.Obj().Exported() {
+			ret += m.Obj().Pkg().Path() + ":"
+		}
+		ret += m.Obj().Name()
+		ret += parens(tuple(signature.Params()))
 		if len(returnTypes) == 1 {
 			ret += " " + returnTypes[0]
 		} else if len(returnTypes) > 1 {
@@ -1047,7 +1046,7 @@ interfaceLoop:
 		candidateTypes := &intsets.Sparse{}
 
 		if initialReceivers, ok := methodToReceivers[canonical(methods[0])]; !ok {
-			continue interfaceLoop
+			continue
 		} else {
 			candidateTypes.Copy(initialReceivers)
 		}

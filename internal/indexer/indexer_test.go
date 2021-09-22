@@ -83,7 +83,7 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("Could not find range for 'package testdata'")
 		}
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"2:8-2:16"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"2:8-2:16"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -104,7 +104,7 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("Could not find range for 'package secret'")
 		}
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"1:8-1:14"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"1:8-1:14"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -166,7 +166,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"15:1-15:5"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"15:1-15:5"}, "definition")
 	})
 
 	t.Run("check wg references", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestIndexer(t *testing.T) {
 		//
 		// Check definition links
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, intReference.ID), []string{"3:8-3:21"}, "references")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, intReference.ID), []string{"3:8-3:21"}, "references")
 
 		//
 		// Check reference links
@@ -279,7 +279,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"7:5-7:17"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"7:5-7:17"}, "definition")
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -316,7 +316,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"6:5-6:11"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"6:5-6:11"}, "definition")
 
 		p, _ := findDefinitionByName(t, indexer.packages, "Burger")
 		if p.Name != "secret" {
@@ -358,7 +358,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"9:5-9:14"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"9:5-9:14"}, "definition")
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -398,6 +398,7 @@ func TestIndexer(t *testing.T) {
 
 		assertRanges(
 			t,
+			w,
 			findDefinitionRangesByRangeOrResultSetID(w, r.ID),
 			[]string{
 				// Original definition
@@ -436,7 +437,7 @@ func TestIndexer(t *testing.T) {
 
 		x := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
 		// TODO 2 definitions are emitted here but have the same range. Seems like a bug.
-		assertRanges(t, []protocol.Range{x[0]}, []string{"4:1-4:2"}, "definitions")
+		assertRanges(t, w, []protocol.Range{x[0]}, []string{"4:1-4:2"}, "definitions")
 	})
 
 	t.Run("check named import reference: non-'.' import", func(t *testing.T) {
@@ -489,7 +490,7 @@ func TestIndexer(t *testing.T) {
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
 		ranges := findAllRanges(w, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
-		assertRanges(t, ranges, []string{"5:1-5:5", "5:1-5:13"}, "http and http.Handler")
+		assertRanges(t, w, ranges, []string{"5:1-5:5", "5:1-5:13"}, "http and http.Handler")
 		// line: http.Handler
 		//       ^^^^------------ httpRange, for http package reference
 		//       ^^^^^^^^^^^^---- anonymousFieldRange, for http.Handler, the entire definition
@@ -499,7 +500,7 @@ func TestIndexer(t *testing.T) {
 		httpRange := mustRange(t, ranges, "5:1-5:5")
 		anonymousFieldRange := mustRange(t, ranges, "5:1-5:13")
 
-		assertRanges(t, findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID), []string{"5:1-5:13"}, "definition")
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID), []string{"5:1-5:13"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, anonymousFieldRange.ID)
 		if len(monikers) != 1 {
@@ -533,7 +534,7 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		assertRanges(t, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"12:5-12:7", "16:5-16:7", "22:5-22:8", "21:5-21:7"}, "implementations of I1")
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"12:5-12:7", "16:5-16:7", "22:5-22:8", "21:5-21:7"}, "implementations of I1")
 	})
 
 	t.Run("should find interfaces that a type implements", func(t *testing.T) {
@@ -542,7 +543,15 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("could not find target range")
 		}
 
-		assertRanges(t, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
+	})
+
+	t.Run("should not find unexported implementations", func(t *testing.T) {
+		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "pkg/pkg.go"), 2, 5)
+		if !ok {
+			t.Fatalf("could not find target range")
+		}
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"implementations.go:28:5-28:32"}, "interfaces that pkg/main.go:Foo implements")
 	})
 }
 

@@ -461,6 +461,10 @@ func stringifyRange(r protocol.Range) string {
 	return fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
 }
 
+func stringifyFileRange(f string, r protocol.Range) string {
+	return fmt.Sprintf("%s:%s", f, stringifyRange(r))
+}
+
 func mustRange(t *testing.T, ranges []protocol.Range, needle string) protocol.Range {
 	for _, r := range ranges {
 		if stringifyRange(r) == needle {
@@ -471,37 +475,54 @@ func mustRange(t *testing.T, ranges []protocol.Range, needle string) protocol.Ra
 	panic("this should never happen")
 }
 
-// assertRanges throws an error if the expected and actual range sets are not equal.
-func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg string) {
-	actualSet := map[string]struct{}{}
-	duplicates := []string{}
-	for _, r := range actual {
-		if _, ok := actualSet[stringifyRange(r)]; ok {
-			duplicates = append(duplicates, stringifyRange(r))
-		} else {
-			actualSet[stringifyRange(r)] = struct{}{}
-		}
-	}
-
-	expectedSet := map[string]struct{}{}
-	for _, r := range expected {
-		expectedSet[r] = struct{}{}
-	}
-
-	// Detect missing ranges
-	missings := []string{}
-	for r := range expectedSet {
-		if _, ok := actualSet[r]; !ok {
-			missings = append(missings, r)
-		}
-	}
-
-	// Detect extra ranges
+// assertRanges throws an error if the given ranges don't match the
+// expected suffixes (which look like 12:5-12:10 or foo.go:12:5-12:10).
+//
+// In detail, it throws an error if in any of the follow scenarios:
+//
+// - Duplicate ranges exist
+// - An expected suffix does not match any range
+// - An expected suffix matches more than one range
+// - An actual range does not match any of the expected suffixes
+func assertRanges(t *testing.T, w *capturingWriter, actual []protocol.Range, expected []string, msg string) {
 	extras := []string{}
-	for r := range actualSet {
-		if _, ok := expectedSet[r]; !ok {
-			extras = append(extras, r)
+	missings := []string{}
+
+	for i := range actual {
+		for j := i + 1; j < len(actual); j++ {
+			key1 := stringifyFileRange(w.documents[w.contains[actual[i].ID]].URI, actual[i])
+			key2 := stringifyFileRange(w.documents[w.contains[actual[j].ID]].URI, actual[j])
+			if key1 == key2 {
+				t.Fatalf("duplicate range %s", key1)
+			}
 		}
+	}
+
+	for _, r := range actual {
+		key := stringifyFileRange(w.documents[w.contains[r.ID]].URI, r)
+		matches := []string{}
+		for _, e := range expected {
+			if strings.HasSuffix(key, e) {
+				matches = append(matches, e)
+			}
+		}
+		if len(matches) == 0 {
+			extras = append(extras, key)
+			continue
+		} else if len(matches) > 1 {
+			t.Fatalf("multiple matches for %q: %v", key, matches)
+		}
+	}
+
+loopMissing:
+	for _, e := range expected {
+		for _, r := range actual {
+			key := stringifyFileRange(w.documents[w.contains[r.ID]].URI, r)
+			if strings.HasSuffix(key, e) {
+				continue loopMissing
+			}
+		}
+		missings = append(missings, e)
 	}
 
 	// Report differences
@@ -511,9 +532,6 @@ func assertRanges(t *testing.T, actual []protocol.Range, expected []string, msg 
 	}
 	if len(extras) > 0 {
 		errors = append(errors, fmt.Sprintf("extra [%s]", strings.Join(extras, ", ")))
-	}
-	if len(duplicates) > 0 {
-		errors = append(errors, fmt.Sprintf("duplicates [%s]", strings.Join(duplicates, ", ")))
 	}
 	if len(errors) > 0 {
 		t.Fatalf("%s: %s", msg, strings.Join(errors, " "))

@@ -21,3 +21,16 @@ func (r T2) F2() {}
 
 type A1 = T1
 type A12 = A1
+
+type InterfaceWithNonExportedMethod interface {
+	nonExportedMethod()
+}
+
+type InterfaceWithExportedMethod interface {
+	ExportedMethod()
+}
+
+type Foo int
+
+func (r Foo) nonExportedMethod() {}
+func (r Foo) ExportedMethod()    {}
