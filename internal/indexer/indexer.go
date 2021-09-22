@@ -947,6 +947,11 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 			fromMethod := i.getDefinitionInfo(method.Obj(), nil)
 			methodInvs := []uint64{}
 			for _, to := range tos {
+				// TODO WRITE UP WHY I SKIPPED HERE
+				if to.typeName.IsAlias() {
+					continue
+				}
+
 				toMethod, ok := to.methodsByName[name]
 				if !ok {
 					fmt.Println("SKIPPING", name)

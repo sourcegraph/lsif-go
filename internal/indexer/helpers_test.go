@@ -344,7 +344,7 @@ func findHoverResultByRangeOrResultSetID(w *capturingWriter, id uint64) (protoco
 func findRangesByRangeOrResultSetID(w *capturingWriter, id uint64, getInvAndOutV func(elem interface{}) (uint64, uint64, bool)) (ranges []protocol.Range) {
 	elements := w.elements
 
-	// First see if we're attached to definition result directly
+	// First see if we're attached to the result directly
 	for _, elem := range elements {
 		if inV, outV, ok := getInvAndOutV(elem); ok && outV == id {
 			ranges = append(ranges, findRangesByResultID(w, inV)...)

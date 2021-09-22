@@ -498,10 +498,22 @@ func TestIndexer(t *testing.T) {
 		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"implementations.go:28:5-28:32"}, "interfaces that pkg/main.go:Foo implements")
 	})
 
-	t.Run("should find implementations of an interface: method", func(t *testing.T) {
+	t.Run("should find implementations of an interface: method shared", func(t *testing.T) {
 		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 5, 1)
 
-		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"14:12-14:13", "18:12-18:13"}, "implementations of I1")
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"14:12-14:14", "18:12-18:14"}, "SingleMethod implementations")
+	})
+
+	t.Run("should find implementations of an interface: method SingleMethod", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementation_methods.go"), 3, 1)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"8:25-8:37"}, "SingleMethod implementations")
+	})
+
+	t.Run("should find implementations of an interface: method SingleMethodTwoImpl", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementation_methods.go"), 11, 1)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"16:18-16:37", "20:18-20:37"}, "SingleMethodTwoImpl implementations")
 	})
 }
 
