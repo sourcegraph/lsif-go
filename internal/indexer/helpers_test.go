@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/types"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -38,7 +39,7 @@ func getTestPackages(t *testing.T) []*packages.Package {
 		var err error
 
 		cachedTestPackages, err = packages.Load(
-			&packages.Config{Mode: loadMode, Dir: getRepositoryRoot(t)},
+			&packages.Config{Mode: loadMode, Dir: path.Join(getRepositoryRoot(t), "fixtures")},
 			"./...",
 		)
 		if err != nil {

@@ -3,7 +3,7 @@ package testdata
 import (
 	"context"
 
-	"github.com/sourcegraph/lsif-go/internal/testdata/internal/secret"
+	"github.com/sourcegraph/lsif-go/internal/testdata/documentation/internal/secret"
 )
 
 // TestInterface is an interface used for testing.

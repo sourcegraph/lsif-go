@@ -3,8 +3,10 @@ package indexer
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -30,9 +32,9 @@ func TestIndexer(t *testing.T) {
 		contains:  map[uint64]uint64{},
 	}
 
-	projectRoot := getRepositoryRoot(t)
+	projectRoot := path.Join(getRepositoryRoot(t), "fixtures")
 	indexer := New(
-		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+		"/dev/github.com/sourcegraph/lsif-go/internal/testdata/fixtures",
 		"github.com/sourcegraph/lsif-go",
 		projectRoot,
 		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
@@ -96,7 +98,7 @@ func TestIndexer(t *testing.T) {
 
 		moniker := monikers[0]
 		value := moniker.Identifier
-		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata"
+		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata/fixtures"
 		if value != expectedLabel {
 			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedLabel, value)
 		}
@@ -123,7 +125,7 @@ func TestIndexer(t *testing.T) {
 
 		moniker := monikers[0]
 		value := moniker.Identifier
-		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata/internal/secret"
+		expectedLabel := "github.com/sourcegraph/lsif-go/internal/testdata/fixtures/internal/secret"
 		if value != expectedLabel {
 			t.Errorf("incorrect moniker identifier. want=%q have=%q", expectedLabel, value)
 		}
@@ -218,7 +220,7 @@ func TestIndexer(t *testing.T) {
 			t.Errorf("incorrect scheme. want=%q have=%q", "gomod", value)
 		}
 
-		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:TestStruct.FieldWithAnonymousType.NestedB"
+		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata/fixtures:TestStruct.FieldWithAnonymousType.NestedB"
 		if value := monikers[0].Identifier; value != expectedIdentifier {
 			t.Errorf("incorrect identifier. want=%q have=%q", expectedIdentifier, value)
 		}
@@ -459,7 +461,7 @@ func TestIndexer(t *testing.T) {
 		moniker := monikers[0]
 		identifier := moniker.Identifier
 
-		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:Outer.Inner"
+		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata/fixtures:Outer.Inner"
 		if identifier != expectedIdentifier {
 			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
 		}
@@ -564,7 +566,7 @@ func TestIndexer(t *testing.T) {
 		moniker := monikers[0]
 		identifier := moniker.Identifier
 
-		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata:NestedHandler.Handler"
+		expectedIdentifier := "github.com/sourcegraph/lsif-go/internal/testdata/fixtures:NestedHandler.Handler"
 		if identifier != expectedIdentifier {
 			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedIdentifier, identifier)
 		}
@@ -585,7 +587,7 @@ func TestIndexer(t *testing.T) {
 }
 
 func TestIndexer_documentation(t *testing.T) {
-	projectRoot := getRepositoryRoot(t)
+	projectRoot := path.Join(getRepositoryRoot(t), "documentation")
 	for _, tst := range []struct {
 		name                        string
 		repositoryRoot, projectRoot string
@@ -642,9 +644,9 @@ func TestIndexer_documentation(t *testing.T) {
 
 func TestIndexer_shouldVisitPackage(t *testing.T) {
 	w := &capturingWriter{}
-	projectRoot := getRepositoryRoot(t)
+	projectRoot := path.Join(getRepositoryRoot(t), "fixtures")
 	indexer := New(
-		"/dev/github.com/sourcegraph/lsif-go/internal/testdata",
+		"/dev/github.com/sourcegraph/lsif-go/internal/testdata/fixtures",
 		"github.com/sourcegraph/lsif-go",
 		projectRoot,
 		protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
@@ -662,7 +664,8 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 
 	visited := map[string]bool{}
 	for _, pkg := range indexer.packages {
-		shortID := strings.Replace(pkg.ID, "github.com/sourcegraph/lsif-go/internal/testdata/internal", "…", -1)
+		fmt.Println(pkg.ID)
+		shortID := strings.Replace(pkg.ID, "github.com/sourcegraph/lsif-go/internal/testdata/fixtures/internal", "…", -1)
 		if indexer.shouldVisitPackage(pkg, indexer.packages) {
 			visited[shortID] = true
 		} else {
@@ -670,13 +673,13 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		}
 	}
 	autogold.Want("visited", map[string]bool{
-		"github.com/sourcegraph/lsif-go/internal/testdata":                          true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols": false,
-		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols [github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test]": true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/conflicting_test_symbols.test":                                                                             false,
-		"github.com/sourcegraph/lsif-go/internal/testdata/duplicate_path_id":                                                                                         true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/illegal_multiple_mains":                                                                                    true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/cmd/minimal_main":                                                                                          true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures":                                                                                                                    true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols":                                                                                           false,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols [github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols.test]": true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols.test":                                                                                      false,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/duplicate_path_id":                                                                                                  true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/illegal_multiple_mains":                                                                                             true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/cmd/minimal_main":                                                                                                   true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,
