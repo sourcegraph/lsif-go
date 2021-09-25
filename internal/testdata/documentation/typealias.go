@@ -1,7 +1,7 @@
 package testdata
 
 import (
-	"github.com/sourcegraph/lsif-go/internal/testdata/internal/secret"
+	"github.com/sourcegraph/lsif-go/internal/testdata/documentation/internal/secret"
 )
 
 // Type aliased doc

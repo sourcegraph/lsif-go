@@ -1,0 +1,4 @@
+package gosrc
+
+func init() {
+}
