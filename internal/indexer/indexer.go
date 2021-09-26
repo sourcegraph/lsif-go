@@ -937,6 +937,10 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 	methodLoop:
 		for name, method := range from.methodsByName {
 			fromMethod := i.getDefinitionInfo(method.Obj(), nil)
+			if fromMethod == nil {
+				// This method is from an embedded type defined in some dependency.
+				continue
+			}
 			methodInvs := []uint64{}
 			for _, to := range tos {
 				if to.typeName.IsAlias() {
@@ -947,11 +951,17 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 
 				toMethod, ok := to.methodsByName[name]
 				if !ok {
-					// Skip methods of the `from` concrete type that are not part of the `to` interface.
+					// This is an extraneous method on the concrete type `from`
+					// unrelated to the interface `to`, so skip it.
 					continue methodLoop
 				}
 
 				toObj := toMethod.Obj()
+				toMethodDef := i.getDefinitionInfo(toObj, nil)
+				if toMethodDef == nil {
+					// This method is from an embedded type defined in some dependency.
+					continue
+				}
 				methodInvs = append(methodInvs, i.getDefinitionInfo(toObj, nil).RangeID)
 			}
 
@@ -964,6 +974,31 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 	emitRemoteImplementation := func(from def, tos []def) {
 		for _, to := range tos {
 			i.emitImplementationMoniker(from.defInfo.ResultSetID, to.pkg, to.typeName)
+		}
+
+	methodLoop:
+		for name, method := range from.methodsByName {
+			fromMethod := i.getDefinitionInfo(method.Obj(), nil)
+			if fromMethod == nil {
+				// This method is from an embedded type defined in some dependency.
+				continue
+			}
+			for _, to := range tos {
+				if to.typeName.IsAlias() {
+					// Skip aliases because their methods are redundant with
+					// the underlying concrete type's methods.
+					continue
+				}
+
+				toMethod, ok := to.methodsByName[name]
+				if !ok {
+					// This is an extraneous method on the concrete type `from`
+					// unrelated to the interface `to`, so skip it.
+					continue methodLoop
+				}
+
+				i.emitImplementationMoniker(fromMethod.ResultSetID, to.pkg, toMethod.Obj())
+			}
 		}
 	}
 
