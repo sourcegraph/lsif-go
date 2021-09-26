@@ -895,8 +895,6 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 				methodsByName: methodsByName,
 			}
 			if types.IsInterface(obj.Type()) {
-				// TODO figure out non-exported interfaces
-				// should link within package? across packages?
 				interfaces = append(interfaces, d)
 			} else {
 				concreteTypes = append(concreteTypes, d)
@@ -928,10 +926,6 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 	}
 
 	emitLocalImplementation := func(from def, tos []def) {
-		// Emit this structure:
-		//
-		// resultSet ---textDocument/implementation--> implementationResult --item--> range
-		// ^^^^^^^^^ already exists                                                   ^^^^^ 1 or more
 		invs := []uint64{}
 		for _, to := range tos {
 			invs = append(invs, to.defInfo.RangeID)
@@ -940,21 +934,20 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 		i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
 		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
 
-		fmt.Println("=============")
-		fmt.Println("  Ident:", from.ident)
 	methodLoop:
 		for name, method := range from.methodsByName {
 			fromMethod := i.getDefinitionInfo(method.Obj(), nil)
 			methodInvs := []uint64{}
 			for _, to := range tos {
-				// TODO WRITE UP WHY I SKIPPED HERE
 				if to.typeName.IsAlias() {
+					// Skip aliases because their methods are redundant with
+					// the underlying concrete type's methods.
 					continue
 				}
 
 				toMethod, ok := to.methodsByName[name]
 				if !ok {
-					fmt.Println("SKIPPING", name)
+					// Skip methods of the `from` concrete type that are not part of the `to` interface.
 					continue methodLoop
 				}
 
@@ -962,7 +955,6 @@ func (i *Indexer) indexImplementations(deps []*packages.Package) {
 				methodInvs = append(methodInvs, i.getDefinitionInfo(toObj, nil).RangeID)
 			}
 
-			fmt.Println("Implemented Method:", method)
 			implementationResult := i.emitter.EmitImplementationResult()
 			i.emitter.EmitTextDocumentImplementation(fromMethod.ResultSetID, implementationResult)
 			i.emitter.EmitItem(implementationResult, methodInvs, fromMethod.DocumentID)
