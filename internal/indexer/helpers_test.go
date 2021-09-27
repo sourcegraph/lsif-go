@@ -397,7 +397,7 @@ func findImplementationRangesByRangeOrResultSetID(w *capturingWriter, id uint64)
 	})
 }
 
-// findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or  reference result
+// findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or reference result
 // with the given identifier.
 func findMonikersByRangeOrReferenceResultID(w *capturingWriter, id uint64) (monikers []protocol.Moniker) {
 	for _, elem := range w.elements {
@@ -538,12 +538,12 @@ loopMissing:
 	// Report differences
 	errors := []string{}
 	if len(missings) > 0 {
-		errors = append(errors, fmt.Sprintf("missing [%s]", strings.Join(missings, ", ")))
+		errors = append(errors, fmt.Sprintf("missing:\n%s", strings.Join(missings, "\n")))
 	}
 	if len(extras) > 0 {
-		errors = append(errors, fmt.Sprintf("extra [%s]", strings.Join(extras, ", ")))
+		errors = append(errors, fmt.Sprintf("extra:\n%s", strings.Join(extras, "\n")))
 	}
 	if len(errors) > 0 {
-		t.Fatalf("%s: %s", msg, strings.Join(errors, " "))
+		t.Fatalf("%s: %s\n", msg, strings.Join(errors, "\n\n"))
 	}
 }
