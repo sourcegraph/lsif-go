@@ -61,6 +61,7 @@ type Indexer struct {
 	packageInformationIDs                    map[string]uint64                       // name -> packageInformationID
 	packageDataCache                         *PackageDataCache                       // hover text and moniker path cache
 	packages                                 []*packages.Package                     // index target packages
+	depPackages                              []*packages.Package                     // dependency packages
 	projectID                                uint64                                  // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
 	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
@@ -130,11 +131,6 @@ func (i *Indexer) Index() error {
 		return errors.Wrap(err, "failed to load packages")
 	}
 
-	deps, err := i.loadDependencyPackages()
-	if err != nil {
-		return errors.Wrap(err, "failed to load dependencies")
-	}
-
 	wg := new(sync.WaitGroup)
 	// Start any channels used to synchronize reference sets
 	i.startImportMonikerReferenceTracker(wg)
@@ -147,7 +143,7 @@ func (i *Indexer) Index() error {
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
-	i.indexImplementations(deps)
+	i.indexImplementations()
 
 	// Stop any channels used to synchronize reference sets
 	i.stopImportMonikerReferenceTracker(wg)
@@ -212,6 +208,9 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // cachedPackages makes sure that we only load packages once per execution
 var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
 
+// cachedDepPackages makes sure that we only load dependency packages once per execution
+var cachedDepPackages map[string][]*packages.Package = map[string][]*packages.Package{}
+
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 //
@@ -232,34 +231,51 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			Logf:  i.packagesLoadLogger,
 		}
 
-		// Make sure we only load packages once per execution.
-		pkgs, ok := cachedPackages[i.projectRoot]
-		if !ok {
-			var err error
-			pkgs, err = packages.Load(config, "./...")
-			if err != nil {
-				errs <- errors.Wrap(err, "packages.Load")
-				return
+		load := func(cache map[string][]*packages.Package, patterns []string) ([]*packages.Package, bool) {
+			// Make sure we only load packages once per execution.
+			pkgs, ok := cache[i.projectRoot]
+			if !ok {
+				var err error
+				pkgs, err = packages.Load(config, patterns...)
+				if err != nil {
+					errs <- errors.Wrap(err, "packages.Load")
+					return nil, true
+				}
+
+				cache[i.projectRoot] = pkgs
 			}
 
-			cachedPackages[i.projectRoot] = pkgs
-		}
+			if !deduplicate {
+				return pkgs, false
+			}
 
-		if deduplicate {
 			keep := make([]*packages.Package, 0, len(pkgs))
 			for _, pkg := range pkgs {
-				// fmt.Println("considering", pkg)
 				if i.shouldVisitPackage(pkg, pkgs) {
 					keep = append(keep, pkg)
 				}
 			}
-			i.packages = keep
-		} else {
-			i.packages = pkgs
+			return keep, false
+		}
+
+		var hasError bool
+
+		i.packages, hasError = load(cachedPackages, []string{"./..."})
+		if hasError {
+			return
+		}
+
+		deps, err := i.listDependencies()
+		if err != nil {
+			errs <- errors.Wrap(err, "failed to list dependencies")
+			return
+		}
+		i.depPackages, hasError = load(cachedDepPackages, deps)
+		if hasError {
+			return
 		}
 
 		i.packagesByFile = map[string][]*packages.Package{}
-
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
 				filename := p.Fset.Position(f.Package).Filename
@@ -906,10 +922,9 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 }
 
 // indexImplementations emits data for each implementation of an interface.
-func (i *Indexer) indexImplementations(deps []*packages.Package) {
-
+func (i *Indexer) indexImplementations() {
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
-	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(deps)
+	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
 
 	forEachImplementation := func(rel relation, f func(from def, to []def)) {
 		m := map[int][]def{}
@@ -1158,33 +1173,6 @@ func listMethods(T *types.Named) []*types.Selection {
 	}
 
 	return res
-}
-
-func (i *Indexer) loadDependencyPackages() ([]*packages.Package, error) {
-	// List all import paths
-	output, err := command.Run(i.projectRoot, "go", "list", "all")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list packages: %v\n%s", err, output)
-	}
-	pkgSet := map[string]struct{}{}
-	for _, pkg := range i.packages {
-		pkgSet[pkg.PkgPath] = struct{}{}
-	}
-	depNames := []string{"std"}
-	for _, dep := range strings.Split(output, "\n") {
-		if _, ok := pkgSet[dep]; !ok {
-			// It's a dependency
-			depNames = append(depNames, dep)
-		}
-	}
-
-	// Load all dependnecy import paths
-	config := &packages.Config{
-		Mode: loadMode,
-		Dir:  i.projectRoot,
-		Logf: i.packagesLoadLogger,
-	}
-	return packages.Load(config, depNames...)
 }
 
 // IsInterface returns if a types.Type is an interface
@@ -1465,4 +1453,26 @@ func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []Decl
 	}
 
 	return possiblePaths
+}
+
+func (i *Indexer) listDependencies() ([]string, error) {
+	output, err := command.Run(i.projectRoot, "go", "list", "all")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packages: %v\n%s", err, output)
+	}
+
+	pkgSet := map[string]struct{}{}
+	for _, pkg := range i.packages {
+		pkgSet[pkg.PkgPath] = struct{}{}
+	}
+
+	depNames := []string{"std"}
+	for _, dep := range strings.Split(output, "\n") {
+		if _, ok := pkgSet[dep]; !ok {
+			// It's a dependency
+			depNames = append(depNames, dep)
+		}
+	}
+
+	return depNames, nil
 }

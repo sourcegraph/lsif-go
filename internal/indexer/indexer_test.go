@@ -3,7 +3,6 @@ package indexer
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -515,6 +514,32 @@ func TestIndexer(t *testing.T) {
 
 		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"16:18-16:37", "20:18-20:37"}, "SingleMethodTwoImpl implementations")
 	})
+
+	t.Run("should emit an implementation moniker for an interface from a dependency", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 32, 5)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
+		for _, m := range monikers {
+			if m.Kind == "implementation" && m.Identifier == "github.com/golang/go/std/io:Closer" {
+				return
+			}
+		}
+
+		t.Fatalf("expected github.com/golang/go/std/io:Closer implementation moniker, got %+v", monikers)
+	})
+
+	t.Run("should emit an implementation moniker for an interface method from a dependency", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 36, 13)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
+		for _, m := range monikers {
+			if m.Kind == "implementation" && m.Identifier == "github.com/golang/go/std/io:Closer.Close" {
+				return
+			}
+		}
+
+		t.Fatalf("expected github.com/golang/go/std/io:Closer.Close implementation moniker, got %+v", monikers)
+	})
 }
 
 func TestIndexer_documentation(t *testing.T) {
@@ -595,7 +620,6 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 
 	visited := map[string]bool{}
 	for _, pkg := range indexer.packages {
-		fmt.Println(pkg.ID)
 		shortID := strings.Replace(pkg.ID, "github.com/sourcegraph/lsif-go/internal/testdata/fixtures/internal", "…", -1)
 		if indexer.shouldVisitPackage(pkg, indexer.packages) {
 			visited[shortID] = true

@@ -34,3 +34,4 @@ type Foo int
 
 func (r Foo) nonExportedMethod() {}
 func (r Foo) ExportedMethod()    {}
+func (r Foo) Close() error       { return nil }
