@@ -6,6 +6,10 @@ package gomod
 // or not. At this point, it checks whether the package name is one of those
 // that is found from running "go list std" in the latest released go version.
 func isStandardlibPackge(pkg string) bool {
+	if pkg == "builtin" {
+		return true
+	}
+
 	_, ok := standardLibraryMap[pkg]
 	return ok
 }

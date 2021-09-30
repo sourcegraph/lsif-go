@@ -265,6 +265,8 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			return
 		}
 
+		// TODO: I think we can just use this?
+		// i.dependencies
 		deps, err := i.listDependencies()
 		if err != nil {
 			errs <- errors.Wrap(err, "failed to list dependencies")
@@ -926,7 +928,7 @@ func (i *Indexer) indexImplementations() {
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
 
-	forEachImplementation := func(rel relation, f func(from def, to []def)) {
+	forEachImplementation := func(rel relation, f func(from def, to []def), third bool) {
 		m := map[int][]def{}
 		for _, e := range rel.edges {
 			if _, ok := m[e.from]; !ok {
@@ -1012,16 +1014,63 @@ func (i *Indexer) indexImplementations() {
 					continue methodLoop
 				}
 
+				if toMethod.Obj().Pkg() == nil {
+					// fmt.Println("From:", from.ident.Name, from.ident.String())
+					// fmt.Println("TO:", to.ident.Name, to.ident.String())
+					// fmt.Println("TO Method:", toMethod.Kind(), toMethod.Obj())
+					// fmt.Printf("    %T\n", toMethod.Obj())
+
+					universeParent := toMethod.Obj().(*types.Func).Type().(*types.Signature).Recv().Type().String()
+					fmt.Println(types.Universe.Lookup(universeParent))
+
+					// switch v := toMethod.Obj().(type) {
+					// case *types.Func:
+					// 	fmt.Println("FUNC:", v.Parent(), "|", v.Pkg(), v.Type(), v.String())
+
+					// 	switch sig := v.Type().(type) {
+					// 	case *types.Signature:
+					// 		recv := sig.Recv()
+					// 		fmt.Println("==============")
+					// 		fmt.Println("THIS IS A METHOD", sig.Recv().String())
+					// 		fmt.Println(recv)
+					// 		fmt.Println("|", recv.Name(), "|")
+					// 		fmt.Println("|", recv.Type().String(), "|")
+					// 		fmt.Println("|", types.Universe.Lookup(recv.Type().String()), "|")
+
+					// 	}
+					// }
+
+					// panic("die sooner")
+					// continue
+				}
+
 				i.emitImplementationMoniker(fromMethod.ResultSetID, to.pkg, toMethod.Obj())
 			}
 		}
 	}
 
 	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
-	forEachImplementation(localRelation, emitLocalImplementation)
-	forEachImplementation(invert(localRelation), emitLocalImplementation)
-	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, remoteInterfaces), emitRemoteImplementation)
-	forEachImplementation(invert(i.buildImplementationRelation(remoteConcreteTypes, localInterfaces)), emitRemoteImplementation)
+	forEachImplementation(localRelation, emitLocalImplementation, false)
+	forEachImplementation(invert(localRelation), emitLocalImplementation, false)
+
+	filteredRemoteInterfaces := []def{}
+	for _, def := range remoteInterfaces {
+		if def.typeName.Exported() || def.ident.IsExported() {
+			filteredRemoteInterfaces = append(filteredRemoteInterfaces, def)
+		}
+	}
+	fmt.Println("interfaces: filter vs. remote", len(filteredRemoteInterfaces), len(remoteInterfaces))
+
+	filteredRemoteConcreteTypes := []def{}
+	for _, def := range remoteConcreteTypes {
+		if def.typeName.Exported() || def.ident.IsExported() {
+			filteredRemoteConcreteTypes = append(filteredRemoteConcreteTypes, def)
+		}
+	}
+	fmt.Println("ConcreteTypes: filter vs. remote", len(filteredRemoteConcreteTypes), len(remoteConcreteTypes))
+
+	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, filteredRemoteInterfaces), emitRemoteImplementation, true)
+	forEachImplementation(invert(i.buildImplementationRelation(filteredRemoteConcreteTypes, localInterfaces)), emitRemoteImplementation, false)
 }
 
 type edge struct {

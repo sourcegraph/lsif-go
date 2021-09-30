@@ -188,7 +188,7 @@ func makeMonikerPackage(obj ObjectLike) string {
 		// So instead of "http", it will return "net/http"
 		pkgName = v.Imported().Path()
 	} else {
-		pkgName = obj.Pkg().Path()
+		pkgName = pkgPath(obj)
 	}
 
 	return gomod.NormalizeMonikerPackage(pkgName)
@@ -223,11 +223,36 @@ func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Packa
 		if recv := signature.Recv(); recv != nil {
 			return strings.Join([]string{
 				// Qualify function with receiver stripped of a pointer indicator `*` and its package path
-				strings.TrimPrefix(strings.TrimPrefix(recv.Type().String(), "*"), obj.Pkg().Path()+"."),
+				strings.TrimPrefix(strings.TrimPrefix(recv.Type().String(), "*"), pkgPath(obj)+"."),
 				obj.Name(),
 			}, ".")
 		}
 	}
 
 	return obj.Name()
+}
+
+func pkgPath(obj ObjectLike) string {
+	// types.Universe.Lookup("error").Type().(*types.Named)
+	// universeParent := toMethod.Obj().(*types.Func).Type().(*types.Signature).Recv().Type().String()
+
+	pkg := obj.Pkg()
+	if pkg == nil {
+		switch v := obj.(type) {
+		case *types.Func:
+			switch typ := v.Type().(type) {
+			case *types.Signature:
+				recv := typ.Recv()
+				universeObj := types.Universe.Lookup(recv.Type().String())
+				if universeObj != nil {
+					return "builtin"
+				}
+			}
+
+		}
+
+		panic("Unhandled nil obj.Pkg()")
+	}
+
+	return pkg.Path()
 }
