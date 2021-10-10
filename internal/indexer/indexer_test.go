@@ -492,6 +492,10 @@ func TestIndexer(t *testing.T) {
 		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
 	})
 
+	t.Run("should emit an item edge with :document set to the target range's document", func(t *testing.T) {
+		checkItemDocuments(t, w)
+	})
+
 	t.Run("should not find unexported implementations", func(t *testing.T) {
 		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "pkg/pkg.go"), 2, 5)
 		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"implementations.go:28:5-28:32"}, "interfaces that pkg/main.go:Foo implements")

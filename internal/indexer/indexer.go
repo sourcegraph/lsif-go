@@ -943,13 +943,18 @@ func (i *Indexer) indexImplementations() {
 	}
 
 	emitLocalImplementation := func(from def, tos []def) {
-		invs := []uint64{}
+		typeDocToInvs := map[uint64][]uint64{}
 		for _, to := range tos {
-			invs = append(invs, to.defInfo.RangeID)
+			if _, ok := typeDocToInvs[to.defInfo.DocumentID]; !ok {
+				typeDocToInvs[to.defInfo.DocumentID] = []uint64{}
+			}
+			typeDocToInvs[to.defInfo.DocumentID] = append(typeDocToInvs[to.defInfo.DocumentID], to.defInfo.RangeID)
 		}
 		implementationResult := i.emitter.EmitImplementationResult()
 		i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
-		i.emitter.EmitItem(implementationResult, invs, from.defInfo.DocumentID)
+		for doc, inVs := range typeDocToInvs {
+			i.emitter.EmitItem(implementationResult, inVs, doc)
+		}
 
 	methodLoop:
 		for name, method := range from.methodsByName {
@@ -958,7 +963,7 @@ func (i *Indexer) indexImplementations() {
 				// This method is from an embedded type defined in some dependency.
 				continue
 			}
-			methodInvs := []uint64{}
+			methodDocToInvs := map[uint64][]uint64{}
 			for _, to := range tos {
 				if to.typeName.IsAlias() {
 					// Skip aliases because their methods are redundant with
@@ -979,12 +984,17 @@ func (i *Indexer) indexImplementations() {
 					// This method is from an embedded type defined in some dependency.
 					continue
 				}
-				methodInvs = append(methodInvs, i.getDefinitionInfo(toObj, nil).RangeID)
+				if _, ok := methodDocToInvs[toMethodDef.DocumentID]; !ok {
+					methodDocToInvs[toMethodDef.DocumentID] = []uint64{}
+				}
+				methodDocToInvs[toMethodDef.DocumentID] = append(methodDocToInvs[toMethodDef.DocumentID], toMethodDef.RangeID)
 			}
 
 			implementationResult := i.emitter.EmitImplementationResult()
 			i.emitter.EmitTextDocumentImplementation(fromMethod.ResultSetID, implementationResult)
-			i.emitter.EmitItem(implementationResult, methodInvs, fromMethod.DocumentID)
+			for doc, inVs := range methodDocToInvs {
+				i.emitter.EmitItem(implementationResult, inVs, doc)
+			}
 		}
 	}
 

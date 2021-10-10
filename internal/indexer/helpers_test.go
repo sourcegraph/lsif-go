@@ -257,6 +257,45 @@ func findRangesByResultID(w *capturingWriter, id uint64) (ranges []protocol.Rang
 	return ranges
 }
 
+func checkItemDocuments(t *testing.T, w *capturingWriter) {
+	rangeToDocs := map[uint64]map[uint64]struct{}{}
+	for _, elem := range w.elements {
+		switch e := elem.(type) {
+		case protocol.Item:
+			for _, inV := range e.InVs {
+				if _, ok := rangeToDocs[inV]; !ok {
+					rangeToDocs[inV] = map[uint64]struct{}{}
+				}
+				rangeToDocs[inV][e.Document] = struct{}{}
+			}
+		}
+	}
+
+	for r, docSet := range rangeToDocs {
+		if v, ok := w.contains[r]; ok {
+			docs := []uint64{}
+			for doc := range docSet {
+				docs = append(docs, doc)
+			}
+
+			if len(docs) == 0 {
+				t.Fatalf("bug in checkItemDocuments, range %d is not associated with any document", r)
+			}
+
+			if len(docs) > 1 {
+				t.Fatalf("expected all item edges pointing to range %d to have the same :document, but found :document %v", r, docs)
+			}
+
+			doc := docs[0]
+			if v != doc {
+				t.Fatalf("expected item edge :document (%d) to match the document it's contained in (%d)", r, v)
+			}
+		} else {
+			t.Fatalf("range %d is not contained by any documents", r)
+		}
+	}
+}
+
 // findDocumentURIContaining finds the URI of the document containing the given ID.
 func findDocumentURIContaining(w *capturingWriter, id uint64) string {
 	documentID, ok := w.contains[id]
