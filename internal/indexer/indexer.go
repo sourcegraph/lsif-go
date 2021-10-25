@@ -203,8 +203,6 @@ func (i *Indexer) stopImportMonikerReferenceTracker(wg *sync.WaitGroup) {
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
 
-// var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName | packages.NeedCompiledGoFiles | packages.NeedExportsFile | packages.NeedTypesSizes | packages.NeedModule
-
 // cachedPackages makes sure that we only load packages once per execution
 var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
 
@@ -265,9 +263,8 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			return
 		}
 
-		// TODO: I think we can just use this?
-		// i.dependencies
-		deps, err := i.listDependencies()
+		// TODO: Haven't compared this vs. i.dependencies
+		deps, err := i.listProjectDependencies()
 		if err != nil {
 			errs <- errors.Wrap(err, "failed to list dependencies")
 			return
@@ -924,11 +921,14 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 }
 
 // indexImplementations emits data for each implementation of an interface.
+//
+// NOTE: if indexImplementations becomes multi-threaded then we would need to update
+// Indexer.ensureImplementationMoniker to ensure that it uses appropriate locking.
 func (i *Indexer) indexImplementations() {
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
 
-	forEachImplementation := func(rel relation, f func(from def, to []def), third bool) {
+	forEachImplementation := func(rel implementationRelation, f func(from def, to []def)) {
 		m := map[int][]def{}
 		for _, e := range rel.edges {
 			if _, ok := m[e.from]; !ok {
@@ -1060,8 +1060,8 @@ func (i *Indexer) indexImplementations() {
 	}
 
 	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
-	forEachImplementation(localRelation, emitLocalImplementation, false)
-	forEachImplementation(invert(localRelation), emitLocalImplementation, false)
+	forEachImplementation(localRelation, emitLocalImplementation)
+	forEachImplementation(invert(localRelation), emitLocalImplementation)
 
 	filteredRemoteInterfaces := []def{}
 	for _, def := range remoteInterfaces {
@@ -1079,23 +1079,23 @@ func (i *Indexer) indexImplementations() {
 	}
 	fmt.Println("ConcreteTypes: filter vs. remote", len(filteredRemoteConcreteTypes), len(remoteConcreteTypes))
 
-	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, filteredRemoteInterfaces), emitRemoteImplementation, true)
-	forEachImplementation(invert(i.buildImplementationRelation(filteredRemoteConcreteTypes, localInterfaces)), emitRemoteImplementation, false)
+	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, filteredRemoteInterfaces), emitRemoteImplementation)
+	forEachImplementation(invert(i.buildImplementationRelation(filteredRemoteConcreteTypes, localInterfaces)), emitRemoteImplementation)
 }
 
-type edge struct {
+type implementationEdge struct {
 	from, to int
 }
 
-type relation struct {
-	edges []edge
+type implementationRelation struct {
+	edges []implementationEdge
 	nodes []def
 }
 
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) relation {
-	rel := relation{
-		edges: []edge{},
+func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []def) implementationRelation {
+	rel := implementationRelation{
+		edges: []implementationEdge{},
 		// Put concrete types and interfaces in the same slice to give them all unique indexes
 		nodes: append(concreteTypes, interfaces...),
 	}
@@ -1191,20 +1191,20 @@ interfaceLoop:
 
 		// Add the implementations to the relation.
 		for _, ty := range candidateTypes.AppendTo(nil) {
-			rel.edges = append(rel.edges, edge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(i)})
+			rel.edges = append(rel.edges, implementationEdge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(i)})
 		}
 	}
 
 	return rel
 }
 
-func invert(rel relation) relation {
-	inverse := relation{
-		edges: []edge{},
+func invert(rel implementationRelation) implementationRelation {
+	inverse := implementationRelation{
+		edges: []implementationEdge{},
 		nodes: rel.nodes,
 	}
 	for _, e := range rel.edges {
-		inverse.edges = append(inverse.edges, edge{from: e.to, to: e.from})
+		inverse.edges = append(inverse.edges, implementationEdge{from: e.to, to: e.from})
 	}
 	return inverse
 }
@@ -1514,24 +1514,28 @@ func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []Decl
 	return possiblePaths
 }
 
-func (i *Indexer) listDependencies() ([]string, error) {
+// listProjectDependencies finds any packages from "$ go list all" that are NOT declared
+// as part of the current project.
+func (i *Indexer) listProjectDependencies() ([]string, error) {
 	output, err := command.Run(i.projectRoot, "go", "list", "all")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %v\n%s", err, output)
 	}
 
-	pkgSet := map[string]struct{}{}
+	contained := struct{}{}
+
+	projectPackages := map[string]struct{}{}
 	for _, pkg := range i.packages {
-		pkgSet[pkg.PkgPath] = struct{}{}
+		projectPackages[pkg.PkgPath] = contained
 	}
 
-	depNames := []string{"std"}
+	dependencyPackages := []string{"std"}
 	for _, dep := range strings.Split(output, "\n") {
-		if _, ok := pkgSet[dep]; !ok {
-			// It's a dependency
-			depNames = append(depNames, dep)
+		// It's a dependency if it's not in the projectPackages
+		if _, ok := projectPackages[dep]; !ok {
+			dependencyPackages = append(dependencyPackages, dep)
 		}
 	}
 
-	return depNames, nil
+	return dependencyPackages, nil
 }

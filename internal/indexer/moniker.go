@@ -166,6 +166,9 @@ func (i *Indexer) ensureImportMoniker(identifier string, packageInformationID ui
 // ensureImplementationMoniker returns the identifier of a moniker vertex with the give identifier
 // attached to the given package information identifier. A vertex will be emitted only if
 // one with the same key has not yet been emitted.
+//
+// While other "ensure*Moniker" functions must use locks, Indexer.indexImplementations is single threaded,
+// so there is no need to use locks to hold the keys.
 func (i *Indexer) ensureImplementationMoniker(identifier string, packageInformationID uint64) uint64 {
 	key := fmt.Sprintf("%s:%d", identifier, packageInformationID)
 

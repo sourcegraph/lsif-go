@@ -6,6 +6,12 @@ package gomod
 // or not. At this point, it checks whether the package name is one of those
 // that is found from running "go list std" in the latest released go version.
 func isStandardlibPackge(pkg string) bool {
+	// For certain items in the Universe scope, they have no package.
+	// Because of this, we put them in the "builtin" package, because
+	// that's the name of the file in the go standard library that defines
+	// these items.
+	//
+	// An example would be `error` or `error.Error()`
 	if pkg == "builtin" {
 		return true
 	}
