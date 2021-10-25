@@ -119,11 +119,25 @@ func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 	}
 }
 
-func (i *Indexer) forEachImplementationMethod(fromName string, fromMethod *types.Selection, tos []implDef, doer func(fromMethodDef *DefinitionInfo, to implDef, toMethod *types.Selection)) *DefinitionInfo {
+func (i *Indexer) forEachImplementationMethod(
+	fromName string,
+	fromMethod *types.Selection,
+	tos []implDef,
+	doer func(fromMethodDef *DefinitionInfo, to implDef, toMethod *types.Selection),
+) *DefinitionInfo {
 	fromMethodDef := i.getDefinitionInfo(fromMethod.Obj(), nil)
 	if fromMethodDef == nil {
 		// This method is from an embedded type defined in some dependency.
 		return nil
+	}
+
+	// if any of the `to` implementations do not have this method,
+	// that means this method is NOT part of the required set of
+	// methods to be considered an implementation.
+	for _, to := range tos {
+		if _, ok := to.methodsByName[fromName]; !ok {
+			return nil
+		}
 	}
 
 	for _, to := range tos {
@@ -133,12 +147,7 @@ func (i *Indexer) forEachImplementationMethod(fromName string, fromMethod *types
 			continue
 		}
 
-		toMethod, ok := to.methodsByName[fromName]
-		if !ok {
-			// This is an extraneous method on the concrete type `from`
-			// unrelated to the interface `to`, so skip it.
-			return nil
-		}
+		toMethod := to.methodsByName[fromName]
 
 		doer(fromMethodDef, to, toMethod)
 	}
@@ -234,10 +243,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDe
 		signature := m.Type().(*types.Signature)
 		returnTypes := tuple(signature.Results())
 
-		ret := ""
-		if !m.Obj().Exported() {
-			ret += m.Obj().Pkg().Path() + ":"
-		}
+		ret := pkgPath(m.Obj())
 		ret += m.Obj().Name()
 		ret += parens(tuple(signature.Params()))
 		if len(returnTypes) == 1 {
