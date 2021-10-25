@@ -9,30 +9,33 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type implementationDef struct {
+type implDef struct {
 	pkg           *packages.Package
 	typeName      *types.TypeName
 	ident         *ast.Ident
-	defInfo       *DefinitionInfo
 	methods       []*types.Selection
 	methodsByName map[string]*types.Selection
+
+	// TODO: Consider removing def info and only storing the
+	// few items that we actually need.
+	defInfo *DefinitionInfo
 }
 
-type implementationEdge struct {
+type implEdge struct {
 	from int
 	to   int
 }
 
-type implementationRelation struct {
-	edges []implementationEdge
-	nodes []implementationDef
+type implRelation struct {
+	edges []implEdge
+	nodes []implDef
 }
 
-func forEachImplementation(rel implementationRelation, f func(from implementationDef, to []implementationDef)) {
-	m := map[int][]implementationDef{}
+func forEachImplementation(rel implRelation, f func(from implDef, to []implDef)) {
+	m := map[int][]implDef{}
 	for _, e := range rel.edges {
 		if _, ok := m[e.from]; !ok {
-			m[e.from] = []implementationDef{}
+			m[e.from] = []implDef{}
 		}
 		m[e.from] = append(m[e.from], rel.nodes[e.to])
 	}
@@ -47,117 +50,105 @@ func forEachImplementation(rel implementationRelation, f func(from implementatio
 // NOTE: if indexImplementations becomes multi-threaded then we would need to update
 // Indexer.ensureImplementationMoniker to ensure that it uses appropriate locking.
 func (i *Indexer) indexImplementations() {
+	// Local Implementations
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
 	forEachImplementation(localRelation, i.emitLocalImplementation)
 	forEachImplementation(invert(localRelation), i.emitLocalImplementation)
 
+	// Remote Implementations
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
-	forEachImplementation(i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces)), i.emitRemoteImplementation)
-	forEachImplementation(invert(i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces)), i.emitRemoteImplementation)
+	localTypesToRemoteInterfaces := i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
+	forEachImplementation(localTypesToRemoteInterfaces, i.emitRemoteImplementation)
+
+	localInterfacesToRemoteTypes := invert(i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces))
+	forEachImplementation(localInterfacesToRemoteTypes, i.emitRemoteImplementation)
 }
 
-func filterToExported(defs []implementationDef) []implementationDef {
-	filtered := []implementationDef{}
-	for _, def := range defs {
-		if def.typeName.Exported() || def.ident.IsExported() {
-			filtered = append(filtered, def)
-		}
-	}
-
-	return filtered
-}
-
-func (i *Indexer) emitLocalImplementation(from implementationDef, tos []implementationDef) {
-	typeDocToInvs := map[uint64][]uint64{}
+func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
+	typeDocToInVs := map[uint64][]uint64{}
 	for _, to := range tos {
-		if _, ok := typeDocToInvs[to.defInfo.DocumentID]; !ok {
-			typeDocToInvs[to.defInfo.DocumentID] = []uint64{}
+		if _, ok := typeDocToInVs[to.defInfo.DocumentID]; !ok {
+			typeDocToInVs[to.defInfo.DocumentID] = []uint64{}
 		}
-		typeDocToInvs[to.defInfo.DocumentID] = append(typeDocToInvs[to.defInfo.DocumentID], to.defInfo.RangeID)
+		typeDocToInVs[to.defInfo.DocumentID] = append(typeDocToInVs[to.defInfo.DocumentID], to.defInfo.RangeID)
 	}
 	implementationResult := i.emitter.EmitImplementationResult()
 	i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
-	for doc, inVs := range typeDocToInvs {
+	for doc, inVs := range typeDocToInVs {
 		i.emitter.EmitItem(implementationResult, inVs, doc)
 	}
 
-methodLoop:
-	for name, method := range from.methodsByName {
-		fromMethod := i.getDefinitionInfo(method.Obj(), nil)
-		if fromMethod == nil {
-			// This method is from an embedded type defined in some dependency.
-			continue
-		}
+	for fromName, fromMethod := range from.methodsByName {
 		methodDocToInvs := map[uint64][]uint64{}
-		for _, to := range tos {
-			if to.typeName.IsAlias() {
-				// Skip aliases because their methods are redundant with
-				// the underlying concrete type's methods.
-				continue
-			}
 
-			toMethod, ok := to.methodsByName[name]
-			if !ok {
-				// This is an extraneous method on the concrete type `from`
-				// unrelated to the interface `to`, so skip it.
-				continue methodLoop
-			}
-
-			toObj := toMethod.Obj()
-			toMethodDef := i.getDefinitionInfo(toObj, nil)
+		fromMethodDef := i.forEachImplementationMethod(fromName, fromMethod, tos, func(_ *DefinitionInfo, _ implDef, toMethod *types.Selection) {
+			toMethodDef := i.getDefinitionInfo(toMethod.Obj(), nil)
 			if toMethodDef == nil {
 				// This method is from an embedded type defined in some dependency.
-				continue
+				return
 			}
+
 			if _, ok := methodDocToInvs[toMethodDef.DocumentID]; !ok {
 				methodDocToInvs[toMethodDef.DocumentID] = []uint64{}
 			}
 			methodDocToInvs[toMethodDef.DocumentID] = append(methodDocToInvs[toMethodDef.DocumentID], toMethodDef.RangeID)
+		})
+
+		if fromMethodDef == nil {
+			continue
 		}
 
 		implementationResult := i.emitter.EmitImplementationResult()
-		i.emitter.EmitTextDocumentImplementation(fromMethod.ResultSetID, implementationResult)
+		i.emitter.EmitTextDocumentImplementation(fromMethodDef.ResultSetID, implementationResult)
 		for doc, inVs := range methodDocToInvs {
 			i.emitter.EmitItem(implementationResult, inVs, doc)
 		}
 	}
 }
 
-func (i *Indexer) emitRemoteImplementation(from implementationDef, tos []implementationDef) {
+func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 	for _, to := range tos {
 		i.emitImplementationMoniker(from.defInfo.ResultSetID, to.pkg, to.typeName)
 	}
 
-methodLoop:
-	for name, method := range from.methodsByName {
-		fromMethod := i.getDefinitionInfo(method.Obj(), nil)
-		if fromMethod == nil {
-			// This method is from an embedded type defined in some dependency.
-			continue
-		}
-		for _, to := range tos {
-			if to.typeName.IsAlias() {
-				// Skip aliases because their methods are redundant with
-				// the underlying concrete type's methods.
-				continue
-			}
-
-			toMethod, ok := to.methodsByName[name]
-			if !ok {
-				// This is an extraneous method on the concrete type `from`
-				// unrelated to the interface `to`, so skip it.
-				continue methodLoop
-			}
-
-			i.emitImplementationMoniker(fromMethod.ResultSetID, to.pkg, toMethod.Obj())
-		}
+	for fromName, fromMethod := range from.methodsByName {
+		i.forEachImplementationMethod(fromName, fromMethod, tos, func(fromMethodDef *DefinitionInfo, to implDef, toMethod *types.Selection) {
+			i.emitImplementationMoniker(fromMethodDef.ResultSetID, to.pkg, toMethod.Obj())
+		})
 	}
 }
 
-func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]implementationDef, []implementationDef) {
-	interfaces := []implementationDef{}
-	concreteTypes := []implementationDef{}
+func (i *Indexer) forEachImplementationMethod(fromName string, fromMethod *types.Selection, tos []implDef, doer func(fromMethodDef *DefinitionInfo, to implDef, toMethod *types.Selection)) *DefinitionInfo {
+	fromMethodDef := i.getDefinitionInfo(fromMethod.Obj(), nil)
+	if fromMethodDef == nil {
+		// This method is from an embedded type defined in some dependency.
+		return nil
+	}
+
+	for _, to := range tos {
+		if to.typeName.IsAlias() {
+			// Skip aliases because their methods are redundant with
+			// the underlying concrete type's methods.
+			continue
+		}
+
+		toMethod, ok := to.methodsByName[fromName]
+		if !ok {
+			// This is an extraneous method on the concrete type `from`
+			// unrelated to the interface `to`, so skip it.
+			return nil
+		}
+
+		doer(fromMethodDef, to, toMethod)
+	}
+
+	return fromMethodDef
+}
+
+func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]implDef, []implDef) {
+	interfaces := []implDef{}
+	concreteTypes := []implDef{}
 	for _, pkg := range pkgs {
 		for ident, obj := range pkg.TypesInfo.Defs {
 			if obj == nil {
@@ -185,7 +176,7 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 				methodsByName[m.Obj().Name()] = m
 			}
 
-			d := implementationDef{
+			d := implDef{
 				pkg:           pkg,
 				typeName:      typeName,
 				ident:         ident,
@@ -205,9 +196,9 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 }
 
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implementationDef) implementationRelation {
-	rel := implementationRelation{
-		edges: []implementationEdge{},
+func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDef) implRelation {
+	rel := implRelation{
+		edges: []implEdge{},
 		// Put concrete types and interfaces in the same slice to give them all unique indexes
 		nodes: append(concreteTypes, interfaces...),
 	}
@@ -224,20 +215,22 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implem
 		return len(concreteTypes) + i
 	}
 
+	// stringify a tuple
+	tuple := func(t *types.Tuple) []string {
+		strs := []string{}
+		for i := 0; i < t.Len(); i++ {
+			strs = append(strs, t.At(i).Type().String())
+		}
+		return strs
+	}
+
+	// wrap a list of strings with parenths
+	parens := func(strs []string) string {
+		return "(" + strings.Join(strs, ", ") + ")"
+	}
+
 	// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
 	canonical := func(m *types.Selection) string {
-		tuple := func(t *types.Tuple) []string {
-			strs := []string{}
-			for i := 0; i < t.Len(); i++ {
-				strs = append(strs, t.At(i).Type().String())
-			}
-			return strs
-		}
-
-		parens := func(strs []string) string {
-			return "(" + strings.Join(strs, ", ") + ")"
-		}
-
 		signature := m.Type().(*types.Signature)
 		returnTypes := tuple(signature.Results())
 
@@ -303,19 +296,22 @@ interfaceLoop:
 
 		// Add the implementations to the relation.
 		for _, ty := range candidateTypes.AppendTo(nil) {
-			rel.edges = append(rel.edges, implementationEdge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(i)})
+			rel.edges = append(rel.edges, implEdge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(i)})
 		}
 	}
 
 	return rel
 }
-func invert(rel implementationRelation) implementationRelation {
-	inverse := implementationRelation{
-		edges: []implementationEdge{},
+
+// invert reverses the links for edges for a given implRelation
+func invert(rel implRelation) implRelation {
+	inverse := implRelation{
+		edges: []implEdge{},
 		nodes: rel.nodes,
 	}
+
 	for _, e := range rel.edges {
-		inverse.edges = append(inverse.edges, implementationEdge{from: e.to, to: e.from})
+		inverse.edges = append(inverse.edges, implEdge{from: e.to, to: e.from})
 	}
 	return inverse
 }
@@ -343,4 +339,16 @@ func listMethods(T *types.Named) []*types.Selection {
 	}
 
 	return res
+}
+
+// filterToExported removes any nonExported types or identifiers from a list of []implDef
+func filterToExported(defs []implDef) []implDef {
+	filtered := []implDef{}
+	for _, def := range defs {
+		if def.typeName.Exported() || def.ident.IsExported() {
+			filtered = append(filtered, def)
+		}
+	}
+
+	return filtered
 }
