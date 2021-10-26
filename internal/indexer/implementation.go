@@ -31,7 +31,7 @@ type implRelation struct {
 	nodes []implDef
 }
 
-func forEachImplementation(rel implRelation, f func(from implDef, to []implDef)) {
+func (rel implRelation) forEachImplementation(f func(from implDef, to []implDef)) {
 	m := map[int][]implDef{}
 	for _, e := range rel.edges {
 		if _, ok := m[e.from]; !ok {
@@ -52,33 +52,39 @@ func forEachImplementation(rel implRelation, f func(from implDef, to []implDef))
 func (i *Indexer) indexImplementations() {
 	// Local Implementations
 	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
+
 	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
-	forEachImplementation(localRelation, i.emitLocalImplementation)
-	forEachImplementation(invert(localRelation), i.emitLocalImplementation)
+	localRelation.forEachImplementation(i.emitLocalImplementation)
+
+	invertedLocalRelation := invert(localRelation)
+	invertedLocalRelation.forEachImplementation(i.emitLocalImplementation)
 
 	// Remote Implementations
 	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
+
 	localTypesToRemoteInterfaces := i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
-	forEachImplementation(localTypesToRemoteInterfaces, i.emitRemoteImplementation)
+	localTypesToRemoteInterfaces.forEachImplementation(i.emitRemoteImplementation)
 
 	localInterfacesToRemoteTypes := invert(i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces))
-	forEachImplementation(localInterfacesToRemoteTypes, i.emitRemoteImplementation)
+	localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
 }
 
+// emitLocalImplementation correlates implementations for both structs/interfaces (refered to as typeDefs) and methods.
 func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
-	typeDocToInVs := map[uint64][]uint64{}
+	typeDefDocToInVs := map[uint64][]uint64{}
 	for _, to := range tos {
-		if _, ok := typeDocToInVs[to.defInfo.DocumentID]; !ok {
-			typeDocToInVs[to.defInfo.DocumentID] = []uint64{}
+		document := to.defInfo.DocumentID
+
+		if _, ok := typeDefDocToInVs[document]; !ok {
+			typeDefDocToInVs[document] = []uint64{}
 		}
-		typeDocToInVs[to.defInfo.DocumentID] = append(typeDocToInVs[to.defInfo.DocumentID], to.defInfo.RangeID)
-	}
-	implementationResult := i.emitter.EmitImplementationResult()
-	i.emitter.EmitTextDocumentImplementation(from.defInfo.ResultSetID, implementationResult)
-	for doc, inVs := range typeDocToInVs {
-		i.emitter.EmitItem(implementationResult, inVs, doc)
+		typeDefDocToInVs[document] = append(typeDefDocToInVs[document], to.defInfo.RangeID)
 	}
 
+	// Emit implementation for the typeDefs directly
+	i.emitLocalImplementationRelation(from.defInfo.ResultSetID, typeDefDocToInVs)
+
+	// Emit implementation for each of the methods on typeDefs
 	for fromName, fromMethod := range from.methodsByName {
 		methodDocToInvs := map[uint64][]uint64{}
 
@@ -99,11 +105,16 @@ func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
 			continue
 		}
 
-		implementationResult := i.emitter.EmitImplementationResult()
-		i.emitter.EmitTextDocumentImplementation(fromMethodDef.ResultSetID, implementationResult)
-		for doc, inVs := range methodDocToInvs {
-			i.emitter.EmitItem(implementationResult, inVs, doc)
-		}
+		i.emitLocalImplementationRelation(fromMethodDef.ResultSetID, methodDocToInvs)
+	}
+}
+
+func (i *Indexer) emitLocalImplementationRelation(defResultSetID uint64, documentToInVs map[uint64][]uint64) {
+	implResultID := i.emitter.EmitImplementationResult()
+	i.emitter.EmitTextDocumentImplementation(defResultSetID, implResultID)
+
+	for document, inVs := range documentToInVs {
+		i.emitter.EmitItem(implResultID, inVs, document)
 	}
 }
 
