@@ -583,6 +583,6 @@ loopMissing:
 		errors = append(errors, fmt.Sprintf("extra:\n%s", strings.Join(extras, "\n")))
 	}
 	if len(errors) > 0 {
-		t.Fatalf("%s: %s\n", msg, strings.Join(errors, "\n\n"))
+		t.Fatalf("%s: %s\nGot: %v\n", msg, strings.Join(errors, "\n\n"), actual)
 	}
 }

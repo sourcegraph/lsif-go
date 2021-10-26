@@ -1,10 +1,12 @@
 package indexer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"strings"
 
+	"github.com/sourcegraph/lsif-go/internal/output"
 	"golang.org/x/tools/container/intsets"
 	"golang.org/x/tools/go/packages"
 )
@@ -50,35 +52,41 @@ func (rel implRelation) forEachImplementation(f func(from implDef, to []implDef)
 // NOTE: if indexImplementations becomes multi-threaded then we would need to update
 // Indexer.ensureImplementationMoniker to ensure that it uses appropriate locking.
 func (i *Indexer) indexImplementations() {
-	// Local Implementations
-	localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
+	output.WithProgress("Indexing implementations", func() {
 
-	localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
-	localRelation.forEachImplementation(i.emitLocalImplementation)
+		// Local Implementations
+		localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 
-	invertedLocalRelation := invert(localRelation)
-	invertedLocalRelation.forEachImplementation(i.emitLocalImplementation)
+		localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
+		localRelation.forEachImplementation(i.emitLocalImplementation)
 
-	// Remote Implementations
-	remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
+		invertedLocalRelation := invert(localRelation)
+		invertedLocalRelation.forEachImplementation(i.emitLocalImplementation)
 
-	localTypesToRemoteInterfaces := i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
-	localTypesToRemoteInterfaces.forEachImplementation(i.emitRemoteImplementation)
+		// Remote Implementations
+		remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
 
-	localInterfacesToRemoteTypes := invert(i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces))
-	localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
+		localTypesToRemoteInterfaces := i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
+		localTypesToRemoteInterfaces.forEachImplementation(i.emitRemoteImplementation)
+
+		localInterfacesToRemoteTypes := invert(i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces))
+		localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
+
+	}, i.outputOptions)
 }
 
 // emitLocalImplementation correlates implementations for both structs/interfaces (refered to as typeDefs) and methods.
 func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
+	fmt.Println("Emitting impls ", from.ident.Name, "->", tos)
+
 	typeDefDocToInVs := map[uint64][]uint64{}
 	for _, to := range tos {
-		document := to.defInfo.DocumentID
+		documentID := to.defInfo.DocumentID
 
-		if _, ok := typeDefDocToInVs[document]; !ok {
-			typeDefDocToInVs[document] = []uint64{}
+		if _, ok := typeDefDocToInVs[documentID]; !ok {
+			typeDefDocToInVs[documentID] = []uint64{}
 		}
-		typeDefDocToInVs[document] = append(typeDefDocToInVs[document], to.defInfo.RangeID)
+		typeDefDocToInVs[documentID] = append(typeDefDocToInVs[documentID], to.defInfo.RangeID)
 	}
 
 	// Emit implementation for the typeDefs directly
@@ -113,8 +121,8 @@ func (i *Indexer) emitLocalImplementationRelation(defResultSetID uint64, documen
 	implResultID := i.emitter.EmitImplementationResult()
 	i.emitter.EmitTextDocumentImplementation(defResultSetID, implResultID)
 
-	for document, inVs := range documentToInVs {
-		i.emitter.EmitItem(implResultID, inVs, document)
+	for documentID, inVs := range documentToInVs {
+		i.emitter.EmitItem(implResultID, inVs, documentID)
 	}
 }
 
@@ -145,11 +153,13 @@ func (i *Indexer) forEachImplementationMethod(
 	// if any of the `to` implementations do not have this method,
 	// that means this method is NOT part of the required set of
 	// methods to be considered an implementation.
-	for _, to := range tos {
-		if _, ok := to.methodsByName[fromName]; !ok {
-			return nil
-		}
-	}
+
+	// for _, to := range tos {
+	// 	if _, ok := to.methodsByName[fromName]; !ok {
+	// 		fmt.Println("We would be skippin: ", fromName, "because of", to.typeName)
+	// 		// return fromMethodDef
+	// 	}
+	// }
 
 	for _, to := range tos {
 		if to.typeName.IsAlias() {
@@ -158,7 +168,13 @@ func (i *Indexer) forEachImplementationMethod(
 			continue
 		}
 
-		toMethod := to.methodsByName[fromName]
+		toMethod, ok := to.methodsByName[fromName]
+		if !ok {
+			fmt.Println("We are skipping: ", fromName, " for type: ", to.typeName)
+			continue
+		} else {
+			fmt.Println("IMPL::: ", fromName, " for type: ", to.typeName)
+		}
 
 		doer(fromMethodDef, to, toMethod)
 	}
