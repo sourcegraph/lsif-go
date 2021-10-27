@@ -22,6 +22,8 @@ type implDef struct {
 	defInfo *DefinitionInfo
 }
 
+// func (def implDef) forEachImplementationMethod() {}
+
 type implEdge struct {
 	from int
 	to   int
@@ -93,17 +95,20 @@ func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
 	for fromName, fromMethod := range from.methodsByName {
 		methodDocToInvs := map[uint64][]uint64{}
 
-		fromMethodDef := i.forEachImplementationMethod(fromName, fromMethod, tos, func(_ *DefinitionInfo, _ implDef, toMethod *types.Selection) {
+		fromMethodDef := i.forEachMethodImplementation(tos, fromName, fromMethod, func(to implDef, _ *DefinitionInfo) {
+			toMethod := to.methodsByName[fromName]
 			toMethodDef := i.getDefinitionInfo(toMethod.Obj(), nil)
+
+			// This method is from an embedded type defined in some dependency.
 			if toMethodDef == nil {
-				// This method is from an embedded type defined in some dependency.
 				return
 			}
 
-			if _, ok := methodDocToInvs[toMethodDef.DocumentID]; !ok {
-				methodDocToInvs[toMethodDef.DocumentID] = []uint64{}
+			toDocument := toMethodDef.DocumentID
+			if _, ok := methodDocToInvs[toDocument]; !ok {
+				methodDocToInvs[toDocument] = []uint64{}
 			}
-			methodDocToInvs[toMethodDef.DocumentID] = append(methodDocToInvs[toMethodDef.DocumentID], toMethodDef.RangeID)
+			methodDocToInvs[toDocument] = append(methodDocToInvs[toDocument], toMethodDef.RangeID)
 		})
 
 		if fromMethodDef == nil {
@@ -129,21 +134,23 @@ func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 	}
 
 	for fromName, fromMethod := range from.methodsByName {
-		i.forEachImplementationMethod(fromName, fromMethod, tos, func(fromMethodDef *DefinitionInfo, to implDef, toMethod *types.Selection) {
-			i.emitImplementationMoniker(fromMethodDef.ResultSetID, to.pkg, toMethod.Obj())
+		i.forEachMethodImplementation(tos, fromName, fromMethod, func(to implDef, fromDef *DefinitionInfo) {
+			toMethod := to.methodsByName[fromName]
+			i.emitImplementationMoniker(fromDef.ResultSetID, to.pkg, toMethod.Obj())
 		})
 	}
 }
 
-func (i *Indexer) forEachImplementationMethod(
+func (i *Indexer) forEachMethodImplementation(
+	tos []implDef,
 	fromName string,
 	fromMethod *types.Selection,
-	tos []implDef,
-	doer func(fromMethodDef *DefinitionInfo, to implDef, toMethod *types.Selection),
+	doer func(to implDef, fromDef *DefinitionInfo),
 ) *DefinitionInfo {
 	fromMethodDef := i.getDefinitionInfo(fromMethod.Obj(), nil)
+
+	// This method is from an embedded type defined in some dependency.
 	if fromMethodDef == nil {
-		// This method is from an embedded type defined in some dependency.
 		return nil
 	}
 
@@ -163,9 +170,7 @@ func (i *Indexer) forEachImplementationMethod(
 			continue
 		}
 
-		toMethod := to.methodsByName[fromName]
-
-		doer(fromMethodDef, to, toMethod)
+		doer(to, fromMethodDef)
 	}
 
 	return fromMethodDef
