@@ -24,6 +24,8 @@ func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packa
 	return toMarkupContent(signature, docstring, extra)
 }
 
+// random change
+
 // makeCachedHoverResult returns a hover result vertex identifier. If hover text for the given
 // identifier has not already been emitted, a new vertex is created. Identifiers will share the
 // same hover result if they refer to the same identifier in the same target package.

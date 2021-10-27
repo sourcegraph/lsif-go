@@ -118,6 +118,8 @@ func New(
 	}
 }
 
+// random change
+
 // Index generates an LSIF dump from a workspace by traversing through source files
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
