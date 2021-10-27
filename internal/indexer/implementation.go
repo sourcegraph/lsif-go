@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"fmt"
 	"go/ast"
 	"go/types"
 	"strings"
@@ -77,8 +76,6 @@ func (i *Indexer) indexImplementations() {
 
 // emitLocalImplementation correlates implementations for both structs/interfaces (refered to as typeDefs) and methods.
 func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
-	fmt.Println("Emitting impls ", from.ident.Name, "->", tos)
-
 	typeDefDocToInVs := map[uint64][]uint64{}
 	for _, to := range tos {
 		documentID := to.defInfo.DocumentID
@@ -153,13 +150,11 @@ func (i *Indexer) forEachImplementationMethod(
 	// if any of the `to` implementations do not have this method,
 	// that means this method is NOT part of the required set of
 	// methods to be considered an implementation.
-
-	// for _, to := range tos {
-	// 	if _, ok := to.methodsByName[fromName]; !ok {
-	// 		fmt.Println("We would be skippin: ", fromName, "because of", to.typeName)
-	// 		// return fromMethodDef
-	// 	}
-	// }
+	for _, to := range tos {
+		if _, ok := to.methodsByName[fromName]; !ok {
+			return fromMethodDef
+		}
+	}
 
 	for _, to := range tos {
 		if to.typeName.IsAlias() {
@@ -168,13 +163,7 @@ func (i *Indexer) forEachImplementationMethod(
 			continue
 		}
 
-		toMethod, ok := to.methodsByName[fromName]
-		if !ok {
-			fmt.Println("We are skipping: ", fromName, " for type: ", to.typeName)
-			continue
-		} else {
-			fmt.Println("IMPL::: ", fromName, " for type: ", to.typeName)
-		}
+		toMethod := to.methodsByName[fromName]
 
 		doer(fromMethodDef, to, toMethod)
 	}
@@ -270,7 +259,10 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDe
 		signature := m.Type().(*types.Signature)
 		returnTypes := tuple(signature.Results())
 
-		ret := pkgPath(m.Obj())
+		ret := ""
+		if !m.Obj().Exported() {
+			ret += pkgPath(m.Obj()) + ":"
+		}
 		ret += m.Obj().Name()
 		ret += parens(tuple(signature.Params()))
 		if len(returnTypes) == 1 {
