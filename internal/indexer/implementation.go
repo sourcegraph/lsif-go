@@ -11,18 +11,17 @@ import (
 )
 
 type implDef struct {
-	pkg           *packages.Package
-	typeName      *types.TypeName
+	defInfo       *DefinitionInfo
 	ident         *ast.Ident
 	methods       []*types.Selection
 	methodsByName map[string]*types.Selection
-
-	// TODO: Consider removing def info and only storing the
-	// few items that we actually need.
-	defInfo *DefinitionInfo
+	pkg           *packages.Package
+	typeName      *types.TypeName
 }
 
-// func (def implDef) forEachImplementationMethod() {}
+func (def implDef) Exported() bool {
+	return def.typeName.Exported() || def.ident.IsExported()
+}
 
 type implEdge struct {
 	from int
@@ -48,6 +47,19 @@ func (rel implRelation) forEachImplementation(f func(from implDef, to []implDef)
 	}
 }
 
+// invert reverses the links for edges for a given implRelation
+func (rel implRelation) invert() implRelation {
+	inverse := implRelation{
+		edges: []implEdge{},
+		nodes: rel.nodes,
+	}
+
+	for _, e := range rel.edges {
+		inverse.edges = append(inverse.edges, implEdge{from: e.to, to: e.from})
+	}
+	return inverse
+}
+
 // indexImplementations emits data for each implementation of an interface.
 //
 // NOTE: if indexImplementations becomes multi-threaded then we would need to update
@@ -61,7 +73,7 @@ func (i *Indexer) indexImplementations() {
 		localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
 		localRelation.forEachImplementation(i.emitLocalImplementation)
 
-		invertedLocalRelation := invert(localRelation)
+		invertedLocalRelation := localRelation.invert()
 		invertedLocalRelation.forEachImplementation(i.emitLocalImplementation)
 
 		// Remote Implementations
@@ -70,7 +82,7 @@ func (i *Indexer) indexImplementations() {
 		localTypesToRemoteInterfaces := i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
 		localTypesToRemoteInterfaces.forEachImplementation(i.emitRemoteImplementation)
 
-		localInterfacesToRemoteTypes := invert(i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces))
+		localInterfacesToRemoteTypes := i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces).invert()
 		localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
 
 	}, i.outputOptions)
@@ -119,6 +131,7 @@ func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
 	}
 }
 
+// emitLocalImplementationRelation emits the required LSIF nodes for an implementation
 func (i *Indexer) emitLocalImplementationRelation(defResultSetID uint64, documentToInVs map[uint64][]uint64) {
 	implResultID := i.emitter.EmitImplementationResult()
 	i.emitter.EmitTextDocumentImplementation(defResultSetID, implResultID)
@@ -128,6 +141,8 @@ func (i *Indexer) emitLocalImplementationRelation(defResultSetID uint64, documen
 	}
 }
 
+// emitRemoteImplementation emits implementation monikers
+// (kind: "implementation") to connect remote implementations
 func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 	for _, to := range tos {
 		i.emitImplementationMoniker(from.defInfo.ResultSetID, to.pkg, to.typeName)
@@ -141,11 +156,16 @@ func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 	}
 }
 
+// forEachMethodImplementation will call callback for each to in tos when the
+// method is a method that is properly implemented.
+//
+// It returns the definition of the method that can be linked for each of the
+// associated tos
 func (i *Indexer) forEachMethodImplementation(
 	tos []implDef,
 	fromName string,
 	fromMethod *types.Selection,
-	doer func(to implDef, fromDef *DefinitionInfo),
+	callback func(to implDef, fromDef *DefinitionInfo),
 ) *DefinitionInfo {
 	fromMethodDef := i.getDefinitionInfo(fromMethod.Obj(), nil)
 
@@ -164,13 +184,13 @@ func (i *Indexer) forEachMethodImplementation(
 	}
 
 	for _, to := range tos {
+		// Skip aliases because their methods are redundant with
+		// the underlying concrete type's methods.
 		if to.typeName.IsAlias() {
-			// Skip aliases because their methods are redundant with
-			// the underlying concrete type's methods.
 			continue
 		}
 
-		doer(to, fromMethodDef)
+		callback(to, fromMethodDef)
 	}
 
 	return fromMethodDef
@@ -197,6 +217,9 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 			}
 
 			methods := listMethods(obj.Type().(*types.Named))
+
+			// ignore interfaces that are empty. they are too
+			// plentiful and don't provide useful intelligence.
 			if len(methods) == 0 {
 				continue
 			}
@@ -225,6 +248,45 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 	return interfaces, concreteTypes
 }
 
+// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
+func canonicalize(m *types.Selection) string {
+	builder := strings.Builder{}
+
+	writeTuple := func(t *types.Tuple) {
+		for i := 0; i < t.Len(); i++ {
+			builder.WriteString(t.At(i).Type().String())
+		}
+	}
+
+	signature := m.Type().(*types.Signature)
+
+	// if an object is not exported, then we need to make the canonical
+	// representation of the object not able to match any other representations
+	if !m.Obj().Exported() {
+		builder.WriteString(pkgPath(m.Obj()))
+		builder.WriteString(":")
+	}
+
+	builder.WriteString(m.Obj().Name())
+	builder.WriteString("(")
+	writeTuple(signature.Params())
+	builder.WriteString(")")
+
+	returnTypes := signature.Results()
+	returnLen := returnTypes.Len()
+	if returnLen == 0 {
+		// Don't add anything
+	} else if returnLen == 1 {
+		writeTuple(returnTypes)
+	} else {
+		builder.WriteString("(")
+		writeTuple(returnTypes)
+		builder.WriteString(")")
+	}
+
+	return builder.String()
+}
+
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
 func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDef) implRelation {
 	rel := implRelation{
@@ -245,60 +307,22 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDe
 		return len(concreteTypes) + i
 	}
 
-	// stringify a tuple
-	tuple := func(t *types.Tuple) []string {
-		strs := []string{}
-		for i := 0; i < t.Len(); i++ {
-			strs = append(strs, t.At(i).Type().String())
-		}
-		return strs
-	}
-
-	// wrap a list of strings with parenths
-	parens := func(strs []string) string {
-		return "(" + strings.Join(strs, ", ") + ")"
-	}
-
-	// Returns a string representation of a method that can be used as a key for finding matches in interfaces.
-	canonical := func(m *types.Selection) string {
-		signature := m.Type().(*types.Signature)
-		returnTypes := tuple(signature.Results())
-
-		ret := ""
-		if !m.Obj().Exported() {
-			ret += pkgPath(m.Obj()) + ":"
-		}
-		ret += m.Obj().Name()
-		ret += parens(tuple(signature.Params()))
-		if len(returnTypes) == 1 {
-			ret += " " + returnTypes[0]
-		} else if len(returnTypes) > 1 {
-			ret += " " + parens(returnTypes)
-		}
-
-		return ret
-	}
-
 	// Build a map from methods to all their receivers (concrete types that define those methods).
 	methodToReceivers := map[string]*intsets.Sparse{}
-	for i, t := range concreteTypes {
+	for idx, t := range concreteTypes {
 		for _, method := range t.methods {
-			key := canonical(method)
+			key := canonicalize(method)
 			if _, ok := methodToReceivers[key]; !ok {
 				methodToReceivers[key] = &intsets.Sparse{}
 			}
-			methodToReceivers[key].Insert(i)
+			methodToReceivers[key].Insert(idx)
 		}
 	}
 
-	// Loop over all the interfaces and find the concrete types that implement them.
-interfaceLoop:
-	for i, interfase := range interfaces {
-		methods := interfase.methods
-
-		if len(methods) == 0 {
-			// Empty interface - skip it.
-			continue
+	relateInterfaceToTypes := func(idx int, interfaceMethods []*types.Selection) {
+		// Empty interface - skip it.
+		if len(interfaceMethods) == 0 {
+			return
 		}
 
 		// Find all the concrete types that implement this interface.
@@ -306,44 +330,40 @@ interfaceLoop:
 		// of all sets of receivers of all methods in this interface.
 		candidateTypes := &intsets.Sparse{}
 
-		if initialReceivers, ok := methodToReceivers[canonical(methods[0])]; !ok {
-			continue
+		// If it doesn't match on the first method, then we can immediately quit.
+		// Concrete types must _always_ implement all the methods
+		if initialReceivers, ok := methodToReceivers[canonicalize(interfaceMethods[0])]; !ok {
+			return
 		} else {
 			candidateTypes.Copy(initialReceivers)
 		}
 
-		for _, method := range methods[1:] {
-			receivers, ok := methodToReceivers[canonical(method)]
+		// Loop over the rest of the methods and find all the types that intersect
+		// every method of the interface.
+		for _, method := range interfaceMethods[1:] {
+			receivers, ok := methodToReceivers[canonicalize(method)]
 			if !ok {
-				continue interfaceLoop
+				return
 			}
 
 			candidateTypes.IntersectionWith(receivers)
 			if candidateTypes.IsEmpty() {
-				continue interfaceLoop
+				return
 			}
 		}
 
 		// Add the implementations to the relation.
 		for _, ty := range candidateTypes.AppendTo(nil) {
-			rel.edges = append(rel.edges, implEdge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(i)})
+			rel.edges = append(rel.edges, implEdge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(idx)})
 		}
 	}
 
+	// Loop over all the interfaces and find the concrete types that implement them.
+	for idx, interfase := range interfaces {
+		relateInterfaceToTypes(idx, interfase.methods)
+	}
+
 	return rel
-}
-
-// invert reverses the links for edges for a given implRelation
-func invert(rel implRelation) implRelation {
-	inverse := implRelation{
-		edges: []implEdge{},
-		nodes: rel.nodes,
-	}
-
-	for _, e := range rel.edges {
-		inverse.edges = append(inverse.edges, implEdge{from: e.to, to: e.from})
-	}
-	return inverse
 }
 
 // listMethods returns the method set for a named type T
@@ -375,7 +395,7 @@ func listMethods(T *types.Named) []*types.Selection {
 func filterToExported(defs []implDef) []implDef {
 	filtered := []implDef{}
 	for _, def := range defs {
-		if def.typeName.Exported() || def.ident.IsExported() {
+		if def.Exported() {
 			filtered = append(filtered, def)
 		}
 	}
