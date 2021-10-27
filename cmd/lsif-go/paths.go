@@ -8,6 +8,8 @@ import (
 	"github.com/sourcegraph/lsif-go/internal/git"
 )
 
+// changed again
+
 var wd = newCachedString(func() string {
 	if wd, err := os.Getwd(); err == nil {
 		return wd

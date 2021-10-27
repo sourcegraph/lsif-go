@@ -9,3 +9,5 @@ func Check(dir string) bool {
 	_, err := command.Run(dir, "git", "rev-parse", "HEAD")
 	return err == nil
 }
+
+// changed again

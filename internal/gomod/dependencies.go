@@ -81,6 +81,8 @@ type jsonModule struct {
 	GoVersion string `json:"GoVersion"`
 }
 
+// changed again
+
 // parseGoListOutput parse the JSON output of `go list -m`. This method returns a map from
 // import paths to pairs of declared (unresolved) module names and version pairs that respect
 // replacement directives specified in go.mod. Replace directives indicating a local file path
