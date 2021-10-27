@@ -30,7 +30,13 @@ type implEdge struct {
 
 type implRelation struct {
 	edges []implEdge
+
+	// concatenated list of (concreteTypes..., interfaces...)
+	// this gives every type and interface a unique index.
 	nodes []implDef
+
+	// offset index for where interfaces start
+	ifaceOffset int
 }
 
 func (rel implRelation) forEachImplementation(f func(from implDef, to []implDef)) {
@@ -50,14 +56,66 @@ func (rel implRelation) forEachImplementation(f func(from implDef, to []implDef)
 // invert reverses the links for edges for a given implRelation
 func (rel implRelation) invert() implRelation {
 	inverse := implRelation{
-		edges: []implEdge{},
-		nodes: rel.nodes,
+		edges:       []implEdge{},
+		nodes:       rel.nodes,
+		ifaceOffset: rel.ifaceOffset,
 	}
 
 	for _, e := range rel.edges {
 		inverse.edges = append(inverse.edges, implEdge{from: e.to, to: e.from})
 	}
 	return inverse
+}
+
+// Translates a `concreteTypes` index into a `nodes` index
+func (rel implRelation) concreteTypeIxToNodeIx(idx int) int {
+	// Concrete type nodes come first
+	return 0 + idx
+}
+
+// Translates an `interfaces` index into a `nodes` index
+func (rel implRelation) interfaceIxToNodeIx(idx int) int {
+	// Interface nodes come after the concrete types
+	return rel.ifaceOffset + idx
+}
+
+func (rel implRelation) link(idx int, interfaceMethods []*types.Selection, methodToReceivers map[string]*intsets.Sparse) {
+	// Empty interface - skip it.
+	if len(interfaceMethods) == 0 {
+		return
+	}
+
+	// Find all the concrete types that implement this interface.
+	// Types that implement this interface are the intersection
+	// of all sets of receivers of all methods in this interface.
+	candidateTypes := &intsets.Sparse{}
+
+	// If it doesn't match on the first method, then we can immediately quit.
+	// Concrete types must _always_ implement all the methods
+	if initialReceivers, ok := methodToReceivers[canonicalize(interfaceMethods[0])]; !ok {
+		return
+	} else {
+		candidateTypes.Copy(initialReceivers)
+	}
+
+	// Loop over the rest of the methods and find all the types that intersect
+	// every method of the interface.
+	for _, method := range interfaceMethods[1:] {
+		receivers, ok := methodToReceivers[canonicalize(method)]
+		if !ok {
+			return
+		}
+
+		candidateTypes.IntersectionWith(receivers)
+		if candidateTypes.IsEmpty() {
+			return
+		}
+	}
+
+	// Add the implementations to the relation.
+	for _, ty := range candidateTypes.AppendTo(nil) {
+		rel.edges = append(rel.edges, implEdge{rel.concreteTypeIxToNodeIx(ty), rel.interfaceIxToNodeIx(idx)})
+	}
 }
 
 // indexImplementations emits data for each implementation of an interface.
@@ -196,9 +254,9 @@ func (i *Indexer) forEachMethodImplementation(
 	return fromMethodDef
 }
 
-func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([]implDef, []implDef) {
-	interfaces := []implDef{}
-	concreteTypes := []implDef{}
+// extractInterfacesAndConcreteTypes constructs a list of interfaces and
+// concrete types from the list of given packages.
+func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) (interfaces []implDef, concreteTypes []implDef) {
 	for _, pkg := range pkgs {
 		for ident, obj := range pkg.TypesInfo.Defs {
 			if obj == nil {
@@ -248,6 +306,59 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) ([
 	return interfaces, concreteTypes
 }
 
+// buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
+func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDef) implRelation {
+	rel := implRelation{
+		edges:       []implEdge{},
+		nodes:       append(concreteTypes, interfaces...),
+		ifaceOffset: len(concreteTypes),
+	}
+
+	// Build a map from methods to all their receivers (concrete types that define those methods).
+	methodToReceivers := map[string]*intsets.Sparse{}
+	for idx, t := range concreteTypes {
+		for _, method := range t.methods {
+			key := canonicalize(method)
+			if _, ok := methodToReceivers[key]; !ok {
+				methodToReceivers[key] = &intsets.Sparse{}
+			}
+			methodToReceivers[key].Insert(idx)
+		}
+	}
+
+	// Loop over all the interfaces and find the concrete types that implement them.
+	for idx, interfase := range interfaces {
+		rel.link(idx, interfase.methods, methodToReceivers)
+	}
+
+	return rel
+}
+
+// listMethods returns the method set for a named type T
+// merged with all the methods of *T that have different names than
+// the methods of T.
+//
+// Copied from https://github.com/golang/tools/blob/1a7ca93429f83e087f7d44d35c0e9ea088fc722e/cmd/godex/print.go#L355
+func listMethods(T *types.Named) []*types.Selection {
+	// method set for T
+	mset := types.NewMethodSet(T)
+	var res []*types.Selection
+	for i, n := 0, mset.Len(); i < n; i++ {
+		res = append(res, mset.At(i))
+	}
+
+	// add all *T methods with names different from T methods
+	pmset := types.NewMethodSet(types.NewPointer(T))
+	for i, n := 0, pmset.Len(); i < n; i++ {
+		pm := pmset.At(i)
+		if obj := pm.Obj(); mset.Lookup(obj.Pkg(), obj.Name()) == nil {
+			res = append(res, pm)
+		}
+	}
+
+	return res
+}
+
 // Returns a string representation of a method that can be used as a key for finding matches in interfaces.
 func canonicalize(m *types.Selection) string {
 	builder := strings.Builder{}
@@ -277,118 +388,16 @@ func canonicalize(m *types.Selection) string {
 	if returnLen == 0 {
 		// Don't add anything
 	} else if returnLen == 1 {
+		builder.WriteString(" ")
 		writeTuple(returnTypes)
 	} else {
-		builder.WriteString("(")
+		builder.WriteString(" (")
 		writeTuple(returnTypes)
 		builder.WriteString(")")
 	}
 
+	// fmt.Println(builder.String())
 	return builder.String()
-}
-
-// buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDef) implRelation {
-	rel := implRelation{
-		edges: []implEdge{},
-		// Put concrete types and interfaces in the same slice to give them all unique indexes
-		nodes: append(concreteTypes, interfaces...),
-	}
-
-	// Translates a `concreteTypes` index into a `nodes` index
-	concreteTypeIxToNodeIx := func(i int) int {
-		// Concrete type nodes come first
-		return 0 + i
-	}
-
-	// Translates an `interfaces` index into a `nodes` index
-	interfaceIxToNodeIx := func(i int) int {
-		// Interface nodes come after the concrete types
-		return len(concreteTypes) + i
-	}
-
-	// Build a map from methods to all their receivers (concrete types that define those methods).
-	methodToReceivers := map[string]*intsets.Sparse{}
-	for idx, t := range concreteTypes {
-		for _, method := range t.methods {
-			key := canonicalize(method)
-			if _, ok := methodToReceivers[key]; !ok {
-				methodToReceivers[key] = &intsets.Sparse{}
-			}
-			methodToReceivers[key].Insert(idx)
-		}
-	}
-
-	relateInterfaceToTypes := func(idx int, interfaceMethods []*types.Selection) {
-		// Empty interface - skip it.
-		if len(interfaceMethods) == 0 {
-			return
-		}
-
-		// Find all the concrete types that implement this interface.
-		// Types that implement this interface are the intersection
-		// of all sets of receivers of all methods in this interface.
-		candidateTypes := &intsets.Sparse{}
-
-		// If it doesn't match on the first method, then we can immediately quit.
-		// Concrete types must _always_ implement all the methods
-		if initialReceivers, ok := methodToReceivers[canonicalize(interfaceMethods[0])]; !ok {
-			return
-		} else {
-			candidateTypes.Copy(initialReceivers)
-		}
-
-		// Loop over the rest of the methods and find all the types that intersect
-		// every method of the interface.
-		for _, method := range interfaceMethods[1:] {
-			receivers, ok := methodToReceivers[canonicalize(method)]
-			if !ok {
-				return
-			}
-
-			candidateTypes.IntersectionWith(receivers)
-			if candidateTypes.IsEmpty() {
-				return
-			}
-		}
-
-		// Add the implementations to the relation.
-		for _, ty := range candidateTypes.AppendTo(nil) {
-			rel.edges = append(rel.edges, implEdge{concreteTypeIxToNodeIx(ty), interfaceIxToNodeIx(idx)})
-		}
-	}
-
-	// Loop over all the interfaces and find the concrete types that implement them.
-	for idx, interfase := range interfaces {
-		relateInterfaceToTypes(idx, interfase.methods)
-	}
-
-	return rel
-}
-
-// listMethods returns the method set for a named type T
-// merged with all the methods of *T that have different names than
-// the methods of T.
-//
-// Copied from https://github.com/golang/tools/blob/1a7ca93429f83e087f7d44d35c0e9ea088fc722e/cmd/godex/print.go#L355
-func listMethods(T *types.Named) []*types.Selection {
-	// method set for T
-	mset := types.NewMethodSet(T)
-	var res []*types.Selection
-	for i, n := 0, mset.Len(); i < n; i++ {
-		res = append(res, mset.At(i))
-	}
-
-	// add all *T methods with names different from T methods
-	pmset := types.NewMethodSet(types.NewPointer(T))
-	for i, n := 0, pmset.Len(); i < n; i++ {
-		pm := pmset.At(i)
-		if obj := pm.Obj(); mset.Lookup(obj.Pkg(), obj.Name()) == nil {
-			res = append(res, pm)
-		}
-	}
-
-	return res
 }
 
 // filterToExported removes any nonExported types or identifiers from a list of []implDef
