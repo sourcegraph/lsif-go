@@ -70,7 +70,7 @@ func (rel implRelation) invert() implRelation {
 // Translates a `concreteTypes` index into a `nodes` index
 func (rel implRelation) concreteTypeIxToNodeIx(idx int) int {
 	// Concrete type nodes come first
-	return 0 + idx
+	return idx
 }
 
 // Translates an `interfaces` index into a `nodes` index
@@ -79,7 +79,7 @@ func (rel implRelation) interfaceIxToNodeIx(idx int) int {
 	return rel.ifaceOffset + idx
 }
 
-func (rel implRelation) link(idx int, interfaceMethods []*types.Selection, methodToReceivers map[string]*intsets.Sparse) {
+func (rel *implRelation) link(idx int, interfaceMethods []*types.Selection, methodToReceivers map[string]*intsets.Sparse) {
 	// Empty interface - skip it.
 	if len(interfaceMethods) == 0 {
 		return
