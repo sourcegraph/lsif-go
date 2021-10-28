@@ -235,12 +235,21 @@ func makeMonikerIdentifier(packageDataCache *PackageDataCache, p *packages.Packa
 	return obj.Name()
 }
 
+// pkgPath can be used to always return a string for the obj.Pkg().Path()
+//
+// At this time, I am only aware of objects in the Universe scope that do not
+// have `obj.Pkg()` -> nil. When we try and call `obj.Pkg().Path()` on nil, we
+// have problems.
+//
+// This function will attempt to lookup the corresponding obj in the universe
+// scope, and if it finds the object, will return "builtin" (which is the location
+// in the go standard library where they are defined).
 func pkgPath(obj ObjectLike) string {
-	// types.Universe.Lookup("error").Type().(*types.Named)
-	// universeParent := toMethod.Obj().(*types.Func).Type().(*types.Signature).Recv().Type().String()
-
 	pkg := obj.Pkg()
+
+	// Handle Universe Scoped objs.
 	if pkg == nil {
+		// Here be dragons:
 		switch v := obj.(type) {
 		case *types.Func:
 			switch typ := v.Type().(type) {
@@ -251,9 +260,13 @@ func pkgPath(obj ObjectLike) string {
 					return "builtin"
 				}
 			}
-
 		}
 
+		// Do not allow to fall through to returning pkg.Path()
+		//
+		// If this becomes a problem more in the future, we can just default to
+		// returning "builtin" but as of now this handles all the cases that I
+		// know of.
 		panic("Unhandled nil obj.Pkg()")
 	}
 

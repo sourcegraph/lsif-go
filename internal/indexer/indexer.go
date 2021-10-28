@@ -228,7 +228,7 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			Logf:  i.packagesLoadLogger,
 		}
 
-		load := func(cache map[string][]*packages.Package, patterns []string) ([]*packages.Package, bool) {
+		load := func(cache map[string][]*packages.Package, patterns ...string) ([]*packages.Package, bool) {
 			// Make sure we only load packages once per execution.
 			pkgs, ok := cache[i.projectRoot]
 			if !ok {
@@ -257,18 +257,17 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 
 		var hasError bool
 
-		i.packages, hasError = load(cachedPackages, []string{"./..."})
+		i.packages, hasError = load(cachedPackages, "./...")
 		if hasError {
 			return
 		}
 
-		// TODO: Haven't compared this vs. i.dependencies
 		deps, err := i.listProjectDependencies()
 		if err != nil {
 			errs <- errors.Wrap(err, "failed to list dependencies")
 			return
 		}
-		i.depPackages, hasError = load(cachedDepPackages, deps)
+		i.depPackages, hasError = load(cachedDepPackages, deps...)
 		if hasError {
 			return
 		}
@@ -1143,6 +1142,9 @@ func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []Decl
 
 // listProjectDependencies finds any packages from "$ go list all" that are NOT declared
 // as part of the current project.
+//
+// NOTE: This is different from the other dependencies stored in the indexer because it
+// does not modules, but packages.
 func (i *Indexer) listProjectDependencies() ([]string, error) {
 	output, err := command.Run(i.projectRoot, "go", "list", "all")
 	if err != nil {

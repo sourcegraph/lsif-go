@@ -79,7 +79,7 @@ func (rel implRelation) interfaceIxToNodeIx(idx int) int {
 	return rel.ifaceOffset + idx
 }
 
-func (rel *implRelation) link(idx int, interfaceMethods []*types.Selection, methodToReceivers map[string]*intsets.Sparse) {
+func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []*types.Selection, methodToReceivers map[string]*intsets.Sparse) {
 	// Empty interface - skip it.
 	if len(interfaceMethods) == 0 {
 		return
@@ -89,6 +89,14 @@ func (rel *implRelation) link(idx int, interfaceMethods []*types.Selection, meth
 	// Types that implement this interface are the intersection
 	// of all sets of receivers of all methods in this interface.
 	candidateTypes := &intsets.Sparse{}
+
+	// The rest of this function is effectively "fold" (for those CS PhDs out there).
+	//
+	// > I think the underlying logic here is really beautiful but the syntax
+	// > makes it a bit messy and really obscures the intent and simplicity
+	// > behind it
+	//
+	//    - Dr. Fritz
 
 	// If it doesn't match on the first method, then we can immediately quit.
 	// Concrete types must _always_ implement all the methods
@@ -124,23 +132,51 @@ func (rel *implRelation) link(idx int, interfaceMethods []*types.Selection, meth
 // Indexer.ensureImplementationMoniker to ensure that it uses appropriate locking.
 func (i *Indexer) indexImplementations() {
 	output.WithProgress("Indexing implementations", func() {
+		// When considering the connections we want to draw between the following four categories:
+		//   - LocalInterfaces: Interfaces created in the currently project
+		//   - LocalTypes: Concrete Types created in the currently project
+		//
+		//   - RemoteTypes: Concrete Types created in one of the dependencies of the current project
+		//   - RemoteInterfaces: Interfaces created in one of the dependencies of the current project
+		//
+		// We want to connect the four categories like this:
+		//
+		// ```ascii_art
+		// LocalInterfaces <------> LocalTypes
+		//       |                       |
+		//       |                       |
+		//       v                       v
+		//  RemoteTypes      X      RemoteInterfaces
+		// ```
+		//
+		// NOTES:
+		// - We do not need to connect RemoteTypes and RemoteInterfaces because those connections will
+		//   be made when we index those projects.
+		// - We do not connect Interfaces w/ Interfaces or Types w/ Types, so there is no need to make those
+		//   connectsion between the local and remote interfaces/types.
 
+		// =========================
 		// Local Implementations
 		localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 
-		localRelation := i.buildImplementationRelation(localConcreteTypes, localInterfaces)
+		// local types -> local interfaces
+		localRelation := buildImplementationRelation(localConcreteTypes, localInterfaces)
 		localRelation.forEachImplementation(i.emitLocalImplementation)
 
+		// local interfaces -> local types
 		invertedLocalRelation := localRelation.invert()
 		invertedLocalRelation.forEachImplementation(i.emitLocalImplementation)
 
+		// =========================
 		// Remote Implementations
 		remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
 
-		localTypesToRemoteInterfaces := i.buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
+		// local types -> remote interfaces (exported only)
+		localTypesToRemoteInterfaces := buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
 		localTypesToRemoteInterfaces.forEachImplementation(i.emitRemoteImplementation)
 
-		localInterfacesToRemoteTypes := i.buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces).invert()
+		// remote types (exported only) -> local interfaces
+		localInterfacesToRemoteTypes := buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces).invert()
 		localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
 
 	}, i.outputOptions)
@@ -307,7 +343,7 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) (i
 }
 
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
-func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDef) implRelation {
+func buildImplementationRelation(concreteTypes, interfaces []implDef) implRelation {
 	rel := implRelation{
 		edges:       []implEdge{},
 		nodes:       append(concreteTypes, interfaces...),
@@ -328,7 +364,7 @@ func (i *Indexer) buildImplementationRelation(concreteTypes, interfaces []implDe
 
 	// Loop over all the interfaces and find the concrete types that implement them.
 	for idx, interfase := range interfaces {
-		rel.link(idx, interfase.methods, methodToReceivers)
+		rel.linkInterfaceToReceivers(idx, interfase.methods, methodToReceivers)
 	}
 
 	return rel
@@ -401,8 +437,10 @@ func canonicalize(m *types.Selection) string {
 }
 
 // filterToExported removes any nonExported types or identifiers from a list of []implDef
+// NOTE: defs is modified in place by this function.
 func filterToExported(defs []implDef) []implDef {
-	filtered := []implDef{}
+	// filter in place.
+	filtered := defs[:0]
 	for _, def := range defs {
 		if def.Exported() {
 			filtered = append(filtered, def)
