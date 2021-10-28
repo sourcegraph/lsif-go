@@ -860,11 +860,6 @@ func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, docume
 	return rangeID, true
 }
 
-// IsInterface returns if a types.Type is an interface
-func IsInterface(T types.Type) bool {
-	return T != nil && types.IsInterface(T)
-}
-
 func (i *Indexer) addImportMonikerReference(monikerID, rangeID, documentID uint64) {
 	i.importMonikerChannel <- importMonikerReference{monikerID, documentID, rangeID}
 }

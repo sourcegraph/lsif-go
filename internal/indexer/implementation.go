@@ -441,6 +441,7 @@ func canonicalize(m *types.Selection) string {
 func filterToExported(defs []implDef) []implDef {
 	// filter in place.
 	filtered := defs[:0]
+
 	for _, def := range defs {
 		if def.Exported() {
 			filtered = append(filtered, def)

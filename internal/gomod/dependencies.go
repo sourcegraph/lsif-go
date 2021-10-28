@@ -34,7 +34,9 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 	}
 
 	resolve := func() {
-		output, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json", "all")
+		var output, modOutput string
+
+		output, err = command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json", "all")
 		if err != nil {
 			err = fmt.Errorf("failed to list modules: %v\n%s", err, output)
 			return
@@ -48,7 +50,7 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 		// Because of that, we do a separate execution to guarantee we get only
 		// this package information to use to determine the corresponding
 		// goVersion.
-		modOutput, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
+		modOutput, err = command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
 		if err != nil {
 			err = fmt.Errorf("failed to list module info: %v\n%s", err, output)
 			return
