@@ -24,6 +24,8 @@ var dependencies = map[string]gomod.GoModule{
 	"github.com/golang/go":           {Name: "github.com/golang/go", Version: "go1.16"},
 }
 
+var projectDependencies = []string{"std"}
+
 func TestIndexer(t *testing.T) {
 	w := &capturingWriter{
 		ranges:    map[uint64]protocol.Range{},
@@ -40,6 +42,7 @@ func TestIndexer(t *testing.T) {
 		"testdata",
 		"0.0.1",
 		dependencies,
+		projectDependencies,
 		w,
 		NewPackageDataCache(),
 		output.Options{},
@@ -575,6 +578,7 @@ func TestIndexer_documentation(t *testing.T) {
 				"testdata",
 				"0.0.1",
 				dependencies,
+				projectDependencies,
 				writer.NewJSONWriter(&buf),
 				NewPackageDataCache(),
 				output.Options{},
@@ -613,6 +617,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"testdata",
 		"0.0.1",
 		dependencies,
+		projectDependencies,
 		w,
 		NewPackageDataCache(),
 		output.Options{},

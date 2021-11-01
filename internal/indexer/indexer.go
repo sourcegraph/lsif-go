@@ -15,7 +15,6 @@ import (
 
 	"github.com/agnivade/levenshtein"
 	"github.com/pkg/errors"
-	"github.com/sourcegraph/lsif-go/internal/command"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
@@ -31,15 +30,16 @@ type importMonikerReference struct {
 type setVal interface{}
 
 type Indexer struct {
-	repositoryRoot   string                    // path to repository
-	repositoryRemote string                    // import path inferred by git remote
-	projectRoot      string                    // path to package
-	toolInfo         protocol.ToolInfo         // metadata vertex payload
-	moduleName       string                    // name of this module
-	moduleVersion    string                    // version of this module
-	dependencies     map[string]gomod.GoModule // parsed module data
-	emitter          *writer.Emitter           // LSIF data emitter
-	outputOptions    output.Options            // What to print to stdout/stderr
+	repositoryRoot      string                    // path to repository
+	repositoryRemote    string                    // import path inferred by git remote
+	projectRoot         string                    // path to package
+	toolInfo            protocol.ToolInfo         // metadata vertex payload
+	moduleName          string                    // name of this module
+	moduleVersion       string                    // version of this module
+	dependencies        map[string]gomod.GoModule // parsed module data
+	projectDependencies []string                  // packages that this package depends on
+	emitter             *writer.Emitter           // LSIF data emitter
+	outputOptions       output.Options            // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -88,6 +88,7 @@ func New(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]gomod.GoModule,
+	projectDependencies []string,
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions output.Options,
@@ -100,6 +101,7 @@ func New(
 		moduleName:               moduleName,
 		moduleVersion:            moduleVersion,
 		dependencies:             dependencies,
+		projectDependencies:      projectDependencies,
 		emitter:                  writer.NewEmitter(jsonWriter),
 		outputOptions:            outputOptions,
 		consts:                   map[interface{}]*DefinitionInfo{},
@@ -262,12 +264,7 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			return
 		}
 
-		deps, err := i.listProjectDependencies()
-		if err != nil {
-			errs <- errors.Wrap(err, "failed to list dependencies")
-			return
-		}
-		i.depPackages, hasError = load(cachedDepPackages, deps...)
+		i.depPackages, hasError = load(cachedDepPackages, i.projectDependencies...)
 		if hasError {
 			return
 		}
@@ -1133,33 +1130,4 @@ func filterBasedOnTestFiles(possiblePaths []DeclInfo, packageName string) []Decl
 	}
 
 	return possiblePaths
-}
-
-// listProjectDependencies finds any packages from "$ go list all" that are NOT declared
-// as part of the current project.
-//
-// NOTE: This is different from the other dependencies stored in the indexer because it
-// does not modules, but packages.
-func (i *Indexer) listProjectDependencies() ([]string, error) {
-	output, err := command.Run(i.projectRoot, "go", "list", "all")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list packages: %v\n%s", err, output)
-	}
-
-	contained := struct{}{}
-
-	projectPackages := map[string]struct{}{}
-	for _, pkg := range i.packages {
-		projectPackages[pkg.PkgPath] = contained
-	}
-
-	dependencyPackages := []string{"std"}
-	for _, dep := range strings.Split(output, "\n") {
-		// It's a dependency if it's not in the projectPackages
-		if _, ok := projectPackages[dep]; !ok {
-			dependencyPackages = append(dependencyPackages, dep)
-		}
-	}
-
-	return dependencyPackages, nil
 }
