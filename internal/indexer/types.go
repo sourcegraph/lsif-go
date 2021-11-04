@@ -8,11 +8,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type importReference struct {
-	rangeID    uint64
-	documentID uint64
-}
-
 // ObjectLike is effectively just types.Object. We needed an interface that we could actually implement
 // since types.Object has unexported fields, so it is unimplementable for our package.
 type ObjectLike interface {

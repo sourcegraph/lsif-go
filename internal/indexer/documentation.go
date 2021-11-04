@@ -1082,16 +1082,11 @@ func sortExportedNameFirst(a, b string) bool {
 		bUnderscore = b[0] == '_'
 	}
 	if aUnderscore != bUnderscore {
-		if !aUnderscore {
-			return true // Names not starting with "_" have higher importance
-		}
-		return false
+		// Names not starting with "_" have higher importance
+		return !aUnderscore
 	}
 	if aExported != bExported {
-		if aExported {
-			return true
-		}
-		return false
+		return aExported
 	}
 	return a < b
 }

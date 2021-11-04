@@ -115,10 +115,6 @@ func validatePaths() error {
 //
 // Defaults
 
-var defaultProjectRoot = newCachedString(func() string {
-	return rel(wd.Value())
-})
-
 var defaultModuleRoot = newCachedString(func() string {
 	return searchForGoMod(wd.Value(), toplevel.Value())
 })

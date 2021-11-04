@@ -3,7 +3,6 @@ package indexer
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -25,6 +24,8 @@ var dependencies = map[string]gomod.GoModule{
 	"github.com/golang/go":           {Name: "github.com/golang/go", Version: "go1.16"},
 }
 
+var projectDependencies = []string{"std"}
+
 func TestIndexer(t *testing.T) {
 	w := &capturingWriter{
 		ranges:    map[uint64]protocol.Range{},
@@ -41,6 +42,7 @@ func TestIndexer(t *testing.T) {
 		"testdata",
 		"0.0.1",
 		dependencies,
+		projectDependencies,
 		w,
 		NewPackageDataCache(),
 		output.Options{},
@@ -51,10 +53,7 @@ func TestIndexer(t *testing.T) {
 	}
 
 	t.Run("check Parallel function hover text", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "parallel.go"), 13, 5)
 
 		hoverResult, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hoverResult.Result.Contents.(protocol.MarkupContent).Value)
@@ -78,18 +77,9 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("declares definitions for 'package testdata' identifiers", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "main.go"), 2, 8)
-		if !ok {
-			t.Errorf("Could not find range for 'package testdata'")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "main.go"), 2, 8)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Errorf("Definitions: %+v\n", definitions)
-		}
-
-		def := definitions[0]
-		compareRange(t, def, 2, 8, 2, 16)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"2:8-2:16"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -105,18 +95,9 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("declares definitions for nested 'package *' identifiers", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "internal", "secret", "doc.go"), 1, 8)
-		if !ok {
-			t.Errorf("Could not find range for 'package secret'")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "internal", "secret", "doc.go"), 1, 8)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Errorf("Definitions: %+v\n", definitions)
-		}
-
-		def := definitions[0]
-		compareRange(t, def, 1, 8, 1, 14)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"1:8-1:14"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -132,10 +113,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check external package hover text", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "parallel.go"), 4, 2)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -173,24 +151,13 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check errs definition", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 21, 3)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "parallel.go"), 21, 3)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
-		}
-
-		compareRange(t, definitions[0], 15, 1, 15, 5)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"15:1-15:5"}, "definition")
 	})
 
 	t.Run("check wg references", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "parallel.go"), 26, 1)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "parallel.go"), 26, 1)
 
 		references := findReferenceRangesByRangeOrResultSetID(w, r.ID)
 		if len(references) != 4 {
@@ -206,10 +173,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check NestedB monikers", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "data.go"), 27, 3)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -227,29 +191,14 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check typeswitch", func(t *testing.T) {
-		definition, ok := findRange(w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 3, 8)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
-
-		intReference, ok := findRange(w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 5, 9)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
-
-		boolReference, ok := findRange(w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 7, 10)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		definition := mustRange(t, w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 3, 8)
+		intReference := mustRange(t, w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 5, 9)
+		boolReference := mustRange(t, w, "file://"+filepath.Join(projectRoot, "typeswitch.go"), 7, 10)
 
 		//
 		// Check definition links
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, intReference.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 1, len(definitions))
-		}
-		compareRange(t, definitions[0], 3, 8, 3, 21)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, intReference.ID), []string{"3:8-3:21"}, "references")
 
 		//
 		// Check reference links
@@ -295,17 +244,9 @@ func TestIndexer(t *testing.T) {
 	t.Run("check typealias", func(t *testing.T) {
 		typealiasFile := "file://" + filepath.Join(projectRoot, "typealias.go")
 
-		r, ok := findRange(w, typealiasFile, 7, 5)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, typealiasFile, 7, 5)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-		}
-
-		compareRange(t, definitions[0], 7, 5, 7, 17)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"7:5-7:17"}, "definition")
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -337,22 +278,14 @@ func TestIndexer(t *testing.T) {
 	t.Run("check typealias reference", func(t *testing.T) {
 		typealiasFile := "file://" + filepath.Join(projectRoot, "typealias.go")
 
-		r, ok := findRange(w, typealiasFile, 7, 27)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, typealiasFile, 7, 27)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-		}
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"6:5-6:11"}, "definition")
 
 		p, _ := findDefinitionByName(t, indexer.packages, "Burger")
 		if p.Name != "secret" {
 			t.Fatalf("incorrect definition source package. want=%s have=%s", "secret", p.Name)
 		}
-
-		compareRange(t, definitions[0], 6, 5, 6, 11)
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -384,17 +317,9 @@ func TestIndexer(t *testing.T) {
 	t.Run("check_typealias anonymous struct", func(t *testing.T) {
 		typealiasFile := "file://" + filepath.Join(projectRoot, "typealias.go")
 
-		r, ok := findRange(w, typealiasFile, 9, 5)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, typealiasFile, 9, 5)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrection definition count. want=%d have=%d", 1, len(definitions))
-		}
-
-		compareRange(t, definitions[0], 9, 5, 9, 14)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, r.ID), []string{"9:5-9:14"}, "definition")
 
 		hover, ok := findHoverResultByRangeOrResultSetID(w, r.ID)
 		markupContentSegments := splitMarkupContent(hover.Result.Contents.(protocol.MarkupContent).Value)
@@ -427,25 +352,20 @@ func TestIndexer(t *testing.T) {
 			t.Fatalf("found more than one range for a non-selector nested struct: %v", ranges)
 		}
 
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "composite.go"), 11, 1)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 2 {
-			t.Fatalf("incorrect definition count. want=%d have=%d", 2, len(definitions))
-		}
-
-		sort.Slice(definitions, func(i, j int) bool {
-			return definitions[i].Start.Line < definitions[j].Start.Line
-		})
-
-		// Original definition
-		compareRange(t, definitions[0], 4, 5, 4, 10)
-
-		// Definition through the moniker
-		compareRange(t, definitions[1], 11, 1, 11, 6)
+		assertRanges(
+			t,
+			w,
+			findDefinitionRangesByRangeOrResultSetID(w, r.ID),
+			[]string{
+				// Original definition
+				"4:5-4:10",
+				// Definition through the moniker
+				"11:1-11:6",
+			},
+			"definitions",
+		)
 
 		// Expect to find the reference from the definition and for the time we instantiate it in the function.
 		references := findReferenceRangesByRangeOrResultSetID(w, r.ID)
@@ -468,25 +388,15 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check named import definition: non-'.' import", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 1)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 1)
 
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
-		if len(definitions) != 2 {
-			t.Fatalf("Failed to get the correct definitions: %+v\n", definitions)
-		}
-
-		definition := definitions[0]
-		compareRange(t, definition, 4, 1, 4, 2)
+		x := findDefinitionRangesByRangeOrResultSetID(w, r.ID)
+		// TODO 2 definitions are emitted here but have the same range. Seems like a bug.
+		assertRanges(t, w, []protocol.Range{x[0]}, []string{"4:1-4:2"}, "definitions")
 	})
 
 	t.Run("check named import reference: non-'.' import", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 4)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "named_import.go"), 4, 4)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -511,10 +421,7 @@ func TestIndexer(t *testing.T) {
 	})
 
 	t.Run("check named import reference: . import", func(t *testing.T) {
-		r, ok := findRange(w, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 4)
-		if !ok {
-			t.Fatalf("could not find target range")
-		}
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "named_import.go"), 3, 4)
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
 		if len(monikers) != 1 {
@@ -532,31 +439,17 @@ func TestIndexer(t *testing.T) {
 
 	t.Run("check external nested struct definition", func(t *testing.T) {
 		ranges := findAllRanges(w, "file://"+filepath.Join(projectRoot, "external_composite.go"), 5, 1)
-		if len(ranges) != 2 {
-			t.Fatalf("Incorrect number of ranges: %v", ranges)
-		}
-
-		sort.Slice(ranges, func(i, j int) bool {
-			return ranges[i].End.Character < ranges[j].End.Character
-		})
-
+		assertRanges(t, w, ranges, []string{"5:1-5:5", "5:1-5:13"}, "http and http.Handler")
 		// line: http.Handler
-		//       ^^^^------------ ranges[0], for http package reference
-		//       ^^^^^^^^^^^^---- ranges[1], for http.Handler, the entire definition
+		//       ^^^^------------ httpRange, for http package reference
+		//       ^^^^^^^^^^^^---- anonymousFieldRange, for http.Handler, the entire definition
 		//
 		//            ^^^^^^^---- Separate range, for Handler reference
 		// See docs/structs.md
-		compareRange(t, ranges[0], 5, 1, 5, 5)
-		compareRange(t, ranges[1], 5, 1, 5, 13)
+		httpRange := mustGetRangeInSlice(t, ranges, "5:1-5:5")
+		anonymousFieldRange := mustGetRangeInSlice(t, ranges, "5:1-5:13")
 
-		anonymousFieldRange := ranges[1]
-
-		definitions := findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID)
-		if len(definitions) != 1 {
-			t.Fatalf("incorrect definition count. want=%d have=%d %v", 1, len(definitions), definitions)
-		}
-
-		compareRange(t, definitions[0], 5, 1, 5, 13)
+		assertRanges(t, w, findDefinitionRangesByRangeOrResultSetID(w, anonymousFieldRange.ID), []string{"5:1-5:13"}, "definition")
 
 		monikers := findMonikersByRangeOrReferenceResultID(w, anonymousFieldRange.ID)
 		if len(monikers) != 1 {
@@ -572,7 +465,6 @@ func TestIndexer(t *testing.T) {
 		}
 
 		// Check to make sure that the http range still correctly links to the external package.
-		httpRange := ranges[0]
 		httpMonikers := findMonikersByRangeOrReferenceResultID(w, httpRange.ID)
 		if len(httpMonikers) != 1 {
 			t.Fatalf("incorrect http monikers count. want=%d have=%d %+v", 1, len(httpMonikers), httpMonikers)
@@ -583,6 +475,145 @@ func TestIndexer(t *testing.T) {
 		if httpIdentifier != expectedHttpIdentifier {
 			t.Fatalf("incorrect moniker identifier. want=%s have=%s", expectedHttpIdentifier, httpIdentifier)
 		}
+	})
+
+	t.Run("should find implementations of an interface", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 4, 5)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"12:5-12:7", "16:5-16:7", "22:5-22:8", "21:5-21:7"}, "implementations of I1")
+	})
+
+	t.Run("should find interfaces that a type implements", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 21, 5)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
+	})
+
+	t.Run("should find interfaces that a type implements", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 21, 5)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"4:5-4:7"}, "what A1 implements")
+	})
+
+	t.Run("should emit an item edge with :document set to the target range's document", func(t *testing.T) {
+		checkItemDocuments(t, w)
+	})
+
+	t.Run("should not find unexported implementations", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "pkg/pkg.go"), 2, 5)
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"implementations.go:28:5-28:32"}, "interfaces that pkg/pkg.go:Foo implements")
+	})
+
+	t.Run("should find implementations of an interface: method shared", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 5, 1)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"14:12-14:14", "18:12-18:14"}, "SingleMethod implementations")
+	})
+
+	t.Run("should find implementations of an interface: method SingleMethod", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementation_methods.go"), 3, 1)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"8:25-8:37"}, "SingleMethod implementations")
+	})
+
+	t.Run("should find implementations of an interface: method SingleMethodTwoImpl", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementation_methods.go"), 11, 1)
+
+		assertRanges(t, w, findImplementationRangesByRangeOrResultSetID(w, r.ID), []string{"16:18-16:37", "20:18-20:37"}, "SingleMethodTwoImpl implementations")
+	})
+
+	t.Run("should emit an implementation moniker for an interface from a dependency", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 32, 5)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
+		for _, m := range monikers {
+			if m.Kind == "implementation" && m.Identifier == "github.com/golang/go/std/io:Closer" {
+				return
+			}
+		}
+
+		t.Fatalf("expected github.com/golang/go/std/io:Closer implementation moniker, got %+v", monikers)
+	})
+
+	t.Run("should emit an implementation moniker for an interface method from a dependency", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 36, 13)
+
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
+		for _, m := range monikers {
+			if m.Kind == "implementation" && m.Identifier == "github.com/golang/go/std/io:Closer.Close" {
+				return
+			}
+		}
+
+		t.Fatalf("expected github.com/golang/go/std/io:Closer.Close implementation moniker, got %+v", monikers)
+	})
+
+	t.Run("implementations: shared & distinct", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 50, 15)
+
+		// Make sure you're on Between.Shared
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
+		for _, m := range monikers {
+			if m.Kind != "export" ||
+				m.Identifier != "github.com/sourcegraph/lsif-go/internal/testdata/fixtures:Between.Shared" {
+
+				t.Fatalf("Unexpect Moniker: %v\n", monikers)
+			}
+		}
+
+		// Should have two implementations here, one from SharedOne and the other SharedTwo
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, r.ID),
+			[]string{"39:1-39:7", "44:1-44:7"},
+			"Between.Shared Implementations",
+		)
+
+		// But when we look at the implementations from SharedOne, we should only find thing.
+		sharedOneRange := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 39, 1)
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, sharedOneRange.ID),
+			[]string{"50:15-50:21"},
+			"SharedOne.Shared -> Between.Shared",
+		)
+
+		// And same for shared two
+		sharedTwoRange := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 44, 1)
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, sharedTwoRange.ID),
+			[]string{"50:15-50:21"},
+			"SharedTwo.Shared -> Between.Shared",
+		)
+	})
+
+	t.Run("implementations: finds implementations in function signature", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 54, 23)
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, r.ID),
+			[]string{"48:5-48:12"},
+			"(shared SharedOne.Shared) -> Between.Shared",
+		)
+
+	})
+
+	t.Run("implementations: finds implementations on references", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 55, 8)
+
+		// Should have two implementations here, one from SharedOne and the other SharedTwo
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, r.ID),
+			[]string{"50:15-50:21"},
+			"Between.Shared Implementations",
+		)
 	})
 }
 
@@ -615,6 +646,7 @@ func TestIndexer_documentation(t *testing.T) {
 				"testdata",
 				"0.0.1",
 				dependencies,
+				projectDependencies,
 				writer.NewJSONWriter(&buf),
 				NewPackageDataCache(),
 				output.Options{},
@@ -653,6 +685,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"testdata",
 		"0.0.1",
 		dependencies,
+		projectDependencies,
 		w,
 		NewPackageDataCache(),
 		output.Options{},
@@ -664,7 +697,6 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 
 	visited := map[string]bool{}
 	for _, pkg := range indexer.packages {
-		fmt.Println(pkg.ID)
 		shortID := strings.Replace(pkg.ID, "github.com/sourcegraph/lsif-go/internal/testdata/fixtures/internal", "…", -1)
 		if indexer.shouldVisitPackage(pkg, indexer.packages) {
 			visited[shortID] = true
@@ -680,6 +712,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/duplicate_path_id":                                                                                                  true,
 		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/illegal_multiple_mains":                                                                                             true,
 		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/cmd/minimal_main":                                                                                                   true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/pkg":                                                                                                                true,
 		"…/secret":              true,
 		"…/shouldvisit/notests": true,
 		"…/shouldvisit/tests":   false,

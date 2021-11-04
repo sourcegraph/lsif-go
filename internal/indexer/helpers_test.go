@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"os"
@@ -235,9 +236,9 @@ func findPackageInformationByID(w *capturingWriter, id uint64) (protocol.Package
 	return protocol.PackageInformation{}, false
 }
 
-// findDefintionRangesByDefinitionResultID returns the ranges attached to the definition result with the given
+// findRangesByResultID returns the ranges attached to the result set with the given
 // identifier.
-func findDefintionRangesByDefinitionResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+func findRangesByResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
 	elements := w.elements
 
 	for _, elem := range elements {
@@ -256,25 +257,43 @@ func findDefintionRangesByDefinitionResultID(w *capturingWriter, id uint64) (ran
 	return ranges
 }
 
-// findReferenceRangesByReferenceResultID returns the ranges attached to the reference result with the given
-// identifier.
-func findReferenceRangesByReferenceResultID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
-	elements := w.elements
-
-	for _, elem := range elements {
+func checkItemDocuments(t *testing.T, w *capturingWriter) {
+	rangeToDocs := map[uint64]map[uint64]struct{}{}
+	for _, elem := range w.elements {
 		switch e := elem.(type) {
 		case protocol.Item:
-			if e.OutV == id {
-				for _, inV := range e.InVs {
-					if r, ok := findRangeByID(w, inV); ok {
-						ranges = append(ranges, r)
-					}
+			for _, inV := range e.InVs {
+				if _, ok := rangeToDocs[inV]; !ok {
+					rangeToDocs[inV] = map[uint64]struct{}{}
 				}
+				rangeToDocs[inV][e.Document] = struct{}{}
 			}
 		}
 	}
 
-	return ranges
+	for r, docSet := range rangeToDocs {
+		if v, ok := w.contains[r]; ok {
+			docs := []uint64{}
+			for doc := range docSet {
+				docs = append(docs, doc)
+			}
+
+			if len(docs) == 0 {
+				t.Fatalf("bug in checkItemDocuments, range %d is not associated with any document", r)
+			}
+
+			if len(docs) > 1 {
+				t.Fatalf("expected all item edges pointing to range %d to have the same :document, but found :document %v", r, docs)
+			}
+
+			doc := docs[0]
+			if v != doc {
+				t.Fatalf("expected item edge :document (%d) to match the document it's contained in (%d)", r, v)
+			}
+		} else {
+			t.Fatalf("range %d is not contained by any documents", r)
+		}
+	}
 }
 
 // findDocumentURIContaining finds the URI of the document containing the given ID.
@@ -301,6 +320,16 @@ func findRange(w *capturingWriter, filename string, startLine, startCharacter in
 	}
 
 	return protocol.Range{}, false
+}
+
+// mustRange returns the range in the given file with the given start line and character.
+func mustRange(t *testing.T, w *capturingWriter, filename string, startLine, startCharacter int) protocol.Range {
+	r, ok := findRange(w, filename, startLine, startCharacter)
+	if !ok {
+		t.Fatalf("no range at %s:%d:%d", filename, startLine, startCharacter)
+		panic("should never happen")
+	}
+	return r
 }
 
 // findAllRanges returns a list of ranges in the given file with the given start line and character.
@@ -349,18 +378,15 @@ func findHoverResultByRangeOrResultSetID(w *capturingWriter, id uint64) (protoco
 	return protocol.HoverResult{}, false
 }
 
-// findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set
-// with the given identifier.
-func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+// findRangesByRangeOrResultSetID returns the ranges attached to the range or result set
+// with the given identifier that pass the filter.
+func findRangesByRangeOrResultSetID(w *capturingWriter, id uint64, getInvAndOutV func(elem interface{}) (uint64, uint64, bool)) (ranges []protocol.Range) {
 	elements := w.elements
 
-	// First see if we're attached to definition result directly
+	// First see if we're attached to the result directly
 	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.TextDocumentDefinition:
-			if e.OutV == id {
-				ranges = append(ranges, findDefintionRangesByDefinitionResultID(w, e.InV)...)
-			}
+		if inV, outV, ok := getInvAndOutV(elem); ok && outV == id {
+			ranges = append(ranges, findRangesByResultID(w, inV)...)
 		}
 	}
 
@@ -369,43 +395,48 @@ func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ra
 		switch e := elem.(type) {
 		case protocol.Next:
 			if e.OutV == id {
-				ranges = append(ranges, findDefinitionRangesByRangeOrResultSetID(w, e.InV)...)
+				ranges = append(ranges, findRangesByRangeOrResultSetID(w, e.InV, getInvAndOutV)...)
 			}
 		}
 	}
 
 	return ranges
+}
+
+// findDefinitionRangesByRangeOrResultSetID returns the definition ranges attached to the range or result set
+// with the given identifier.
+func findDefinitionRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	return findRangesByRangeOrResultSetID(w, id, func(elem interface{}) (uint64, uint64, bool) {
+		if e, ok := elem.(protocol.TextDocumentDefinition); ok {
+			return e.InV, e.OutV, true
+		}
+		return 0, 0, false
+	})
 }
 
 // findReferenceRangesByRangeOrResultSetID returns the reference ranges attached to the range or result set with
 // the given identifier.
 func findReferenceRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
-	elements := w.elements
-
-	// First see if we're attached to reference result directly
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.TextDocumentReferences:
-			if e.OutV == id {
-				ranges = append(ranges, findReferenceRangesByReferenceResultID(w, e.InV)...)
-			}
+	return findRangesByRangeOrResultSetID(w, id, func(elem interface{}) (uint64, uint64, bool) {
+		if e, ok := elem.(protocol.TextDocumentReferences); ok {
+			return e.InV, e.OutV, true
 		}
-	}
-
-	// Try to get the reference result of a result set attached to the given range or result set
-	for _, elem := range elements {
-		switch e := elem.(type) {
-		case protocol.Next:
-			if e.OutV == id {
-				ranges = append(ranges, findReferenceRangesByRangeOrResultSetID(w, e.InV)...)
-			}
-		}
-	}
-
-	return ranges
+		return 0, 0, false
+	})
 }
 
-// findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or  reference result
+// findImplementationRangesByRangeOrResultSetID returns the implementation ranges attached to the range or result set with
+// the given identifier.
+func findImplementationRangesByRangeOrResultSetID(w *capturingWriter, id uint64) (ranges []protocol.Range) {
+	return findRangesByRangeOrResultSetID(w, id, func(elem interface{}) (uint64, uint64, bool) {
+		if e, ok := elem.(protocol.TextDocumentImplementation); ok {
+			return e.InV, e.OutV, true
+		}
+		return 0, 0, false
+	})
+}
+
+// findMonikersByRangeOrReferenceResultID returns the monikers attached to the range or reference result
 // with the given identifier.
 func findMonikersByRangeOrReferenceResultID(w *capturingWriter, id uint64) (monikers []protocol.Moniker) {
 	for _, elem := range w.elements {
@@ -472,5 +503,86 @@ func compareRange(t *testing.T, r protocol.Range, startLine, startCharacter, end
 			startLine, startCharacter, endLine, endCharacter,
 			r.Start.Line, r.Start.Character, r.End.Line, r.End.Character,
 		)
+	}
+}
+
+func stringifyRange(r protocol.Range) string {
+	return fmt.Sprintf("%d:%d-%d:%d", r.Start.Line, r.Start.Character, r.End.Line, r.End.Character)
+}
+
+func stringifyFileRange(f string, r protocol.Range) string {
+	return fmt.Sprintf("%s:%s", f, stringifyRange(r))
+}
+
+func mustGetRangeInSlice(t *testing.T, ranges []protocol.Range, needle string) protocol.Range {
+	for _, r := range ranges {
+		if stringifyRange(r) == needle {
+			return r
+		}
+	}
+	t.Fatalf("mustRange: range not found %s", needle)
+	panic("this should never happen")
+}
+
+// assertRanges throws an error if the given ranges don't match the
+// expected suffixes (which look like 12:5-12:10 or foo.go:12:5-12:10).
+//
+// In detail, it throws an error if in any of the follow scenarios:
+//
+// - Duplicate ranges exist
+// - An expected suffix does not match any range
+// - An expected suffix matches more than one range
+// - An actual range does not match any of the expected suffixes
+func assertRanges(t *testing.T, w *capturingWriter, actual []protocol.Range, expected []string, msg string) {
+	extras := []string{}
+	missings := []string{}
+
+	for i := range actual {
+		for j := i + 1; j < len(actual); j++ {
+			key1 := stringifyFileRange(w.documents[w.contains[actual[i].ID]].URI, actual[i])
+			key2 := stringifyFileRange(w.documents[w.contains[actual[j].ID]].URI, actual[j])
+			if key1 == key2 {
+				t.Fatalf("duplicate range %s\n%v", key1, actual)
+			}
+		}
+	}
+
+	for _, r := range actual {
+		key := stringifyFileRange(w.documents[w.contains[r.ID]].URI, r)
+		matches := []string{}
+		for _, e := range expected {
+			if strings.HasSuffix(key, e) {
+				matches = append(matches, e)
+			}
+		}
+		if len(matches) == 0 {
+			extras = append(extras, key)
+			continue
+		} else if len(matches) > 1 {
+			t.Fatalf("multiple matches for %q: %v", key, matches)
+		}
+	}
+
+loopMissing:
+	for _, e := range expected {
+		for _, r := range actual {
+			key := stringifyFileRange(w.documents[w.contains[r.ID]].URI, r)
+			if strings.HasSuffix(key, e) {
+				continue loopMissing
+			}
+		}
+		missings = append(missings, e)
+	}
+
+	// Report differences
+	errors := []string{}
+	if len(missings) > 0 {
+		errors = append(errors, fmt.Sprintf("missing:\n%s", strings.Join(missings, "\n")))
+	}
+	if len(extras) > 0 {
+		errors = append(errors, fmt.Sprintf("extra:\n%s", strings.Join(extras, "\n")))
+	}
+	if len(errors) > 0 {
+		t.Fatalf("%s: %s\nGot: %v\n", msg, strings.Join(errors, "\n\n"), actual)
 	}
 }

@@ -40,8 +40,8 @@ var ticker = pentimento.NewAnimatedString([]string{
 	"⠙", "⠹",
 }, updateInterval)
 
+// var failurePrefix = "✗"
 var successPrefix = "✔"
-var failurePrefix = "✗"
 
 // logger is used to log at the level -vv and above from multiple goroutines.
 var logger = log.New(os.Stdout, "", 0)

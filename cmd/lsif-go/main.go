@@ -60,6 +60,11 @@ func mainErr() (err error) {
 		return fmt.Errorf("failed to list dependencies: %v", err)
 	}
 
+	projectDependencies, err := gomod.ListProjectDependencies(moduleRoot)
+	if err != nil {
+		return fmt.Errorf("failed to list project dependencies: %v", err)
+	}
+
 	if err := writeIndex(
 		repositoryRoot,
 		repositoryRemote,
@@ -67,6 +72,7 @@ func mainErr() (err error) {
 		moduleName,
 		moduleVersion,
 		dependencies,
+		projectDependencies,
 		outFile,
 		outputOptions,
 	); err != nil {

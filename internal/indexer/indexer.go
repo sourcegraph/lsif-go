@@ -30,15 +30,16 @@ type importMonikerReference struct {
 type setVal interface{}
 
 type Indexer struct {
-	repositoryRoot   string                    // path to repository
-	repositoryRemote string                    // import path inferred by git remote
-	projectRoot      string                    // path to package
-	toolInfo         protocol.ToolInfo         // metadata vertex payload
-	moduleName       string                    // name of this module
-	moduleVersion    string                    // version of this module
-	dependencies     map[string]gomod.GoModule // parsed module data
-	emitter          *writer.Emitter           // LSIF data emitter
-	outputOptions    output.Options            // What to print to stdout/stderr
+	repositoryRoot      string                    // path to repository
+	repositoryRemote    string                    // import path inferred by git remote
+	projectRoot         string                    // path to package
+	toolInfo            protocol.ToolInfo         // metadata vertex payload
+	moduleName          string                    // name of this module
+	moduleVersion       string                    // version of this module
+	dependencies        map[string]gomod.GoModule // parsed module data
+	projectDependencies []string                  // packages that this package depends on
+	emitter             *writer.Emitter           // LSIF data emitter
+	outputOptions       output.Options            // What to print to stdout/stderr
 
 	// Definition type cache
 	consts  map[interface{}]*DefinitionInfo // position -> info
@@ -54,10 +55,12 @@ type Indexer struct {
 	defined                                  map[string]map[int]struct{}             // set of defined ranges (filename, offset)
 	hoverResultCache                         map[string]uint64                       // cache key -> hoverResultID
 	importMonikerIDs                         map[string]uint64                       // identifier:packageInformationID -> monikerID
+	implementationMonikerIDs                 map[string]uint64                       // identifier:packageInformationID -> monikerID
 	importMonikerReferences                  map[uint64]map[uint64]map[uint64]setVal // monikerKey -> documentID -> Set(rangeID)
 	packageInformationIDs                    map[string]uint64                       // name -> packageInformationID
 	packageDataCache                         *PackageDataCache                       // hover text and moniker path cache
 	packages                                 []*packages.Package                     // index target packages
+	depPackages                              []*packages.Package                     // dependency packages
 	projectID                                uint64                                  // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
 	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
@@ -85,36 +88,39 @@ func New(
 	moduleName string,
 	moduleVersion string,
 	dependencies map[string]gomod.GoModule,
+	projectDependencies []string,
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions output.Options,
 ) *Indexer {
 	return &Indexer{
-		repositoryRoot:          repositoryRoot,
-		repositoryRemote:        repositoryRemote,
-		projectRoot:             projectRoot,
-		toolInfo:                toolInfo,
-		moduleName:              moduleName,
-		moduleVersion:           moduleVersion,
-		dependencies:            dependencies,
-		emitter:                 writer.NewEmitter(jsonWriter),
-		outputOptions:           outputOptions,
-		consts:                  map[interface{}]*DefinitionInfo{},
-		funcs:                   map[interface{}]*DefinitionInfo{},
-		imports:                 map[interface{}]*DefinitionInfo{},
-		labels:                  map[interface{}]*DefinitionInfo{},
-		types:                   map[interface{}]*DefinitionInfo{},
-		vars:                    map[interface{}]*DefinitionInfo{},
-		documents:               map[string]*DocumentInfo{},
-		ranges:                  map[string]map[int]uint64{},
-		defined:                 map[string]map[int]struct{}{},
-		hoverResultCache:        map[string]uint64{},
-		importMonikerIDs:        map[string]uint64{},
-		importMonikerReferences: map[uint64]map[uint64]map[uint64]setVal{},
-		packageInformationIDs:   map[string]uint64{},
-		packageDataCache:        packageDataCache,
-		stripedMutex:            newStripedMutex(),
-		importMonikerChannel:    make(chan importMonikerReference, 512),
+		repositoryRoot:           repositoryRoot,
+		repositoryRemote:         repositoryRemote,
+		projectRoot:              projectRoot,
+		toolInfo:                 toolInfo,
+		moduleName:               moduleName,
+		moduleVersion:            moduleVersion,
+		dependencies:             dependencies,
+		projectDependencies:      projectDependencies,
+		emitter:                  writer.NewEmitter(jsonWriter),
+		outputOptions:            outputOptions,
+		consts:                   map[interface{}]*DefinitionInfo{},
+		funcs:                    map[interface{}]*DefinitionInfo{},
+		imports:                  map[interface{}]*DefinitionInfo{},
+		labels:                   map[interface{}]*DefinitionInfo{},
+		types:                    map[interface{}]*DefinitionInfo{},
+		vars:                     map[interface{}]*DefinitionInfo{},
+		documents:                map[string]*DocumentInfo{},
+		ranges:                   map[string]map[int]uint64{},
+		defined:                  map[string]map[int]struct{}{},
+		hoverResultCache:         map[string]uint64{},
+		importMonikerIDs:         map[string]uint64{},
+		implementationMonikerIDs: map[string]uint64{},
+		importMonikerReferences:  map[uint64]map[uint64]map[uint64]setVal{},
+		packageInformationIDs:    map[string]uint64{},
+		packageDataCache:         packageDataCache,
+		stripedMutex:             newStripedMutex(),
+		importMonikerChannel:     make(chan importMonikerReference, 512),
 	}
 }
 
@@ -140,7 +146,10 @@ func (i *Indexer) Index() error {
 	i.indexReferences()
 
 	// Stop any channels used to synchronize reference sets
+	//    Implementations needs all references to be complete.
 	i.stopImportMonikerReferenceTracker(wg)
+
+	i.indexImplementations()
 
 	// Link sets of items to corresponding ranges and results.
 	i.linkReferenceResultsToRanges()
@@ -200,6 +209,9 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // cachedPackages makes sure that we only load packages once per execution
 var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
 
+// cachedDepPackages makes sure that we only load dependency packages once per execution
+var cachedDepPackages map[string][]*packages.Package = map[string][]*packages.Package{}
+
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 //
@@ -220,33 +232,46 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			Logf:  i.packagesLoadLogger,
 		}
 
-		// Make sure we only load packages once per execution.
-		pkgs, ok := cachedPackages[i.projectRoot]
-		if !ok {
-			var err error
-			pkgs, err = packages.Load(config, "./...")
-			if err != nil {
-				errs <- errors.Wrap(err, "packages.Load")
-				return
+		load := func(cache map[string][]*packages.Package, patterns ...string) ([]*packages.Package, bool) {
+			// Make sure we only load packages once per execution.
+			pkgs, ok := cache[i.projectRoot]
+			if !ok {
+				var err error
+				pkgs, err = packages.Load(config, patterns...)
+				if err != nil {
+					errs <- errors.Wrap(err, "packages.Load")
+					return nil, true
+				}
+
+				cache[i.projectRoot] = pkgs
 			}
 
-			cachedPackages[i.projectRoot] = pkgs
-		}
+			if !deduplicate {
+				return pkgs, false
+			}
 
-		if deduplicate {
 			keep := make([]*packages.Package, 0, len(pkgs))
 			for _, pkg := range pkgs {
 				if i.shouldVisitPackage(pkg, pkgs) {
 					keep = append(keep, pkg)
 				}
 			}
-			i.packages = keep
-		} else {
-			i.packages = pkgs
+			return keep, false
+		}
+
+		var hasError bool
+
+		i.packages, hasError = load(cachedPackages, "./...")
+		if hasError {
+			return
+		}
+
+		i.depPackages, hasError = load(cachedDepPackages, i.projectDependencies...)
+		if hasError {
+			return
 		}
 
 		i.packagesByFile = map[string][]*packages.Package{}
-
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
 				filename := p.Fset.Position(f.Package).Filename
@@ -441,26 +466,6 @@ func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *pac
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
 
 	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, false, ident)
-}
-
-// getAllReferencedPackages returns a slice of packages containing the index target packages
-// as well as each directly imported package (but no transitively imported packages). The
-// resulting slice contains no duplicates.
-func getAllReferencedPackages(pkgs []*packages.Package) (flattened []*packages.Package) {
-	allPackages := map[*packages.Package]struct{}{}
-	for _, p := range pkgs {
-		allPackages[p] = struct{}{}
-
-		for _, i := range p.Imports {
-			allPackages[i] = struct{}{}
-		}
-	}
-
-	for pkg := range allPackages {
-		flattened = append(flattened, pkg)
-	}
-
-	return flattened
 }
 
 // indexDefinitions emits data for each definition in an index target package. This will emit

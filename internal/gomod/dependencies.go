@@ -34,7 +34,9 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 	}
 
 	resolve := func() {
-		output, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json", "all")
+		var output, modOutput string
+
+		output, err = command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json", "all")
 		if err != nil {
 			err = fmt.Errorf("failed to list modules: %v\n%s", err, output)
 			return
@@ -48,7 +50,7 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 		// Because of that, we do a separate execution to guarantee we get only
 		// this package information to use to determine the corresponding
 		// goVersion.
-		modOutput, err := command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
+		modOutput, err = command.Run(dir, "go", "list", "-mod=readonly", "-m", "-json")
 		if err != nil {
 			err = fmt.Errorf("failed to list module info: %v\n%s", err, output)
 			return
@@ -70,6 +72,38 @@ func ListDependencies(dir, rootModule, rootVersion string, outputOptions output.
 
 	output.WithProgress("Listing dependencies", resolve, outputOptions)
 	return dependencies, err
+}
+
+// listProjectDependencies finds any packages from "$ go list all" that are NOT declared
+// as part of the current project.
+//
+// NOTE: This is different from the other dependencies stored in the indexer because it
+// does not modules, but packages.
+func ListProjectDependencies(projectRoot string) ([]string, error) {
+	projectPackageOutput, err := command.Run(projectRoot, "go", "list", "./...")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list project packages: %v\n%s", err, projectPackageOutput)
+	}
+
+	projectPackages := map[string]struct{}{}
+	for _, pkg := range strings.Split(projectPackageOutput, "\n") {
+		projectPackages[pkg] = struct{}{}
+	}
+
+	output, err := command.Run(projectRoot, "go", "list", "all")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list dependecy packages: %v\n%s", err, output)
+	}
+
+	dependencyPackages := []string{"std"}
+	for _, dep := range strings.Split(output, "\n") {
+		// It's a dependency if it's not in the projectPackages
+		if _, ok := projectPackages[dep]; !ok {
+			dependencyPackages = append(dependencyPackages, dep)
+		}
+	}
+
+	return dependencyPackages, nil
 }
 
 type jsonModule struct {
