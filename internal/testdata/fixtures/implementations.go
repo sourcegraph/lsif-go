@@ -35,3 +35,23 @@ type Foo int
 func (r Foo) nonExportedMethod() {}
 func (r Foo) ExportedMethod()    {}
 func (r Foo) Close() error       { return nil }
+
+type SharedOne interface {
+	Shared()
+	Distinct()
+}
+
+type SharedTwo interface {
+	Shared()
+	Unique()
+}
+
+type Between struct{}
+
+func (Between) Shared()   {}
+func (Between) Distinct() {}
+func (Between) Unique()   {}
+
+func shouldShow(shared SharedOne) {
+	shared.Shared()
+}

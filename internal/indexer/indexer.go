@@ -144,10 +144,12 @@ func (i *Indexer) Index() error {
 	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
-	i.indexImplementations()
 
 	// Stop any channels used to synchronize reference sets
+	//    Implementations needs all references to be complete.
 	i.stopImportMonikerReferenceTracker(wg)
+
+	i.indexImplementations()
 
 	// Link sets of items to corresponding ranges and results.
 	i.linkReferenceResultsToRanges()

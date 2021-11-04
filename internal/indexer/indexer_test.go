@@ -547,6 +547,74 @@ func TestIndexer(t *testing.T) {
 
 		t.Fatalf("expected github.com/golang/go/std/io:Closer.Close implementation moniker, got %+v", monikers)
 	})
+
+	t.Run("implementations: shared & distinct", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 50, 15)
+
+		// Make sure you're on Between.Shared
+		monikers := findMonikersByRangeOrReferenceResultID(w, r.ID)
+		for _, m := range monikers {
+			if m.Kind != "export" ||
+				m.Identifier != "github.com/sourcegraph/lsif-go/internal/testdata/fixtures:Between.Shared" {
+
+				t.Fatalf("Unexpect Moniker: %v\n", monikers)
+			}
+		}
+
+		// Should have two implementations here, one from SharedOne and the other SharedTwo
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, r.ID),
+			[]string{"39:1-39:7", "44:1-44:7"},
+			"Between.Shared Implementations",
+		)
+
+		// But when we look at the implementations from SharedOne, we should only find thing.
+		sharedOneRange := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 39, 1)
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, sharedOneRange.ID),
+			[]string{"50:15-50:21"},
+			"SharedOne.Shared -> Between.Shared",
+		)
+
+		// And same for shared two
+		sharedTwoRange := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 44, 1)
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, sharedTwoRange.ID),
+			[]string{"50:15-50:21"},
+			"SharedTwo.Shared -> Between.Shared",
+		)
+	})
+
+	t.Run("implementations: finds implementations in function signature", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 54, 23)
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, r.ID),
+			[]string{"48:5-48:12"},
+			"(shared SharedOne.Shared) -> Between.Shared",
+		)
+
+	})
+
+	t.Run("implementations: finds implementations on references", func(t *testing.T) {
+		r := mustRange(t, w, "file://"+filepath.Join(projectRoot, "implementations.go"), 55, 8)
+
+		// Should have two implementations here, one from SharedOne and the other SharedTwo
+		assertRanges(
+			t,
+			w,
+			findImplementationRangesByRangeOrResultSetID(w, r.ID),
+			[]string{"50:15-50:21"},
+			"Between.Shared Implementations",
+		)
+	})
 }
 
 func TestIndexer_documentation(t *testing.T) {

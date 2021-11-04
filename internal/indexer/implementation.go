@@ -142,11 +142,11 @@ func (i *Indexer) indexImplementations() {
 		// We want to connect the four categories like this:
 		//
 		// ```ascii_art
-		// LocalInterfaces <------> LocalTypes
-		//       |                       |
-		//       |                       |
-		//       v                       v
-		//  RemoteTypes      X      RemoteInterfaces
+		// LocalInterfaces   <------------------> LocalConcreteTypes
+		//       |                                   |
+		//       |                                   |
+		//       v                                   v
+		//  RemoteConcreteTypes        X         RemoteInterfaces
 		// ```
 		//
 		// NOTES:
@@ -159,11 +159,11 @@ func (i *Indexer) indexImplementations() {
 		// Local Implementations
 		localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
 
-		// local types -> local interfaces
+		// LocalConcreteTypes -> LocalInterfaces
 		localRelation := buildImplementationRelation(localConcreteTypes, localInterfaces)
 		localRelation.forEachImplementation(i.emitLocalImplementation)
 
-		// local interfaces -> local types
+		// LocalInterfaces -> LocalConcreteTypes
 		invertedLocalRelation := localRelation.invert()
 		invertedLocalRelation.forEachImplementation(i.emitLocalImplementation)
 
@@ -171,11 +171,11 @@ func (i *Indexer) indexImplementations() {
 		// Remote Implementations
 		remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
 
-		// local types -> remote interfaces (exported only)
+		// LocalConcreteTypes -> RemoteInterfaces (exported only)
 		localTypesToRemoteInterfaces := buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
 		localTypesToRemoteInterfaces.forEachImplementation(i.emitRemoteImplementation)
 
-		// remote types (exported only) -> local interfaces
+		// RemoteConcreteTypes (exported only) -> LocalInterfaces
 		localInterfacesToRemoteTypes := buildImplementationRelation(filterToExported(remoteConcreteTypes), localInterfaces).invert()
 		localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
 
