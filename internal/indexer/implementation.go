@@ -186,6 +186,10 @@ func (i *Indexer) indexImplementations() {
 func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
 	typeDefDocToInVs := map[uint64][]uint64{}
 	for _, to := range tos {
+		if to.defInfo == nil {
+			continue
+		}
+
 		documentID := to.defInfo.DocumentID
 
 		if _, ok := typeDefDocToInVs[documentID]; !ok {
@@ -194,8 +198,10 @@ func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
 		typeDefDocToInVs[documentID] = append(typeDefDocToInVs[documentID], to.defInfo.RangeID)
 	}
 
-	// Emit implementation for the typeDefs directly
-	i.emitLocalImplementationRelation(from.defInfo.ResultSetID, typeDefDocToInVs)
+	if from.defInfo != nil {
+		// Emit implementation for the typeDefs directly
+		i.emitLocalImplementationRelation(from.defInfo.ResultSetID, typeDefDocToInVs)
+	}
 
 	// Emit implementation for each of the methods on typeDefs
 	for fromName, fromMethod := range from.methodsByName {
@@ -239,6 +245,9 @@ func (i *Indexer) emitLocalImplementationRelation(defResultSetID uint64, documen
 // (kind: "implementation") to connect remote implementations
 func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 	for _, to := range tos {
+		if from.defInfo == nil {
+			continue
+		}
 		i.emitImplementationMoniker(from.defInfo.ResultSetID, to.pkg, to.typeName)
 	}
 
