@@ -26,6 +26,7 @@ var (
 	verbosity        int
 	noOutput         bool
 	noAnimation      bool
+	skipDeps         bool
 )
 
 func init() {
@@ -43,6 +44,9 @@ func init() {
 	// Repository remote and tag options (inferred by git)
 	app.Flag("repository-remote", "Specifies the canonical name of the repository remote.").Default(defaultRepositoryRemote.Value()).StringVar(&repositoryRemote)
 	app.Flag("module-version", "Specifies the version of the module defined by module-root.").Default(defaultModuleVersion.Value()).StringVar(&moduleVersion)
+
+	// Feature options
+	app.Flag("skip-deps", "Do not load depedencies - reduces memory usage but omits interface implementation data from deps.").Default("true").BoolVar(&skipDeps)
 
 	// Verbosity options
 	app.Flag("quiet", "Do not output to stdout or stderr.").Short('q').Default("false").BoolVar(&noOutput)

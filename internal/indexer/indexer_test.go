@@ -46,6 +46,7 @@ func TestIndexer(t *testing.T) {
 		w,
 		NewPackageDataCache(),
 		output.Options{},
+		false,
 	)
 
 	if err := indexer.Index(); err != nil {
@@ -650,6 +651,7 @@ func TestIndexer_documentation(t *testing.T) {
 				writer.NewJSONWriter(&buf),
 				NewPackageDataCache(),
 				output.Options{},
+				false,
 			)
 			if err := indexer.Index(); err != nil {
 				t.Fatalf("unexpected error indexing testdata: %s", err.Error())
@@ -689,6 +691,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		w,
 		NewPackageDataCache(),
 		output.Options{},
+		false,
 	)
 
 	if err := indexer.loadPackages(false); err != nil {

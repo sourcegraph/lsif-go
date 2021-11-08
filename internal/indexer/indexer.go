@@ -78,6 +78,8 @@ type Indexer struct {
 	packageInformationIDsMutex sync.RWMutex
 
 	importMonikerChannel chan importMonikerReference
+
+	skipDeps bool
 }
 
 func New(
@@ -92,6 +94,7 @@ func New(
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions output.Options,
+	skipDeps bool,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:           repositoryRoot,
@@ -121,6 +124,7 @@ func New(
 		packageDataCache:         packageDataCache,
 		stripedMutex:             newStripedMutex(),
 		importMonikerChannel:     make(chan importMonikerReference, 512),
+		skipDeps:                 skipDeps,
 	}
 }
 
@@ -266,9 +270,12 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 			return
 		}
 
-		i.depPackages, hasError = load(cachedDepPackages, i.projectDependencies...)
-		if hasError {
-			return
+		i.depPackages = []*packages.Package{}
+		if !i.skipDeps {
+			i.depPackages, hasError = load(cachedDepPackages, i.projectDependencies...)
+			if hasError {
+				return
+			}
 		}
 
 		i.packagesByFile = map[string][]*packages.Package{}
