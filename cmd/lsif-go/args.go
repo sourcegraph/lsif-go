@@ -46,7 +46,7 @@ func init() {
 	app.Flag("module-version", "Specifies the version of the module defined by module-root.").Default(defaultModuleVersion.Value()).StringVar(&moduleVersion)
 
 	// Feature options
-	app.Flag("skip-deps", "Do not load depedencies - reduces memory usage but omits interface implementation data from deps.").Default("false").BoolVar(&skipDeps)
+	app.Flag("skip-deps", "Do not load depedencies - reduces memory usage but omits interface implementation data from deps.").Default("true").BoolVar(&skipDeps)
 
 	// Verbosity options
 	app.Flag("quiet", "Do not output to stdout or stderr.").Short('q').Default("false").BoolVar(&noOutput)
