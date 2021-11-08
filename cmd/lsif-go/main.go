@@ -75,6 +75,7 @@ func mainErr() (err error) {
 		projectDependencies,
 		outFile,
 		outputOptions,
+		skipDeps,
 	); err != nil {
 		return fmt.Errorf("failed to index: %v", err)
 	}

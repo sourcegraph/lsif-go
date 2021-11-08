@@ -12,7 +12,7 @@ import (
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
-func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.GoModule, projectDependencies []string, outFile string, outputOptions output.Options) error {
+func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, moduleVersion string, dependencies map[string]gomod.GoModule, projectDependencies []string, outFile string, outputOptions output.Options, skipDeps bool) error {
 	start := time.Now()
 
 	out, err := os.Create(outFile)
@@ -44,6 +44,7 @@ func writeIndex(repositoryRoot, repositoryRemote, projectRoot, moduleName, modul
 		writer.NewJSONWriter(out),
 		packageDataCache,
 		outputOptions,
+		skipDeps,
 	)
 
 	if err := indexer.Index(); err != nil {
