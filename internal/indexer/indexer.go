@@ -463,7 +463,6 @@ func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *pac
 
 	rangeID, _ := i.ensureRangeFor(position, obj)
 	resultSetID := i.emitter.EmitResultSet()
-	_ = i.emitter.EmitNext(rangeID, resultSetID)
 
 	i.indexDefinitionForRangeAndResult(p, document, obj, rangeID, resultSetID, false, ident)
 }
