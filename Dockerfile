@@ -1,6 +1,6 @@
-FROM sourcegraph/src-cli:3.29.1@sha256:bfdec9e91fdd9d9bac4eab89c9496a9e8e027ffcac0048d56893d3747f8b7da9 AS src-cli
+FROM sourcegraph/src-cli:3.33.5@1b2584614c1013bd4c448e552a317a1e9a0bb6444d4ab0c1e5005facd17da395 AS src-cli
 
-FROM golang:1.16-buster@sha256:d93712777042a4abf73182a29649e78368b1639b6bd5df61733708916e40d517
+FROM golang:1.17.3-buster@sha256:c1bae5fc60e8191cbda41f8f4822570568a163a2692987a22990fba1d3e4f07b
 
 COPY --from=src-cli /usr/bin/src /usr/bin/
 COPY lsif-go /usr/bin/
