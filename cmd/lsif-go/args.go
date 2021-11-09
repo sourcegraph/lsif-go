@@ -26,7 +26,7 @@ var (
 	verbosity        int
 	noOutput         bool
 	noAnimation      bool
-	skipDeps         bool
+	depBatchSize     int
 )
 
 func init() {
@@ -45,13 +45,12 @@ func init() {
 	app.Flag("repository-remote", "Specifies the canonical name of the repository remote.").Default(defaultRepositoryRemote.Value()).StringVar(&repositoryRemote)
 	app.Flag("module-version", "Specifies the version of the module defined by module-root.").Default(defaultModuleVersion.Value()).StringVar(&moduleVersion)
 
-	// Feature options
-	app.Flag("skip-deps", "Do not load depedencies - reduces memory usage but omits interface implementation data from deps.").Default("true").BoolVar(&skipDeps)
-
 	// Verbosity options
 	app.Flag("quiet", "Do not output to stdout or stderr.").Short('q').Default("false").BoolVar(&noOutput)
 	app.Flag("verbose", "Output debug logs.").Short('v').CounterVar(&verbosity)
 	app.Flag("no-animation", "Do not animate output.").Default("false").BoolVar(&noAnimation)
+
+	app.Flag("dep-batch-size", "How many dependencies to load at once to limit memory usage (e.g. 100).").Default("0").IntVar(&depBatchSize)
 }
 
 func parseArgs(args []string) (err error) {

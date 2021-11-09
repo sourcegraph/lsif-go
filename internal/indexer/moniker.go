@@ -79,10 +79,7 @@ func (i *Indexer) emitImportMoniker(rangeID uint64, p *packages.Package, obj Obj
 // identifier (either a range or a result set identifier). This will also emit links between
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
-func (i *Indexer) emitImplementationMoniker(resultSet uint64, p *packages.Package, obj ObjectLike) bool {
-	pkg := makeMonikerPackage(obj)
-	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
-
+func (i *Indexer) emitImplementationMoniker(resultSet uint64, pkg string, monikerIdentifier string) bool {
 	for _, moduleName := range packagePrefixes(pkg) {
 		if module, ok := i.dependencies[moduleName]; ok {
 			// Lazily emit package information vertex
