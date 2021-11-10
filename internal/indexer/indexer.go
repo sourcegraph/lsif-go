@@ -60,7 +60,6 @@ type Indexer struct {
 	packageInformationIDs                    map[string]uint64                       // name -> packageInformationID
 	packageDataCache                         *PackageDataCache                       // hover text and moniker path cache
 	packages                                 []*packages.Package                     // index target packages
-	depPackages                              []*packages.Package                     // dependency packages
 	projectID                                uint64                                  // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
 	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
@@ -79,7 +78,7 @@ type Indexer struct {
 
 	importMonikerChannel chan importMonikerReference
 
-	skipDeps bool
+	depBatchSize int
 }
 
 func New(
@@ -94,7 +93,7 @@ func New(
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions output.Options,
-	skipDeps bool,
+	depBatchSize int,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:           repositoryRoot,
@@ -124,7 +123,7 @@ func New(
 		packageDataCache:         packageDataCache,
 		stripedMutex:             newStripedMutex(),
 		importMonikerChannel:     make(chan importMonikerReference, 512),
-		skipDeps:                 skipDeps,
+		depBatchSize:             depBatchSize,
 	}
 }
 
@@ -153,7 +152,10 @@ func (i *Indexer) Index() error {
 	//    Implementations needs all references to be complete.
 	i.stopImportMonikerReferenceTracker(wg)
 
-	i.indexImplementations()
+	err := i.indexImplementations()
+	if err != nil {
+		return errors.Wrap(err, "indexing implementations")
+	}
 
 	// Link sets of items to corresponding ranges and results.
 	i.linkReferenceResultsToRanges()
@@ -213,9 +215,6 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // cachedPackages makes sure that we only load packages once per execution
 var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
 
-// cachedDepPackages makes sure that we only load dependency packages once per execution
-var cachedDepPackages map[string][]*packages.Package = map[string][]*packages.Package{}
-
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 //
@@ -229,53 +228,10 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 		defer wg.Done()
 		defer close(errs)
 
-		config := &packages.Config{
-			Mode:  loadMode,
-			Dir:   i.projectRoot,
-			Tests: true,
-			Logf:  i.packagesLoadLogger,
-		}
-
-		load := func(cache map[string][]*packages.Package, patterns ...string) ([]*packages.Package, bool) {
-			// Make sure we only load packages once per execution.
-			pkgs, ok := cache[i.projectRoot]
-			if !ok {
-				var err error
-				pkgs, err = packages.Load(config, patterns...)
-				if err != nil {
-					errs <- errors.Wrap(err, "packages.Load")
-					return nil, true
-				}
-
-				cache[i.projectRoot] = pkgs
-			}
-
-			if !deduplicate {
-				return pkgs, false
-			}
-
-			keep := make([]*packages.Package, 0, len(pkgs))
-			for _, pkg := range pkgs {
-				if i.shouldVisitPackage(pkg, pkgs) {
-					keep = append(keep, pkg)
-				}
-			}
-			return keep, false
-		}
-
-		var hasError bool
-
-		i.packages, hasError = load(cachedPackages, "./...")
-		if hasError {
-			return
-		}
-
-		i.depPackages = []*packages.Package{}
-		if !i.skipDeps {
-			i.depPackages, hasError = load(cachedDepPackages, i.projectDependencies...)
-			if hasError {
-				return
-			}
+		var err error
+		i.packages, err = i.loadPackage(deduplicate, "./...")
+		if err != nil {
+			errs <- err
 		}
 
 		i.packagesByFile = map[string][]*packages.Package{}
@@ -289,6 +245,37 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 
 	output.WithProgressParallel(&wg, "Loading packages", i.outputOptions, nil, 0)
 	return <-errs
+}
+
+func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages.Package, error) {
+	if len(patterns) == 1 && patterns[0] == "./..." && i.packages != nil {
+		return i.packages, nil
+	}
+
+	config := &packages.Config{
+		Mode:  loadMode,
+		Dir:   i.projectRoot,
+		Tests: true,
+		Logf:  i.packagesLoadLogger,
+	}
+
+	// Make sure we only load packages once per execution.
+	pkgs, err := packages.Load(config, patterns...)
+	if err != nil {
+		return nil, errors.Wrap(err, "packages.Load")
+	}
+
+	if !deduplicate {
+		return pkgs, nil
+	}
+
+	keep := make([]*packages.Package, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		if i.shouldVisitPackage(pkg, pkgs) {
+			keep = append(keep, pkg)
+		}
+	}
+	return keep, nil
 }
 
 // shouldVisitPackage tells if the package p should be visited.

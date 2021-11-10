@@ -1,8 +1,8 @@
 package indexer
 
 import (
-	"go/ast"
 	"go/types"
+	"runtime"
 	"strings"
 
 	"github.com/sourcegraph/lsif-go/internal/output"
@@ -11,16 +11,23 @@ import (
 )
 
 type implDef struct {
-	defInfo       *DefinitionInfo
-	ident         *ast.Ident
-	methods       []*types.Selection
-	methodsByName map[string]*types.Selection
-	pkg           *packages.Package
-	typeName      *types.TypeName
+	defInfo            *DefinitionInfo
+	identIsExported    bool
+	methods            []string
+	methodsByName      map[string]methodInfo
+	monikerPackage     string
+	monikerIdentifier  string
+	typeNameIsExported bool
+	typeNameIsAlias    bool
+}
+
+type methodInfo struct {
+	definition        *DefinitionInfo
+	monikerIdentifier string
 }
 
 func (def implDef) Exported() bool {
-	return def.typeName.Exported() || def.ident.IsExported()
+	return def.typeNameIsExported || def.identIsExported
 }
 
 type implEdge struct {
@@ -79,7 +86,7 @@ func (rel implRelation) interfaceIxToNodeIx(idx int) int {
 	return rel.ifaceOffset + idx
 }
 
-func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []*types.Selection, methodToReceivers map[string]*intsets.Sparse) {
+func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []string, methodToReceivers map[string]*intsets.Sparse) {
 	// Empty interface - skip it.
 	if len(interfaceMethods) == 0 {
 		return
@@ -100,7 +107,7 @@ func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []*t
 
 	// If it doesn't match on the first method, then we can immediately quit.
 	// Concrete types must _always_ implement all the methods
-	if initialReceivers, ok := methodToReceivers[canonicalize(interfaceMethods[0])]; !ok {
+	if initialReceivers, ok := methodToReceivers[interfaceMethods[0]]; !ok {
 		return
 	} else {
 		candidateTypes.Copy(initialReceivers)
@@ -109,7 +116,7 @@ func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []*t
 	// Loop over the rest of the methods and find all the types that intersect
 	// every method of the interface.
 	for _, method := range interfaceMethods[1:] {
-		receivers, ok := methodToReceivers[canonicalize(method)]
+		receivers, ok := methodToReceivers[method]
 		if !ok {
 			return
 		}
@@ -130,7 +137,9 @@ func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []*t
 //
 // NOTE: if indexImplementations becomes multi-threaded then we would need to update
 // Indexer.ensureImplementationMoniker to ensure that it uses appropriate locking.
-func (i *Indexer) indexImplementations() {
+func (i *Indexer) indexImplementations() error {
+	var implErr error
+
 	output.WithProgress("Indexing implementations", func() {
 		// When considering the connections we want to draw between the following four categories:
 		//   - LocalInterfaces: Interfaces created in the currently project
@@ -157,7 +166,11 @@ func (i *Indexer) indexImplementations() {
 
 		// =========================
 		// Local Implementations
-		localInterfaces, localConcreteTypes := i.extractInterfacesAndConcreteTypes(i.packages)
+		localInterfaces, localConcreteTypes, err := i.extractInterfacesAndConcreteTypes([]string{"./..."})
+		if err != nil {
+			implErr = err
+			return
+		}
 
 		// LocalConcreteTypes -> LocalInterfaces
 		localRelation := buildImplementationRelation(localConcreteTypes, localInterfaces)
@@ -169,7 +182,11 @@ func (i *Indexer) indexImplementations() {
 
 		// =========================
 		// Remote Implementations
-		remoteInterfaces, remoteConcreteTypes := i.extractInterfacesAndConcreteTypes(i.depPackages)
+		remoteInterfaces, remoteConcreteTypes, err := i.extractInterfacesAndConcreteTypes(i.projectDependencies)
+		if err != nil {
+			implErr = err
+			return
+		}
 
 		// LocalConcreteTypes -> RemoteInterfaces (exported only)
 		localTypesToRemoteInterfaces := buildImplementationRelation(localConcreteTypes, filterToExported(remoteInterfaces))
@@ -180,6 +197,8 @@ func (i *Indexer) indexImplementations() {
 		localInterfacesToRemoteTypes.forEachImplementation(i.emitRemoteImplementation)
 
 	}, i.outputOptions)
+
+	return implErr
 }
 
 // emitLocalImplementation correlates implementations for both structs/interfaces (refered to as typeDefs) and methods.
@@ -209,18 +228,17 @@ func (i *Indexer) emitLocalImplementation(from implDef, tos []implDef) {
 
 		fromMethodDef := i.forEachMethodImplementation(tos, fromName, fromMethod, func(to implDef, _ *DefinitionInfo) {
 			toMethod := to.methodsByName[fromName]
-			toMethodDef := i.getDefinitionInfo(toMethod.Obj(), nil)
 
 			// This method is from an embedded type defined in some dependency.
-			if toMethodDef == nil {
+			if toMethod.definition == nil {
 				return
 			}
 
-			toDocument := toMethodDef.DocumentID
+			toDocument := toMethod.definition.DocumentID
 			if _, ok := methodDocToInvs[toDocument]; !ok {
 				methodDocToInvs[toDocument] = []uint64{}
 			}
-			methodDocToInvs[toDocument] = append(methodDocToInvs[toDocument], toMethodDef.RangeID)
+			methodDocToInvs[toDocument] = append(methodDocToInvs[toDocument], toMethod.definition.RangeID)
 		})
 
 		if fromMethodDef == nil {
@@ -248,13 +266,13 @@ func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 		if from.defInfo == nil {
 			continue
 		}
-		i.emitImplementationMoniker(from.defInfo.ResultSetID, to.pkg, to.typeName)
+		i.emitImplementationMoniker(from.defInfo.ResultSetID, to.monikerPackage, to.monikerIdentifier)
 	}
 
 	for fromName, fromMethod := range from.methodsByName {
 		i.forEachMethodImplementation(tos, fromName, fromMethod, func(to implDef, fromDef *DefinitionInfo) {
 			toMethod := to.methodsByName[fromName]
-			i.emitImplementationMoniker(fromDef.ResultSetID, to.pkg, toMethod.Obj())
+			i.emitImplementationMoniker(fromDef.ResultSetID, to.monikerPackage, toMethod.monikerIdentifier)
 		})
 	}
 }
@@ -267,13 +285,11 @@ func (i *Indexer) emitRemoteImplementation(from implDef, tos []implDef) {
 func (i *Indexer) forEachMethodImplementation(
 	tos []implDef,
 	fromName string,
-	fromMethod *types.Selection,
+	fromMethod methodInfo,
 	callback func(to implDef, fromDef *DefinitionInfo),
 ) *DefinitionInfo {
-	fromMethodDef := i.getDefinitionInfo(fromMethod.Obj(), nil)
-
 	// This method is from an embedded type defined in some dependency.
-	if fromMethodDef == nil {
+	if fromMethod.definition == nil {
 		return nil
 	}
 
@@ -282,27 +298,27 @@ func (i *Indexer) forEachMethodImplementation(
 	// methods to be considered an implementation.
 	for _, to := range tos {
 		if _, ok := to.methodsByName[fromName]; !ok {
-			return fromMethodDef
+			return fromMethod.definition
 		}
 	}
 
 	for _, to := range tos {
 		// Skip aliases because their methods are redundant with
 		// the underlying concrete type's methods.
-		if to.typeName.IsAlias() {
+		if to.typeNameIsAlias {
 			continue
 		}
 
-		callback(to, fromMethodDef)
+		callback(to, fromMethod.definition)
 	}
 
-	return fromMethodDef
+	return fromMethod.definition
 }
 
 // extractInterfacesAndConcreteTypes constructs a list of interfaces and
 // concrete types from the list of given packages.
-func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) (interfaces []implDef, concreteTypes []implDef) {
-	for _, pkg := range pkgs {
+func (i *Indexer) extractInterfacesAndConcreteTypes(pkgNames []string) (interfaces []implDef, concreteTypes []implDef, err error) {
+	visit := func(pkg *packages.Package) {
 		for ident, obj := range pkg.TypesInfo.Defs {
 			if obj == nil {
 				continue
@@ -321,24 +337,36 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) (i
 
 			methods := listMethods(obj.Type().(*types.Named))
 
+			canonicalizedMethods := []string{}
+			for _, m := range methods {
+				canonicalizedMethods = append(canonicalizedMethods, canonicalize(m))
+			}
+
 			// ignore interfaces that are empty. they are too
 			// plentiful and don't provide useful intelligence.
 			if len(methods) == 0 {
 				continue
 			}
 
-			methodsByName := map[string]*types.Selection{}
+			methodsByName := map[string]methodInfo{}
 			for _, m := range methods {
-				methodsByName[m.Obj().Name()] = m
+				methodsByName[m.Obj().Name()] = methodInfo{
+					definition:        i.getDefinitionInfo(m.Obj(), nil),
+					monikerIdentifier: joinMonikerParts(makeMonikerPackage(m.Obj()), makeMonikerIdentifier(i.packageDataCache, pkg, m.Obj())),
+				}
 			}
 
+			monikerPackage := makeMonikerPackage(obj)
+
 			d := implDef{
-				pkg:           pkg,
-				typeName:      typeName,
-				ident:         ident,
-				defInfo:       i.getDefinitionInfo(typeName, ident),
-				methods:       methods,
-				methodsByName: methodsByName,
+				monikerPackage:     monikerPackage,
+				monikerIdentifier:  joinMonikerParts(monikerPackage, makeMonikerIdentifier(i.packageDataCache, pkg, obj)),
+				typeNameIsExported: typeName.Exported(),
+				typeNameIsAlias:    typeName.IsAlias(),
+				identIsExported:    ident.IsExported(),
+				defInfo:            i.getDefinitionInfo(typeName, ident),
+				methods:            canonicalizedMethods,
+				methodsByName:      methodsByName,
 			}
 			if types.IsInterface(obj.Type()) {
 				interfaces = append(interfaces, d)
@@ -348,7 +376,36 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgs []*packages.Package) (i
 		}
 	}
 
-	return interfaces, concreteTypes
+	batch := func(pkgBatch []string) error {
+		pkgs, err := i.loadPackage(true, pkgBatch...)
+		if err != nil {
+			return err
+		}
+
+		for _, pkg := range pkgs {
+			visit(pkg)
+		}
+		return nil
+	}
+
+	pkgBatch := []string{}
+	for ix, pkgName := range pkgNames {
+		pkgBatch = append(pkgBatch, pkgName)
+
+		if i.depBatchSize != 0 && ix%i.depBatchSize == 0 {
+			err := batch(pkgBatch)
+			runtime.GC() // Prevent a garbage pile
+			if err != nil {
+				return nil, nil, err
+			}
+			pkgBatch = pkgBatch[:0]
+		}
+	}
+	if err := batch(pkgBatch); err != nil {
+		return nil, nil, err
+	}
+
+	return interfaces, concreteTypes, nil
 }
 
 // buildImplementationRelation builds a map from concrete types to all the interfaces that they implement.
@@ -363,11 +420,10 @@ func buildImplementationRelation(concreteTypes, interfaces []implDef) implRelati
 	methodToReceivers := map[string]*intsets.Sparse{}
 	for idx, t := range concreteTypes {
 		for _, method := range t.methods {
-			key := canonicalize(method)
-			if _, ok := methodToReceivers[key]; !ok {
-				methodToReceivers[key] = &intsets.Sparse{}
+			if _, ok := methodToReceivers[method]; !ok {
+				methodToReceivers[method] = &intsets.Sparse{}
 			}
-			methodToReceivers[key].Insert(idx)
+			methodToReceivers[method].Insert(idx)
 		}
 	}
 
