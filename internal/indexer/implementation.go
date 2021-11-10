@@ -401,8 +401,7 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgNames []string) (interfac
 			pkgBatch = []string{}
 		}
 	}
-	err = batch(pkgBatch)
-	if err != nil {
+	if err := batch(pkgBatch); err != nil {
 		return nil, nil, err
 	}
 
