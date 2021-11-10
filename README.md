@@ -49,6 +49,8 @@ Stats:
 	Packages traversed:  40
 ```
 
+If lsif-go is using too much memory, try setting `--dep-batch-size=100` to only load 100 dependencies into memory at once (~1GB overhead). Lowering the batch size will decrease the overhead further, but increase the runtime a lot more because loading a batch has a fixed cost of ~500ms and each additional package loaded within a batch only adds ~10ms.
+
 Use `lsif-go --help` for more information.
 
 ## Updating your index
