@@ -249,14 +249,20 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 }
 
 func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages.Package, error) {
-	if len(patterns) == 1 && patterns[0] == "./..." && i.packages != nil {
+	loadProject := len(patterns) == 1 && patterns[0] == "./..."
+	if loadProject && i.packages != nil {
 		return i.packages, nil
+	}
+
+	loadTests := false
+	if loadProject {
+		loadTests = true
 	}
 
 	config := &packages.Config{
 		Mode:  loadMode,
 		Dir:   i.projectRoot,
-		Tests: false,
+		Tests: loadTests,
 		Logf:  i.packagesLoadLogger,
 
 		// CGO_ENABLED=0 makes sure that we can handle files with assembly
