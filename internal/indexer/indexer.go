@@ -249,21 +249,19 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 }
 
 func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages.Package, error) {
-	loadProject := len(patterns) == 1 && patterns[0] == "./..."
-	if loadProject && i.packages != nil {
+	isLoadingProject := len(patterns) == 1 && patterns[0] == "./..."
+	if isLoadingProject && i.packages != nil {
 		return i.packages, nil
 	}
 
-	loadTests := false
-	if loadProject {
-		loadTests = true
-	}
-
 	config := &packages.Config{
-		Mode:  loadMode,
-		Dir:   i.projectRoot,
-		Tests: loadTests,
-		Logf:  i.packagesLoadLogger,
+		Mode: loadMode,
+		Dir:  i.projectRoot,
+		Logf: i.packagesLoadLogger,
+
+		// Only load tests for the current project.
+		// This greatly reduces memory usage when loading dependencies
+		Tests: isLoadingProject,
 
 		// CGO_ENABLED=0 makes sure that we can handle files with assembly
 		// and other problems that may occur (unsure of exact reasons at time of writing)
