@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"log"
 	"math"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -255,15 +256,23 @@ func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages
 	config := &packages.Config{
 		Mode:  loadMode,
 		Dir:   i.projectRoot,
-		Tests: true,
+		Tests: false,
 		Logf:  i.packagesLoadLogger,
+
+		// CGO_ENABLED=0 makes sure that we can handle files with assembly
+		// and other problems that may occur (unsure of exact reasons at time of writing)
+		Env: append(os.Environ(), "CGO_ENABLED=0"),
 	}
 
 	// Make sure we only load packages once per execution.
+	displayMemStats()
+
 	pkgs, err := packages.Load(config, patterns...)
 	if err != nil {
 		return nil, errors.Wrap(err, "packages.Load")
 	}
+
+	displayMemStats()
 
 	if !deduplicate {
 		return pkgs, nil
@@ -271,6 +280,8 @@ func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages
 
 	keep := make([]*packages.Package, 0, len(pkgs))
 	for _, pkg := range pkgs {
+		// fmt.Println("Package:", pkg.Name, pkg.PkgPath)
+
 		if i.shouldVisitPackage(pkg, pkgs) {
 			keep = append(keep, pkg)
 		}

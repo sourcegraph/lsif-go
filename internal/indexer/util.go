@@ -1,5 +1,12 @@
 package indexer
 
+import (
+	"runtime"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+)
+
 // union concatenates, flattens, and deduplicates the given identifier slices.
 func union(as ...[]uint64) (flattened []uint64) {
 	m := map[uint64]struct{}{}
@@ -14,4 +21,12 @@ func union(as ...[]uint64) (flattened []uint64) {
 	}
 
 	return flattened
+}
+
+func displayMemStats() {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	p := message.NewPrinter(language.English)
+	p.Printf("%10d MB\n", memStats.HeapAlloc/10e6)
 }
