@@ -9,6 +9,7 @@ import (
 	"go/types"
 	"log"
 	"math"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -248,15 +249,23 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 }
 
 func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages.Package, error) {
-	if len(patterns) == 1 && patterns[0] == "./..." && i.packages != nil {
+	isLoadingProject := len(patterns) == 1 && patterns[0] == "./..."
+	if isLoadingProject && i.packages != nil {
 		return i.packages, nil
 	}
 
 	config := &packages.Config{
-		Mode:  loadMode,
-		Dir:   i.projectRoot,
-		Tests: true,
-		Logf:  i.packagesLoadLogger,
+		Mode: loadMode,
+		Dir:  i.projectRoot,
+		Logf: i.packagesLoadLogger,
+
+		// Only load tests for the current project.
+		// This greatly reduces memory usage when loading dependencies
+		Tests: isLoadingProject,
+
+		// CGO_ENABLED=0 makes sure that we can handle files with assembly
+		// and other problems that may occur (unsure of exact reasons at time of writing)
+		Env: append(os.Environ(), "CGO_ENABLED=0"),
 	}
 
 	// Make sure we only load packages once per execution.
