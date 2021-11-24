@@ -138,6 +138,10 @@ func (rel *implRelation) linkInterfaceToReceivers(idx int, interfaceMethods []st
 // NOTE: if indexImplementations becomes multi-threaded then we would need to update
 // Indexer.ensureImplementationMoniker to ensure that it uses appropriate locking.
 func (i *Indexer) indexImplementations() error {
+	if !i.generationOptions.EnableImplementations {
+		return nil
+	}
+
 	var implErr error
 
 	output.WithProgress("Indexing implementations", func() {
@@ -392,7 +396,7 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgNames []string) (interfac
 	for ix, pkgName := range pkgNames {
 		pkgBatch = append(pkgBatch, pkgName)
 
-		if i.depBatchSize != 0 && ix%i.depBatchSize == 0 {
+		if i.generationOptions.DepBatchSize != 0 && ix%i.generationOptions.DepBatchSize == 0 {
 			err := batch(pkgBatch)
 			runtime.GC() // Prevent a garbage pile
 			if err != nil {
