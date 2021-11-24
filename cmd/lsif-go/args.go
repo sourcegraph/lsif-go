@@ -17,16 +17,18 @@ var app = kingpin.New(
 ).Version(version + ", protocol version " + protocol.Version)
 
 var (
-	outFile          string
-	projectRoot      string
-	moduleRoot       string
-	repositoryRoot   string
-	repositoryRemote string
-	moduleVersion    string
-	verbosity        int
-	noOutput         bool
-	noAnimation      bool
-	depBatchSize     int
+	outFile               string
+	projectRoot           string
+	moduleRoot            string
+	repositoryRoot        string
+	repositoryRemote      string
+	moduleVersion         string
+	verbosity             int
+	noOutput              bool
+	noAnimation           bool
+	depBatchSize          int
+	enableApiDocs         bool
+	enableImplementations bool
 )
 
 func init() {
@@ -51,6 +53,10 @@ func init() {
 	app.Flag("no-animation", "Do not animate output.").Default("false").BoolVar(&noAnimation)
 
 	app.Flag("dep-batch-size", "How many dependencies to load at once to limit memory usage (e.g. 100). 0 means load all at once.").Default("0").IntVar(&depBatchSize)
+
+	// Feature flags
+	app.Flag("enable-api-docs", "Enable Sourcegraph API Doc generation").Default("true").BoolVar(&enableApiDocs)
+	app.Flag("enable-implementations", "Enable textDocument/implementation generation").Default("true").BoolVar(&enableImplementations)
 }
 
 func parseArgs(args []string) (err error) {

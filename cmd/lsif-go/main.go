@@ -7,6 +7,7 @@ import (
 
 	"github.com/sourcegraph/lsif-go/internal/git"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/lsif-go/internal/indexer"
 	"github.com/sourcegraph/lsif-go/internal/output"
 )
 
@@ -65,6 +66,11 @@ func mainErr() (err error) {
 		return fmt.Errorf("failed to list project dependencies: %v", err)
 	}
 
+	generationOptions := indexer.NewGenerationOptions()
+	generationOptions.EnableApiDocs = enableApiDocs
+	generationOptions.EnableImplementations = enableImplementations
+	generationOptions.DepBatchSize = depBatchSize
+
 	if err := writeIndex(
 		repositoryRoot,
 		repositoryRemote,
@@ -75,7 +81,7 @@ func mainErr() (err error) {
 		projectDependencies,
 		outFile,
 		outputOptions,
-		depBatchSize,
+		generationOptions,
 	); err != nil {
 		return fmt.Errorf("failed to index: %v", err)
 	}

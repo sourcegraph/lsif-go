@@ -30,6 +30,20 @@ type importMonikerReference struct {
 }
 type setVal interface{}
 
+type GenerationOptions struct {
+	EnableApiDocs         bool
+	EnableImplementations bool
+	DepBatchSize          int
+}
+
+func NewGenerationOptions() GenerationOptions {
+	return GenerationOptions{
+		EnableApiDocs:         true,
+		EnableImplementations: true,
+		DepBatchSize:          0,
+	}
+}
+
 type Indexer struct {
 	repositoryRoot      string                    // path to repository
 	repositoryRemote    string                    // import path inferred by git remote
@@ -79,7 +93,7 @@ type Indexer struct {
 
 	importMonikerChannel chan importMonikerReference
 
-	depBatchSize int
+	generationOptions GenerationOptions
 }
 
 func New(
@@ -94,7 +108,7 @@ func New(
 	jsonWriter writer.JSONWriter,
 	packageDataCache *PackageDataCache,
 	outputOptions output.Options,
-	depBatchSize int,
+	generationOptions GenerationOptions,
 ) *Indexer {
 	return &Indexer{
 		repositoryRoot:           repositoryRoot,
@@ -124,7 +138,7 @@ func New(
 		packageDataCache:         packageDataCache,
 		stripedMutex:             newStripedMutex(),
 		importMonikerChannel:     make(chan importMonikerReference, 512),
-		depBatchSize:             depBatchSize,
+		generationOptions:        generationOptions,
 	}
 }
 

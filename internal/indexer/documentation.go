@@ -48,6 +48,10 @@ func (e emittedDocumentationResults) addAll(other emittedDocumentationResults) m
 
 // indexDocumentation indexes all packages in the project.
 func (i *Indexer) indexDocumentation() error {
+	if !i.generationOptions.EnableApiDocs {
+		return nil
+	}
+
 	var (
 		d                     = &docsIndexer{i: i}
 		mu                    sync.Mutex
