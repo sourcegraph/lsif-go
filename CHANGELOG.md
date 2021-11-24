@@ -9,7 +9,18 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
-## Unreleased changes
+## v1.7.5
+
+## Features
+
+- Added `textDocument/implementation` support.
+  - Also added Sourcegraph specific cross repository implementation support via monikers.
+
+## Changed
+
+- Add ability to enable/disable different generation features:
+  - Sourcegraph API Documentation generation (`--no-enable-api-docs` flag)
+  - Implementation generation (`--no-enable-implemenations` flag)
 
 ## Fixed
 
@@ -18,6 +29,8 @@ All notable changes to `lsif-go` are documented in this file.
   - See [Imports](./docs/imports.md)
   - See [Structs](./docs/structs.md)
 - Additionally, package declarations are now indexed.
+- No longer emits duplicate `next` edges.
+- Prints better help when uncrecognized import path
 
 ## v1.6.7
 
