@@ -7,7 +7,6 @@ import (
 
 	"github.com/sourcegraph/lsif-go/internal/output"
 	"golang.org/x/tools/container/intsets"
-	"golang.org/x/tools/go/packages"
 )
 
 type implDef struct {
@@ -318,7 +317,7 @@ func (i *Indexer) forEachMethodImplementation(
 // extractInterfacesAndConcreteTypes constructs a list of interfaces and
 // concrete types from the list of given packages.
 func (i *Indexer) extractInterfacesAndConcreteTypes(pkgNames []string) (interfaces []implDef, concreteTypes []implDef, err error) {
-	visit := func(pkg *packages.Package) {
+	visit := func(pkg *PackageInfo) {
 		for ident, obj := range pkg.TypesInfo.Defs {
 			if obj == nil {
 				continue

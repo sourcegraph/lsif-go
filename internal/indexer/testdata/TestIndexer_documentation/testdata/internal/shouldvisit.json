@@ -23,9 +23,6 @@
     },
     {
       "pathID": "/internal/shouldvisit/tests_separate"
-    },
-    {
-      "pathID": "/internal/shouldvisit/tests_separate_test"
     }
   ]
 }

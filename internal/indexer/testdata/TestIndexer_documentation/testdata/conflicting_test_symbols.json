@@ -127,52 +127,6 @@
               },
               "children": null
             }
-          },
-          {
-            "node": {
-              "pathID": "/conflicting_test_symbols#newKey",
-              "documentation": {
-                "identifier": "newKey",
-                "newPage": false,
-                "searchKey": "osl.newKey",
-                "tags": [
-                  "function",
-                  "private"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func newKey(t *testing.T) (string, error)"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc newKey(t *testing.T) (string, error)\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/conflicting_test_symbols#verifySandbox",
-              "documentation": {
-                "identifier": "verifySandbox",
-                "newPage": false,
-                "searchKey": "osl.verifySandbox",
-                "tags": [
-                  "function",
-                  "private"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func verifySandbox(t *testing.T, s Sandbox)"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc verifySandbox(t *testing.T, s Sandbox)\n```\n\n"
-              },
-              "children": null
-            }
           }
         ]
       }

@@ -40,54 +40,6 @@
         "children": [
           {
             "node": {
-              "pathID": "/internal/shouldvisit/tests#BenchmarkFoo",
-              "documentation": {
-                "identifier": "BenchmarkFoo",
-                "newPage": false,
-                "searchKey": "tests.BenchmarkFoo",
-                "tags": [
-                  "function",
-                  "private",
-                  "benchmark"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func BenchmarkFoo(b *testing.B)"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc BenchmarkFoo(b *testing.B)\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
-              "pathID": "/internal/shouldvisit/tests#TestFoo",
-              "documentation": {
-                "identifier": "TestFoo",
-                "newPage": false,
-                "searchKey": "tests.TestFoo",
-                "tags": [
-                  "function",
-                  "private",
-                  "test"
-                ]
-              },
-              "label": {
-                "kind": "plaintext",
-                "value": "func TestFoo(t *testing.T)"
-              },
-              "detail": {
-                "kind": "markdown",
-                "value": "```Go\nfunc TestFoo(t *testing.T)\n```\n\n"
-              },
-              "children": null
-            }
-          },
-          {
-            "node": {
               "pathID": "/internal/shouldvisit/tests#foo",
               "documentation": {
                 "identifier": "foo",

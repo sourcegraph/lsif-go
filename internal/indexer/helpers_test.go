@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	protocol "github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
-	"golang.org/x/tools/go/packages"
 )
 
 // getRepositoryRoot returns the absolute path to the testdata directory of this repository.
@@ -32,17 +31,14 @@ func getRepositoryRoot(t *testing.T) string {
 }
 
 var getTestPackagesOnce sync.Once
-var cachedTestPackages []*packages.Package
+var cachedTestPackages []*PackageInfo
 
 // getTestPackages loads the testdata package (and subpackages).
-func getTestPackages(t *testing.T) []*packages.Package {
+func getTestPackages(t *testing.T) []*PackageInfo {
 	getTestPackagesOnce.Do(func() {
 		var err error
 
-		cachedTestPackages, err = packages.Load(
-			&packages.Config{Mode: loadMode, Dir: path.Join(getRepositoryRoot(t), "fixtures")},
-			"./...",
-		)
+		cachedTestPackages, err = getListPkg("./...", path.Join(getRepositoryRoot(t), "fixtures"), true)
 		if err != nil {
 			t.Fatalf("unexpected error loading packages: %s", err)
 		}
@@ -53,7 +49,7 @@ func getTestPackages(t *testing.T) []*packages.Package {
 
 // findDefinitionByName looks for a definition with the given name in the given packages. Returns
 // the the object with the matching name and the package that contains it.
-func findDefinitionByName(t *testing.T, packages []*packages.Package, name string) (*packages.Package, types.Object) {
+func findDefinitionByName(t *testing.T, packages []*PackageInfo, name string) (*PackageInfo, types.Object) {
 	for _, p := range packages {
 		idents := make([]*ast.Ident, 0, len(p.TypesInfo.Defs))
 		for ident := range p.TypesInfo.Defs {
@@ -77,7 +73,7 @@ func findDefinitionByName(t *testing.T, packages []*packages.Package, name strin
 
 // findUseByName looks for a use with the given name in the given packages. Returns the the
 // object with the matching name and the package that contains it.
-func findUseByName(t *testing.T, packages []*packages.Package, name string) (*packages.Package, types.Object) {
+func findUseByName(t *testing.T, packages []*PackageInfo, name string) (*PackageInfo, types.Object) {
 	for _, p := range packages {
 		for _, use := range p.TypesInfo.Uses {
 			if use.Name() == name {

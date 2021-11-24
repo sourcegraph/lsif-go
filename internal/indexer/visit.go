@@ -7,7 +7,6 @@ import (
 
 	"github.com/sourcegraph/lsif-go/internal/output"
 	"github.com/sourcegraph/lsif-go/internal/parallel"
-	"golang.org/x/tools/go/packages"
 )
 
 // visitEachRawFile invokes the given visitor function on each file reachable from the given set of
@@ -49,7 +48,7 @@ func (i *Indexer) visitEachRawFile(name string, fn func(filename string)) {
 
 // visitEachPackage invokes the given visitor function on each indexed package. This method prints the
 // progress of the traversal to stdout asynchronously.
-func (i *Indexer) visitEachPackage(name string, fn func(p *packages.Package)) {
+func (i *Indexer) visitEachPackage(name string, fn func(p *PackageInfo)) {
 	ch := make(chan func())
 
 	go func() {

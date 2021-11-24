@@ -708,22 +708,16 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		}
 	}
 	autogold.Want("visited", map[string]bool{
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures":                                                                                                                    true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols":                                                                                           false,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols [github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols.test]": true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols.test":                                                                                      false,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/duplicate_path_id":                                                                                                  true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/illegal_multiple_mains":                                                                                             true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/cmd/minimal_main":                                                                                                   true,
-		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/pkg":                                                                                                                true,
-		"…/secret":              true,
-		"…/shouldvisit/notests": true,
-		"…/shouldvisit/tests":   false,
-		"…/shouldvisit/tests […/shouldvisit/tests.test]":                        true,
-		"…/shouldvisit/tests.test":                                              false,
-		"…/shouldvisit/tests_separate":                                          true,
-		"…/shouldvisit/tests_separate.test":                                     false,
-		"…/shouldvisit/tests_separate_test […/shouldvisit/tests_separate.test]": true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures":                          true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/conflicting_test_symbols": true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/duplicate_path_id":        true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/illegal_multiple_mains":   true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/cmd/minimal_main":         true,
+		"github.com/sourcegraph/lsif-go/internal/testdata/fixtures/pkg":                      true,
+		"…/secret":                     true,
+		"…/shouldvisit/notests":        true,
+		"…/shouldvisit/tests":          true,
+		"…/shouldvisit/tests_separate": true,
 	}).Equal(t, visited)
 }
 

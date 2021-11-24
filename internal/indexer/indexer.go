@@ -9,8 +9,8 @@ import (
 	"go/types"
 	"log"
 	"math"
-	"os"
 	"path"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -51,6 +51,7 @@ type Indexer struct {
 	vars    map[interface{}]*DefinitionInfo // position -> info
 
 	// LSIF data cache
+	projectID                                uint64                                  // project vertex identifier
 	documents                                map[string]*DocumentInfo                // filename -> info
 	ranges                                   map[string]map[int]uint64               // filename -> offset -> rangeID
 	defined                                  map[string]map[int]struct{}             // set of defined ranges (filename, offset)
@@ -60,9 +61,8 @@ type Indexer struct {
 	importMonikerReferences                  map[uint64]map[uint64]map[uint64]setVal // monikerKey -> documentID -> Set(rangeID)
 	packageInformationIDs                    map[string]uint64                       // name -> packageInformationID
 	packageDataCache                         *PackageDataCache                       // hover text and moniker path cache
-	packages                                 []*packages.Package                     // index target packages
-	projectID                                uint64                                  // project vertex identifier
-	packagesByFile                           map[string][]*packages.Package
+	packages                                 []*PackageInfo                          // index target packages
+	packagesByFile                           map[string][]*PackageInfo
 	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
 	emittedDocumentationResultsByPackagePath map[string]uint64     // package path -> documentationResult vertex ID
 
@@ -132,9 +132,14 @@ func New(
 // and writing the LSIF equivalent to the output source that implements io.Writer.
 // It is caller's responsibility to close the output source if applicable.
 func (i *Indexer) Index() error {
+	var memStats runtime.MemStats
+
 	if err := i.loadPackages(true); err != nil {
 		return errors.Wrap(err, "failed to load packages")
 	}
+
+	runtime.ReadMemStats(&memStats)
+	fmt.Printf("Memory Usage :: loadPackages :: Current Heap %6d MB | Max Sys %6d MB\n", memStats.HeapAlloc/1e6, memStats.Sys/1e6)
 
 	wg := new(sync.WaitGroup)
 	// Start any channels used to synchronize reference sets
@@ -166,6 +171,9 @@ func (i *Indexer) Index() error {
 	if err := i.emitter.Flush(); err != nil {
 		return errors.Wrap(err, "failed to write index to disk")
 	}
+
+	runtime.ReadMemStats(&memStats)
+	fmt.Printf("Memory Usage :: postProcess  :: Current Heap %6d MB | Max Sys %6d MB\n", memStats.HeapAlloc/1e6, memStats.Sys/1e6)
 
 	return nil
 }
@@ -213,9 +221,6 @@ func (i *Indexer) stopImportMonikerReferenceTracker(wg *sync.WaitGroup) {
 
 var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedName
 
-// cachedPackages makes sure that we only load packages once per execution
-var cachedPackages map[string][]*packages.Package = map[string][]*packages.Package{}
-
 // packages populates the packages field containing an AST for each package within the configured
 // project root.
 //
@@ -230,61 +235,45 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 		defer close(errs)
 
 		var err error
-		i.packages, err = i.loadPackage(deduplicate, "./...")
+		i.packages, err = getListPkg("./...", i.projectRoot, true)
 		if err != nil {
 			errs <- err
 		}
 
-		i.packagesByFile = map[string][]*packages.Package{}
+		fmt.Println("================================================================================")
+		fmt.Println("Length of packages", len(i.packages))
+
+		i.packagesByFile = map[string][]*PackageInfo{}
 		for _, p := range i.packages {
 			for _, f := range p.Syntax {
 				filename := p.Fset.Position(f.Package).Filename
 				i.packagesByFile[filename] = append(i.packagesByFile[filename], p)
 			}
 		}
+		fmt.Println("================================================================================")
 	}()
 
 	output.WithProgressParallel(&wg, "Loading packages", i.outputOptions, nil, 0)
 	return <-errs
 }
 
-func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages.Package, error) {
+func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*PackageInfo, error) {
 	isLoadingProject := len(patterns) == 1 && patterns[0] == "./..."
 	if isLoadingProject && i.packages != nil {
 		return i.packages, nil
 	}
 
-	config := &packages.Config{
-		Mode: loadMode,
-		Dir:  i.projectRoot,
-		Logf: i.packagesLoadLogger,
-
-		// Only load tests for the current project.
-		// This greatly reduces memory usage when loading dependencies
-		Tests: isLoadingProject,
-
-		// CGO_ENABLED=0 makes sure that we can handle files with assembly
-		// and other problems that may occur (unsure of exact reasons at time of writing)
-		Env: append(os.Environ(), "CGO_ENABLED=0"),
-	}
-
-	// Make sure we only load packages once per execution.
-	pkgs, err := packages.Load(config, patterns...)
-	if err != nil {
-		return nil, errors.Wrap(err, "packages.Load")
-	}
-
-	if !deduplicate {
-		return pkgs, nil
-	}
-
-	keep := make([]*packages.Package, 0, len(pkgs))
-	for _, pkg := range pkgs {
-		if i.shouldVisitPackage(pkg, pkgs) {
-			keep = append(keep, pkg)
+	pkgInfos := []*PackageInfo{}
+	for _, pattern := range patterns {
+		pattnerPkgInfos, err := getListPkg(pattern, i.projectRoot, false)
+		if err != nil {
+			return nil, err
 		}
+
+		pkgInfos = append(pkgInfos, pattnerPkgInfos...)
 	}
-	return keep, nil
+
+	return pkgInfos, nil
 }
 
 // shouldVisitPackage tells if the package p should be visited.
@@ -300,7 +289,7 @@ func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages
 //
 // This function handles deduplication, returning true ("should visit") if it makes sense
 // to index the input package (or false if doing so would be duplicative.)
-func (i *Indexer) shouldVisitPackage(p *packages.Package, allPackages []*packages.Package) bool {
+func (i *Indexer) shouldVisitPackage(p *PackageInfo, allPackages []*PackageInfo) bool {
 	// The loader returns 4 packages because (loader.Config).Tests==true and we
 	// want to avoid duplication.
 	if p.Name == "main" && strings.HasSuffix(p.ID, ".test") {
@@ -392,13 +381,24 @@ func (i *Indexer) emitImports() {
 }
 
 // emitImportsForPackage will emit the appropriate import monikers and named definitions for a package.
-func (i *Indexer) emitImportsForPackage(p *packages.Package) {
+func (i *Indexer) emitImportsForPackage(p *PackageInfo) {
 	for _, f := range p.Syntax {
 		for _, spec := range f.Imports {
 			pkg := p.Imports[strings.Trim(spec.Path.Value, `"`)]
 			if pkg == nil {
 				continue
 			}
+
+			if pkg.DepOnly {
+				panic("Can't Happen: dep only")
+			}
+
+			// position := p.Fset.Position(spec.Pos())
+			// fmt.Println("Emitting import for:")
+			// fmt.Println("\t", p.ImportPath, p.Name, "->", f.Name)
+			// fmt.Println("\tSpec Filename:", strings.Replace(position.Filename, "/home/tjdevries/sourcegraph/", "sg/", -1))
+			// fmt.Println("\tSpec Position:", position.Line, ":", position.Column)
+			// fmt.Println("\t", spec.Path.Value)
 
 			i.emitImportMonikerReference(p, pkg, spec)
 
@@ -423,11 +423,14 @@ func (i *Indexer) emitImportsForPackage(p *packages.Package) {
 //              ^^^---- reference github.com/golang/go/std/fmt
 //
 // In both cases, this will emit the corresponding import moniker for "fmt". This is ImportSpec.Path
-func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
+func (i *Indexer) emitImportMonikerReference(p *PackageInfo, pkg *PackageInfo, spec *ast.ImportSpec) {
 	pos := spec.Path.Pos()
 	name := spec.Path.Value
 
 	position, document, _ := i.positionAndDocument(p, pos)
+	if document == nil {
+		panic(fmt.Sprintf("Oh no -- Spec:%v p:%v", spec.Name, p.Name))
+	}
 	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
 
 	rangeID, _ := i.ensureRangeFor(position, obj)
@@ -451,7 +454,7 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 //
 //    import f "fmt"
 //           ^----- local definition
-func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *packages.Package, spec *ast.ImportSpec) {
+func (i *Indexer) emitImportMonikerNamedDefinition(p *PackageInfo, pkg *PackageInfo, spec *ast.ImportSpec) {
 	pos := spec.Name.Pos()
 	name := spec.Name.Name
 	ident := spec.Name
@@ -478,7 +481,7 @@ func (i *Indexer) indexDefinitions() {
 }
 
 // indexDefinitionsForPackage emits data for each definition within the given package.
-func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
+func (i *Indexer) indexDefinitionsForPackage(p *PackageInfo) {
 	// Create a map of implicit case clause objects by their position. Note that there is an
 	// implicit object for each case clause of a type switch (including default), and they all
 	// share the same position. This creates a map with one arbitrarily chosen argument for
@@ -548,7 +551,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 // - Reference
 //
 // See docs/structs.md for more information.
-func (i *Indexer) indexDefinitionForAnonymousField(p *packages.Package, document *DocumentInfo, ident *ast.Ident, typVar *types.Var, position token.Position) {
+func (i *Indexer) indexDefinitionForAnonymousField(p *PackageInfo, document *DocumentInfo, ident *ast.Ident, typVar *types.Var, position token.Position) {
 	// NOTE: Subtract 1 because we are switching indexing strategy (1-based -> 0-based)
 	startCol := position.Column - 1
 
@@ -580,7 +583,7 @@ func (i *Indexer) indexDefinitionForAnonymousField(p *packages.Package, document
 // positionAndDocument returns the position of the given object and the document info object
 // that contains it. If the given package is not the canonical package for the containing file
 // in the packagesByFile map, this method returns false.
-func (i *Indexer) positionAndDocument(p *packages.Package, pos token.Pos) (token.Position, *DocumentInfo, bool) {
+func (i *Indexer) positionAndDocument(p *PackageInfo, pos token.Pos) (token.Position, *DocumentInfo, bool) {
 	position := p.Fset.Position(pos)
 
 	if packages := i.packagesByFile[position.Filename]; len(packages) == 0 || packages[0] != p {
@@ -618,7 +621,7 @@ func (i *Indexer) markRange(pos token.Position) bool {
 
 // indexDefinitionForRangeAndResult will handle all Indexer related handling of
 // a definition for a given rangeID and resultSetID.
-func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document *DocumentInfo, obj ObjectLike, rangeID, resultSetID uint64, typeSwitchHeader bool, ident *ast.Ident) *DefinitionInfo {
+func (i *Indexer) indexDefinitionForRangeAndResult(p *PackageInfo, document *DocumentInfo, obj ObjectLike, rangeID, resultSetID uint64, typeSwitchHeader bool, ident *ast.Ident) *DefinitionInfo {
 	defResultID := i.emitter.EmitDefinitionResult()
 
 	_ = i.emitter.EmitNext(rangeID, resultSetID)
@@ -670,7 +673,7 @@ func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document
 }
 
 // indexDefinition emits data for the given definition object.
-func (i *Indexer) indexDefinition(p *packages.Package, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) *DefinitionInfo {
+func (i *Indexer) indexDefinition(p *PackageInfo, document *DocumentInfo, position token.Position, obj ObjectLike, typeSwitchHeader bool, ident *ast.Ident) *DefinitionInfo {
 	// Ensure the range exists, but don't emit a new one as it might already exist due to another
 	// phase of indexing (such as symbols) having emitted the range.
 	rangeID, _ := i.ensureRangeFor(position, obj)
@@ -732,7 +735,7 @@ func (i *Indexer) indexReferences() {
 }
 
 // indexReferencesForPackage emits data for each reference within the given package.
-func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
+func (i *Indexer) indexReferencesForPackage(p *PackageInfo) {
 	for ident, definitionObj := range p.TypesInfo.Uses {
 		if definitionObj == nil {
 			continue
@@ -753,13 +756,13 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 }
 
 // indexReference emits data for the given reference object.
-func (i *Indexer) indexReference(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident) (uint64, bool) {
+func (i *Indexer) indexReference(p *PackageInfo, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident) (uint64, bool) {
 	return i.indexReferenceWithDefinitionInfo(p, document, pos, definitionObj, ident, i.getDefinitionInfo(definitionObj, ident))
 }
 
 // indexReferenceWithDefinitionInfo emits data for the given reference object and definition info.
 // This can be used when the DefinitionInfo is already known, which will skip needing to get and release locks.
-func (i *Indexer) indexReferenceWithDefinitionInfo(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident, definitionInfo *DefinitionInfo) (uint64, bool) {
+func (i *Indexer) indexReferenceWithDefinitionInfo(p *PackageInfo, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, ident *ast.Ident, definitionInfo *DefinitionInfo) (uint64, bool) {
 	if definitionInfo != nil {
 		return i.indexReferenceToDefinition(p, document, pos, definitionObj, definitionInfo)
 	} else {
@@ -794,7 +797,7 @@ func (i *Indexer) getDefinitionInfo(obj ObjectLike, ident *ast.Ident) *Definitio
 
 // indexReferenceToDefinition emits data for the given reference object that is defined within
 // an index target package.
-func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, d *DefinitionInfo) (uint64, bool) {
+func (i *Indexer) indexReferenceToDefinition(p *PackageInfo, document *DocumentInfo, pos token.Position, definitionObj ObjectLike, d *DefinitionInfo) (uint64, bool) {
 	rangeID, ok := i.ensureRangeFor(pos, definitionObj)
 	if !ok {
 		// Not a new range result; this occurs when the definition and reference
@@ -832,7 +835,7 @@ func (i *Indexer) indexReferenceToDefinition(p *packages.Package, document *Docu
 // indexReferenceToExternalDefinition emits data for the given reference object that is not defined
 // within an index target package. This definition _may_ be resolvable by scanning dependencies, but
 // it is not guaranteed.
-func (i *Indexer) indexReferenceToExternalDefinition(p *packages.Package, document *DocumentInfo, pos token.Position, definitionObj ObjectLike) (uint64, bool) {
+func (i *Indexer) indexReferenceToExternalDefinition(p *PackageInfo, document *DocumentInfo, pos token.Position, definitionObj ObjectLike) (uint64, bool) {
 	definitionPkg := definitionObj.Pkg()
 	if definitionPkg == nil {
 		return 0, false
@@ -886,6 +889,11 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj ObjectLike) (uint64, bo
 	}
 
 	rangeID = i.emitter.EmitRange(start, end)
+	if _, ok := i.ranges[pos.Filename]; !ok {
+		fmt.Println("Could Not Find:", pos.Filename, obj.Pkg(), obj)
+		i.ranges[pos.Filename] = map[int]uint64{}
+	}
+
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 	return rangeID, true
 }
@@ -970,7 +978,7 @@ type DeclInfo struct {
 
 // Pick the filename that is the most idiomatic for the defintion of the package.
 // This will make jump to def always send you to a better go file than the $PKG_test.go, for example.
-func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
+func (i *Indexer) indexPackageDeclarationForPackage(p *PackageInfo) {
 	packageDeclarations := make([]DeclInfo, 0, len(p.Syntax))
 	for _, f := range p.Syntax {
 		_, position := newPkgDeclaration(p, f)

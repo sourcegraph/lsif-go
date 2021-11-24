@@ -19,7 +19,6 @@ import (
 	doc "github.com/slimsag/godocmd"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
-	"golang.org/x/tools/go/packages"
 )
 
 // This file handles indexing in accordance with the Sourcegraph documentation LSIF extension:
@@ -56,7 +55,7 @@ func (i *Indexer) indexDocumentation() error {
 		emittedPackagesByPath = make(map[string]uint64, 32)
 		errs                  error
 	)
-	i.visitEachPackage("Indexing documentation", func(p *packages.Package) {
+	i.visitEachPackage("Indexing documentation", func(p *PackageInfo) {
 		// Index the package without the lock, for parallelism.
 		docsPkg, err := d.indexPackage(p)
 
@@ -250,7 +249,7 @@ type docsPackage struct {
 }
 
 // indexPackage indexes a single Go package.
-func (d *docsIndexer) indexPackage(p *packages.Package) (docsPackage, error) {
+func (d *docsIndexer) indexPackage(p *PackageInfo) (docsPackage, error) {
 	var (
 		pkgDocsMarkdown string
 		consts          []constVarDocs
@@ -453,7 +452,7 @@ type fileDocs struct {
 }
 
 // indexFile returns the documentation corresponding to the given file.
-func (d *docsIndexer) indexFile(p *packages.Package, f *ast.File, fileName string, isTestFile bool) (fileDocs, error) {
+func (d *docsIndexer) indexFile(p *PackageInfo, f *ast.File, fileName string, isTestFile bool) (fileDocs, error) {
 	var result fileDocs
 	result.pkgDocsMarkdown = godocToMarkdown(f.Doc.Text())
 
@@ -513,7 +512,7 @@ type genDeclDocs struct {
 	types  []typeDocs
 }
 
-func (d *docsIndexer) indexGenDecl(p *packages.Package, f *ast.File, node *ast.GenDecl, isTestFile bool) genDeclDocs {
+func (d *docsIndexer) indexGenDecl(p *PackageInfo, f *ast.File, node *ast.GenDecl, isTestFile bool) genDeclDocs {
 	var result genDeclDocs
 	blockDocsMarkdown := godocToMarkdown(node.Doc.Text())
 
@@ -606,7 +605,7 @@ func (t constVarDocs) result() *documentationResult {
 	}
 }
 
-func (d *docsIndexer) indexConstVar(p *packages.Package, in *ast.ValueSpec, nameIndex int, typ string, isTestFile bool) (constVarDocs, bool) {
+func (d *docsIndexer) indexConstVar(p *PackageInfo, in *ast.ValueSpec, nameIndex int, typ string, isTestFile bool) (constVarDocs, bool) {
 	var result constVarDocs
 	name := in.Names[nameIndex]
 	result.label = fmt.Sprintf("%s %s", typ, name.String())
@@ -710,7 +709,7 @@ func (t typeDocs) result() *documentationResult {
 	}
 }
 
-func (d *docsIndexer) indexTypeSpec(p *packages.Package, in *ast.TypeSpec, isTestFile bool) (typeDocs, bool) {
+func (d *docsIndexer) indexTypeSpec(p *PackageInfo, in *ast.TypeSpec, isTestFile bool) (typeDocs, bool) {
 	if p.TypesInfo.TypeOf(in.Type) == nil || p.TypesInfo.ObjectOf(in.Name) == nil {
 		// TODO(slimsag): It's unclear why, but exported types declared in a `package main` - such
 		// as `type User struct` in minimal_main.go - do not have type information and would result
@@ -810,7 +809,7 @@ func (f funcDocs) result() *documentationResult {
 }
 
 // indexFuncDecl returns the documentation corresponding to the given function declaration.
-func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *packages.Package, in *ast.FuncDecl, fileName string, initIndex *int, mainIndex *int, isTestFile bool) funcDocs {
+func (d *docsIndexer) indexFuncDecl(fset *token.FileSet, p *PackageInfo, in *ast.FuncDecl, fileName string, initIndex *int, mainIndex *int, isTestFile bool) funcDocs {
 	var result funcDocs
 	result.name = in.Name.String()
 	if result.name == "init" {

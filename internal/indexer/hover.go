@@ -5,12 +5,11 @@ import (
 	"go/types"
 
 	protocol "github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
-	"golang.org/x/tools/go/packages"
 )
 
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
-func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) protocol.MarkupContent {
+func findHoverContents(packageDataCache *PackageDataCache, pkgs []*PackageInfo, p *PackageInfo, obj ObjectLike) protocol.MarkupContent {
 	signature, extra := typeString(obj)
 	docstring := findDocstring(packageDataCache, pkgs, p, obj)
 	return toMarkupContent(signature, docstring, extra)
@@ -18,7 +17,7 @@ func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Pack
 
 // findExternalHoverContents returns the hover contents of the given object defined in the given
 // package. This method is not cached and should only be called wrapped in a call to makeCachedHoverResult.
-func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) protocol.MarkupContent {
+func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*PackageInfo, p *PackageInfo, obj ObjectLike) protocol.MarkupContent {
 	signature, extra := typeString(obj)
 	docstring := findExternalDocstring(packageDataCache, pkgs, p, obj)
 	return toMarkupContent(signature, docstring, extra)
@@ -75,7 +74,7 @@ func makeCacheKey(pkg *types.Package, obj ObjectLike) string {
 
 // findDocstring extracts the comments from the given object. It is assumed that this object is
 // declared in an index target (otherwise, findExternalDocstring should be called).
-func findDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) string {
+func findDocstring(packageDataCache *PackageDataCache, pkgs []*PackageInfo, p *PackageInfo, obj ObjectLike) string {
 	if obj == nil {
 		return ""
 	}
@@ -90,7 +89,7 @@ func findDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package,
 
 // findExternalDocstring extracts the comments from the given object. It is assumed that this object is
 // declared in a dependency.
-func findExternalDocstring(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) string {
+func findExternalDocstring(packageDataCache *PackageDataCache, pkgs []*PackageInfo, p *PackageInfo, obj ObjectLike) string {
 	if obj == nil {
 		return ""
 	}
@@ -109,7 +108,7 @@ func findExternalDocstring(packageDataCache *PackageDataCache, pkgs []*packages.
 
 // findPackageDocstring searches for the package matching the target package name and returns its
 // package-level documentation (the first doc text attached ot a file in the given package).
-func findPackageDocstring(pkgs []*packages.Package, p *packages.Package, target *types.PkgName) string {
+func findPackageDocstring(pkgs []*PackageInfo, p *PackageInfo, target *types.PkgName) string {
 	pkgPath := target.Imported().Path()
 
 	for _, p := range pkgs {
@@ -128,7 +127,7 @@ func findPackageDocstring(pkgs []*packages.Package, p *packages.Package, target 
 }
 
 // extractPackagedocstring returns the first doc text attached to a file in the given package.
-func extractPackageDocstring(p *packages.Package) string {
+func extractPackageDocstring(p *PackageInfo) string {
 	for _, f := range p.Syntax {
 		if text := f.Doc.Text(); text != "" {
 			return text

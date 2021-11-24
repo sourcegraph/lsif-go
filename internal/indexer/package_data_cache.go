@@ -6,34 +6,32 @@ import (
 	"go/types"
 	"strings"
 	"sync"
-
-	"golang.org/x/tools/go/packages"
 )
 
 // PackageDataCache is a cache of hover text and enclosing type identifiers by file and token position.
 type PackageDataCache struct {
 	m           sync.RWMutex
-	packageData map[*packages.Package]*PackageData
+	packageData map[*PackageInfo]*PackageData
 }
 
 // NewPackageDataCache creates a new empty PackageDataCache.
 func NewPackageDataCache() *PackageDataCache {
 	return &PackageDataCache{
-		packageData: map[*packages.Package]*PackageData{},
+		packageData: map[*PackageInfo]*PackageData{},
 	}
 }
 
 // Text will return the hover text extracted from the given package for the symbol at the given position.
 // This method will parse the package if the package results haven't been previously calculated or have been
 // evicted from the cache.
-func (l *PackageDataCache) Text(p *packages.Package, position token.Pos) string {
+func (l *PackageDataCache) Text(p *PackageInfo, position token.Pos) string {
 	return extractHoverText(l.getPackageData(p).HoverText[position])
 }
 
 // MonikerPath will return the names of enclosing nodes extracted form the given package for the symbol at
 // the given position. This method will parse the package if the package results haven't been previously
 // calculated or have been evicted  from the cache.
-func (l *PackageDataCache) MonikerPath(p *packages.Package, position token.Pos) []string {
+func (l *PackageDataCache) MonikerPath(p *PackageInfo, position token.Pos) []string {
 	return l.getPackageData(p).MonikerPaths[position]
 }
 
@@ -47,7 +45,7 @@ func (l *PackageDataCache) Stats() PackageDataCacheStats {
 // getPackageData will return a package data value for the given package. If the data for this package has not
 // already been loaded, it will be loaded immediately. This method will block until the package data has been
 // completely loaded before returning to the caller.
-func (l *PackageDataCache) getPackageData(p *packages.Package) *PackageData {
+func (l *PackageDataCache) getPackageData(p *PackageInfo) *PackageData {
 	data := l.getPackageDataRaw(p)
 	data.load(p)
 	return data
@@ -55,7 +53,7 @@ func (l *PackageDataCache) getPackageData(p *packages.Package) *PackageData {
 
 // getPackageDataRaw will return the package data value for the given package or create one of it doesn't exist.
 // It is not guaranteed that the value has bene loaded, so load (which is idempotent) should be called before use.
-func (l *PackageDataCache) getPackageDataRaw(p *packages.Package) *PackageData {
+func (l *PackageDataCache) getPackageDataRaw(p *PackageInfo) *PackageData {
 	l.m.RLock()
 	data, ok := l.packageData[p]
 	l.m.RUnlock()
@@ -86,7 +84,7 @@ type PackageData struct {
 
 // load will parse the package and populate the maps of hover text and moniker paths. This method is
 // idempotent. All calls to this method will block until the first call has completed.
-func (data *PackageData) load(p *packages.Package) {
+func (data *PackageData) load(p *PackageInfo) {
 	data.once.Do(func() {
 		definitionPositions, fieldPositions := interestingPositions(p)
 
@@ -99,7 +97,7 @@ func (data *PackageData) load(p *packages.Package) {
 // interestingPositions returns a pair of maps whose keys are token positions for which we want values
 // in the package data cache's hoverText and monikerPaths maps. Determining which types of types we will
 // query for this data and populating values only for those nodes saves a lot of resident memory.
-func interestingPositions(p *packages.Package) (map[token.Pos]struct{}, map[token.Pos]struct{}) {
+func interestingPositions(p *PackageInfo) (map[token.Pos]struct{}, map[token.Pos]struct{}) {
 	hoverTextPositions := map[token.Pos]struct{}{}
 	monikerPathPositions := map[token.Pos]struct{}{}
 
@@ -279,6 +277,9 @@ func canExtractHoverText(node ast.Node) bool {
 		return !commentGroupsEmpty(v.Doc)
 	case *ast.Field:
 		return !commentGroupsEmpty(v.Doc, v.Comment)
+	default:
+		// fmt.Printf("doc node: %T\n", node)
+		break
 	}
 
 	return false
