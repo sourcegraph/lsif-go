@@ -17,7 +17,7 @@ func (i *Indexer) emitExportMoniker(sourceID uint64, p *PackageInfo, obj ObjectL
 		return
 	}
 
-	packageName := makeMonikerPackage(obj)
+	packageName := makeMonikerPackage(p, obj)
 	if strings.HasPrefix(packageName, "_"+i.projectRoot) {
 		packageName = i.repositoryRemote + strings.TrimSuffix(packageName[len(i.projectRoot)+1:], "_test")
 	}
@@ -53,7 +53,7 @@ func joinMonikerParts(parts ...string) string {
 // the moniker vertex and the package information vertex representing the dependency containing
 // the identifier.
 func (i *Indexer) emitImportMoniker(rangeID uint64, p *PackageInfo, obj ObjectLike, document *DocumentInfo) bool {
-	pkg := makeMonikerPackage(obj)
+	pkg := makeMonikerPackage(p, obj)
 	monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
 
 	for _, moduleName := range packagePrefixes(pkg) {
@@ -180,7 +180,7 @@ func (i *Indexer) ensureImplementationMoniker(identifier string, packageInformat
 
 // makeMonikerPackage returns the package prefix used to construct a unique moniker for the given object.
 // A full moniker has the form `{package prefix}:{identifier suffix}`.
-func makeMonikerPackage(obj ObjectLike) string {
+func makeMonikerPackage(pkg *PackageInfo, obj ObjectLike) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
 		// gets the full path of the package name, rather than just the name.
@@ -190,7 +190,26 @@ func makeMonikerPackage(obj ObjectLike) string {
 		pkgName = pkgPath(obj)
 	}
 
-	return gomod.NormalizeMonikerPackage(pkgName)
+	return NormalizeMonikerPackage(pkgName)
+}
+
+// NormalizeMonikerPackage returns a normalized path to ensure that all
+// standard library paths are handled the same. Primarily to make sure
+// that both the golangRepository and "std/" paths are normalized.
+func NormalizeMonikerPackage(path string) string {
+	// When indexing _within_ the golang/go repository, `std/` is prefixed
+	// to packages. So we trim that here just to be sure that we keep
+	// consistent names.
+	normalizedPath := strings.TrimPrefix(path, "std/")
+
+	if pathPkg := parsedPackages[path]; pathPkg != nil {
+		if !pathPkg.Standard {
+			return normalizedPath
+		}
+	}
+
+	// Make sure we don't see double "std/" in the package for the moniker
+	return fmt.Sprintf("%s/std/%s", gomod.GolangRepository, normalizedPath)
 }
 
 // makeMonikerIdentifier returns the identifier suffix used to construct a unique moniker for the given object.

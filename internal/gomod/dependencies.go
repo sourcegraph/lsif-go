@@ -95,7 +95,7 @@ func ListProjectDependencies(projectRoot string) ([]string, error) {
 		return nil, fmt.Errorf("failed to list dependecy packages: %v\n%s", err, output)
 	}
 
-	dependencyPackages := []string{"std"}
+	dependencyPackages := []string{}
 	for _, dep := range strings.Split(output, "\n") {
 		// It's a dependency if it's not in the projectPackages
 		if _, ok := projectPackages[dep]; !ok {
@@ -168,11 +168,11 @@ func parseGoListOutput(output, modOutput, rootVersion string) (map[string]GoModu
 }
 
 // The repository to find the source code for golang.
-var golangRepository = "github.com/golang/go"
+var GolangRepository = "github.com/golang/go"
 
 func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
-	dependencies[golangRepository] = GoModule{
-		Name: golangRepository,
+	dependencies[GolangRepository] = GoModule{
+		Name: GolangRepository,
 
 		// The reason we prefix version with "go" is because in golang/go, all the release
 		// tags are prefixed with "go". So turn "1.15" -> "go1.15"
@@ -181,24 +181,7 @@ func setGolangDependency(dependencies map[string]GoModule, goVersion string) {
 }
 
 func GetGolangDependency(dependencies map[string]GoModule) GoModule {
-	return dependencies[golangRepository]
-}
-
-// NormalizeMonikerPackage returns a normalized path to ensure that all
-// standard library paths are handled the same. Primarily to make sure
-// that both the golangRepository and "std/" paths are normalized.
-func NormalizeMonikerPackage(path string) string {
-	// When indexing _within_ the golang/go repository, `std/` is prefixed
-	// to packages. So we trim that here just to be sure that we keep
-	// consistent names.
-	normalizedPath := strings.TrimPrefix(path, "std/")
-
-	if !isStandardlibPackge(normalizedPath) {
-		return path
-	}
-
-	// Make sure we don't see double "std/" in the package for the moniker
-	return fmt.Sprintf("%s/std/%s", golangRepository, normalizedPath)
+	return dependencies[GolangRepository]
 }
 
 // versionPattern matches a versioning ending in a 12-digit sha, e.g., vX.Y.Z.-yyyymmddhhmmss-abcdefabcdef

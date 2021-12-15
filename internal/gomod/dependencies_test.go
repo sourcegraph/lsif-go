@@ -136,24 +136,3 @@ func TestResolveImportPaths(t *testing.T) {
 		t.Errorf("unexpected import paths (-want +got): %s", diff)
 	}
 }
-
-func TestNormalizeMonikerPackage(t *testing.T) {
-	testCases := map[string]string{
-		"fmt": "github.com/golang/go/std/fmt",
-
-		// This happens sometimes in the standard library, that we have "std/" prefixed.
-		"std/hash": "github.com/golang/go/std/hash",
-
-		// User libs should be unchanged.
-		"github.com/sourcegraph/sourcegraph/lib": "github.com/sourcegraph/sourcegraph/lib",
-
-		// Unknown libs should not be changed (for example, custom proxy)
-		"myCustomPackage": "myCustomPackage",
-	}
-
-	for path, expected := range testCases {
-		if diff := cmp.Diff(expected, NormalizeMonikerPackage(path)); diff != "" {
-			t.Errorf("unexpected normalized moniker package (-want +got): %s", diff)
-		}
-	}
-}

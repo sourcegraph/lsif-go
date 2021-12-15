@@ -24,7 +24,7 @@ var dependencies = map[string]gomod.GoModule{
 	"github.com/golang/go":           {Name: "github.com/golang/go", Version: "go1.16"},
 }
 
-var projectDependencies = []string{"std"}
+var projectDependencies = []string{"io"}
 
 func TestIndexer(t *testing.T) {
 	w := &capturingWriter{
@@ -694,7 +694,7 @@ func TestIndexer_shouldVisitPackage(t *testing.T) {
 		0,
 	)
 
-	if err := indexer.loadPackages(false); err != nil {
+	if err := indexer.loadPackages(); err != nil {
 		t.Fatal(err)
 	}
 

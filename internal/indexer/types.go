@@ -17,8 +17,9 @@ type RawPackageInfo struct {
 	DepOnly    bool     // package is only a dependency, not explicitly listed
 
 	// Source files
-	GoFiles  []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
-	CgoFiles []string // .go source files that import "C"
+	GoFiles     []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	CgoFiles    []string // .go source files that import "C"
+	TestGoFiles []string // _test.go files in package
 
 	// Dependency information
 	Imports   []string          // import paths used by this package

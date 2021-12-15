@@ -17,10 +17,15 @@ var parsedFiles = map[string]*ast.File{}
 var fset = token.NewFileSet()
 
 func getListPkg(pkgName string, dir string, isCurrentProject bool) ([]*PackageInfo, error) {
-	fmt.Println("Getting pkgName:", pkgName)
+	if pkgName == "std" {
+		panic("It is not possible to depend on 'std'. Dependencies should be via import path")
+	}
+
+	fmt.Println("Getting pkgName:", pkgName, isCurrentProject)
 
 	if _, ok := parsedPackages[pkgName]; ok {
-		panic(fmt.Sprintf("==> Already Parsed (from list): %s", pkgName))
+		return []*PackageInfo{parsedPackages[pkgName]}, nil
+		// panic(fmt.Sprintf("==> Already Parsed (from list): %s", pkgName))
 	}
 
 	arguments := []string{"list", "-e"}
@@ -62,6 +67,11 @@ func getListPkg(pkgName string, dir string, isCurrentProject bool) ([]*PackageIn
 		currentPkgs = append(currentPkgs, &pkg)
 	}
 
+	if pkgName != "./..." {
+		if len(currentPkgs) > 1 {
+			panic(fmt.Sprintf("It is not possible to have more than one package for specific import paths: %s", pkgName))
+		}
+	}
 	return currentPkgs, nil
 }
 
@@ -115,6 +125,11 @@ func parseRawPackage(fset *token.FileSet, rawPkg *RawPackageInfo, isCurrentProje
 		}
 	}
 
+	filesToParse := []string{}
+	filesToParse = append(filesToParse, pkg.GoFiles...)
+	if isCurrentProject {
+		filesToParse = append(filesToParse, pkg.TestGoFiles...)
+	}
 	for _, gofile := range pkg.GoFiles {
 		gofilePath := gofile
 		if !filepath.IsAbs(gofilePath) {

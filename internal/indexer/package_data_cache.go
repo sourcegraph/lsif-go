@@ -277,9 +277,6 @@ func canExtractHoverText(node ast.Node) bool {
 		return !commentGroupsEmpty(v.Doc)
 	case *ast.Field:
 		return !commentGroupsEmpty(v.Doc, v.Comment)
-	default:
-		// fmt.Printf("doc node: %T\n", node)
-		break
 	}
 
 	return false

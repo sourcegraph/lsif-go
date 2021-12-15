@@ -351,11 +351,11 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgNames []string) (interfac
 			for _, m := range methods {
 				methodsByName[m.Obj().Name()] = methodInfo{
 					definition:        i.getDefinitionInfo(m.Obj(), nil),
-					monikerIdentifier: joinMonikerParts(makeMonikerPackage(m.Obj()), makeMonikerIdentifier(i.packageDataCache, pkg, m.Obj())),
+					monikerIdentifier: joinMonikerParts(makeMonikerPackage(pkg, m.Obj()), makeMonikerIdentifier(i.packageDataCache, pkg, m.Obj())),
 				}
 			}
 
-			monikerPackage := makeMonikerPackage(obj)
+			monikerPackage := makeMonikerPackage(pkg, obj)
 
 			d := implDef{
 				monikerPackage:     monikerPackage,
@@ -376,7 +376,7 @@ func (i *Indexer) extractInterfacesAndConcreteTypes(pkgNames []string) (interfac
 	}
 
 	batch := func(pkgBatch []string) error {
-		pkgs, err := i.loadPackage(true, pkgBatch...)
+		pkgs, err := i.loadPackage(pkgBatch...)
 		if err != nil {
 			return err
 		}

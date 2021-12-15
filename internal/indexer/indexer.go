@@ -134,7 +134,7 @@ func New(
 func (i *Indexer) Index() error {
 	var memStats runtime.MemStats
 
-	if err := i.loadPackages(true); err != nil {
+	if err := i.loadPackages(); err != nil {
 		return errors.Wrap(err, "failed to load packages")
 	}
 
@@ -225,10 +225,15 @@ var loadMode = packages.NeedDeps | packages.NeedFiles | packages.NeedImports | p
 // project root.
 //
 // deduplicate should be true in all cases except TestIndexer_shouldVisitPackage.
-func (i *Indexer) loadPackages(deduplicate bool) error {
+func (i *Indexer) loadPackages() error {
 	errs := make(chan error, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
+
+	_, err := getListPkg("builtin", i.projectRoot, false)
+	if err != nil {
+		return err
+	}
 
 	go func() {
 		defer wg.Done()
@@ -257,7 +262,7 @@ func (i *Indexer) loadPackages(deduplicate bool) error {
 	return <-errs
 }
 
-func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*PackageInfo, error) {
+func (i *Indexer) loadPackage(patterns ...string) ([]*PackageInfo, error) {
 	isLoadingProject := len(patterns) == 1 && patterns[0] == "./..."
 	if isLoadingProject && i.packages != nil {
 		return i.packages, nil
@@ -390,7 +395,8 @@ func (i *Indexer) emitImportsForPackage(p *PackageInfo) {
 			}
 
 			if pkg.DepOnly {
-				panic("Can't Happen: dep only")
+				fmt.Println(fmt.Sprintf("DepOnly not allowed: %s :: %s", pkg.ImportPath, pkg.Name))
+				continue
 			}
 
 			// position := p.Fset.Position(spec.Pos())
