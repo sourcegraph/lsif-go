@@ -1,4 +1,7 @@
 steps:
+  - label: :lock: trivy - security
+    command: ./buildkite/run-trivy.sh
+    agents: { queue: "standard" }
   - label: ':go:'
     # Note: go fmt on its own ignores testdata/ directories.
     command: test -z $(gfind internal/testdata -type f -name '*.go' -exec gofmt -l {} \;)
