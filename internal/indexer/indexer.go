@@ -442,6 +442,9 @@ func (i *Indexer) emitImportMonikerReference(p *packages.Package, pkg *packages.
 	name := spec.Path.Value
 
 	position, document, _ := i.positionAndDocument(p, pos)
+	if document == nil {
+		return
+	}
 	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
 
 	rangeID, _ := i.ensureRangeFor(position, obj)
@@ -476,6 +479,9 @@ func (i *Indexer) emitImportMonikerNamedDefinition(p *packages.Package, pkg *pac
 	}
 
 	position, document, _ := i.positionAndDocument(p, pos)
+	if document == nil {
+		return
+	}
 	obj := types.NewPkgName(pos, p.Types, name, pkg.Types)
 
 	rangeID, _ := i.ensureRangeFor(position, obj)
@@ -526,7 +532,7 @@ func (i *Indexer) indexDefinitionsForPackage(p *packages.Package) {
 		}
 
 		position, document, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok {
+		if !ok || document == nil {
 			continue
 		}
 
@@ -753,7 +759,7 @@ func (i *Indexer) indexReferencesForPackage(p *packages.Package) {
 		}
 
 		pos, document, ok := i.positionAndDocument(p, ident.Pos())
-		if !ok {
+		if !ok || document == nil {
 			continue
 		}
 
@@ -1015,7 +1021,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 
 		name := obj.Name()
 		_, d, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok {
+		if !ok || d == nil {
 			return
 		}
 
@@ -1041,7 +1047,7 @@ func (i *Indexer) indexPackageDeclarationForPackage(p *packages.Package) {
 		name := obj.Name()
 
 		_, document, ok := i.positionAndDocument(p, obj.Pos())
-		if !ok {
+		if !ok || document == nil {
 			continue
 		}
 		ident := &ast.Ident{
