@@ -899,6 +899,10 @@ func (i *Indexer) ensureRangeFor(pos token.Position, obj ObjectLike) (uint64, bo
 		return rangeID, false
 	}
 
+	if i.ranges[pos.Filename] == nil {
+		i.ranges[pos.Filename] = map[int]uint64{}
+	}
+
 	rangeID = i.emitter.EmitRange(start, end)
 	i.ranges[pos.Filename][pos.Offset] = rangeID
 	return rangeID, true
