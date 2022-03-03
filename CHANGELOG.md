@@ -9,6 +9,16 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
+## v1.7.6
+
+### Changed
+
+- The accompanying Docker image uses Go 1.17.7 and `src-cli` 3.37.0. (#235)
+
+### Fixed
+
+- Fixes a couple of panics (#230, #232).
+
 ## v1.7.5
 
 ### Features
