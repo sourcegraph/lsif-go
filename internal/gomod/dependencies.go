@@ -92,7 +92,7 @@ func ListProjectDependencies(projectRoot string) ([]string, error) {
 
 	output, err := command.Run(projectRoot, "go", "list", "all")
 	if err != nil {
-		return nil, fmt.Errorf("failed to list dependecy packages: %v\n%s", err, output)
+		return nil, fmt.Errorf("failed to list dependency packages: %v\n%s", err, output)
 	}
 
 	dependencyPackages := []string{"std"}
