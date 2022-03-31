@@ -9,6 +9,12 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
+## v1.7.7
+
+### Changed
+
+- Dropped `CGO_ENABLED=0` so users can decide whether or not to enable cgo. (#233)
+
 ## v1.7.6
 
 ### Changed
@@ -154,7 +160,7 @@ All notable changes to `lsif-go` are documented in this file.
 
 - Type alias hovers now name the aliased type e.g. `type Alias = pkg.Original`. [#131](https://github.com/sourcegraph/lsif-go/pull/131)
 
-### Fixed 
+### Fixed
 
 - Definition of the RHS type symbol in a type alias is no longer the type alias itself but the type being aliased. [#131](https://github.com/sourcegraph/lsif-go/pull/131)
 
@@ -169,7 +175,7 @@ All notable changes to `lsif-go` are documented in this file.
   - `--module-root` validation is fixed and can now correctly point to a directory containing a go.mod file outside of the project root
   - Renamed flags for consistent casing:
 
-    | Previous         | Current           | 
+    | Previous         | Current           |
     | ---------------- | ----------------- |
     | `out`            | `output`          |
     | `projectRoot`    | `project-root`    |
