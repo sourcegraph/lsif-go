@@ -9,7 +9,6 @@ import (
 	"go/types"
 	"log"
 	"math"
-	"os"
 	"path"
 	"strings"
 	"sync"
@@ -276,10 +275,6 @@ func (i *Indexer) loadPackage(deduplicate bool, patterns ...string) ([]*packages
 		// Only load tests for the current project.
 		// This greatly reduces memory usage when loading dependencies
 		Tests: isLoadingProject,
-
-		// CGO_ENABLED=0 makes sure that we can handle files with assembly
-		// and other problems that may occur (unsure of exact reasons at time of writing)
-		Env: append(os.Environ(), "CGO_ENABLED=0"),
 	}
 
 	// Make sure we only load packages once per execution.
