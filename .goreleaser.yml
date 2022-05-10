@@ -34,7 +34,7 @@ archives:
   name_template: "src_{{ .Os }}_{{ .Arch }}"
 
 dockers:
-  - binaries:
+  - ids:
     - lsif-go
     image_templates:
     - "sourcegraph/lsif-go:{{ .Tag }}"
