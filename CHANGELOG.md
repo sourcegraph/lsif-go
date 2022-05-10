@@ -9,6 +9,12 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
+## v1.8.0
+
+### Changed
+
+- Pre-built binary and docker image now support apple silicon support. (#245)
+
 ## v1.7.7
 
 ### Changed
