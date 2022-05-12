@@ -9,6 +9,12 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
+## v1.9.0
+
+### Changed
+
+- Update to Go 1.18.2. This should improve indexing of code that uses generics. (#248)
+
 ## v1.8.0
 
 ### Changed
