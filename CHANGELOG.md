@@ -15,6 +15,10 @@ All notable changes to `lsif-go` are documented in this file.
 
 - Update to Go 1.18.2. This should improve indexing of code that uses generics. (#248)
 
+### Removed
+
+- API Documentation. The experimental `-enable-api-docs` flag has been removed and this functionality is no longer supported.
+
 ## v1.8.0
 
 ### Changed

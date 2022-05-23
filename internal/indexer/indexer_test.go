@@ -1,10 +1,6 @@
 package indexer
 
 import (
-	"bytes"
-	"context"
-	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -14,9 +10,7 @@ import (
 	"github.com/hexops/autogold"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
 	"github.com/sourcegraph/lsif-go/internal/output"
-	"github.com/sourcegraph/lsif-static-doc/staticdoc"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol"
-	"github.com/sourcegraph/sourcegraph/lib/codeintel/lsif/protocol/writer"
 )
 
 var dependencies = map[string]gomod.GoModule{
@@ -618,63 +612,6 @@ func TestIndexer(t *testing.T) {
 	})
 }
 
-func TestIndexer_documentation(t *testing.T) {
-	projectRoot := path.Join(getRepositoryRoot(t), "documentation")
-	for _, tst := range []struct {
-		name                        string
-		repositoryRoot, projectRoot string
-		short                       bool
-	}{
-		{
-			name:           "testdata",
-			repositoryRoot: projectRoot,
-			projectRoot:    projectRoot,
-			short:          true,
-		},
-	} {
-		t.Run(tst.name, func(t *testing.T) {
-			if !tst.short && testing.Short() {
-				t.SkipNow()
-				return
-			}
-			// Perform LSIF indexing.
-			var buf bytes.Buffer
-			indexer := New(
-				tst.repositoryRoot,
-				"github.com/sourcegraph/lsif-go",
-				tst.projectRoot,
-				protocol.ToolInfo{Name: "lsif-go", Version: "dev"},
-				"testdata",
-				"0.0.1",
-				dependencies,
-				projectDependencies,
-				writer.NewJSONWriter(&buf),
-				NewPackageDataCache(),
-				output.Options{},
-				NewGenerationOptions(),
-			)
-			if err := indexer.Index(); err != nil {
-				t.Fatalf("unexpected error indexing testdata: %s", err.Error())
-			}
-
-			// Convert documentation to Markdown format.
-			files, err := staticdoc.Generate(context.Background(), &buf, tst.projectRoot, staticdoc.TestingOptions)
-			if err != nil {
-				t.Fatal("failed to generate static doc:", err)
-			}
-			dir := filepath.Join("testdata", t.Name())
-			_ = os.RemoveAll(dir)
-			for filePath, fileContents := range files.ByPath {
-				filePath = filepath.Join(dir, filePath)
-				_ = os.MkdirAll(filepath.Dir(filePath), 0700)
-				err := ioutil.WriteFile(filePath, fileContents, 0700)
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-		})
-	}
-}
 
 func TestIndexer_shouldVisitPackage(t *testing.T) {
 	w := &capturingWriter{}

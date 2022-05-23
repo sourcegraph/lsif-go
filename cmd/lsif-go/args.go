@@ -55,7 +55,7 @@ func init() {
 	app.Flag("dep-batch-size", "How many dependencies to load at once to limit memory usage (e.g. 100). 0 means load all at once.").Default("0").IntVar(&depBatchSize)
 
 	// Feature flags
-	app.Flag("enable-api-docs", "Enable Sourcegraph API Doc generation").Default("true").BoolVar(&enableApiDocs)
+	app.Flag("enable-api-docs", "Enable Sourcegraph API Doc generation").Default("false").BoolVar(&enableApiDocs)
 	app.Flag("enable-implementations", "Enable textDocument/implementation generation").Default("true").BoolVar(&enableImplementations)
 }
 
