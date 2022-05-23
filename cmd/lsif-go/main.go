@@ -67,7 +67,9 @@ func mainErr() (err error) {
 	}
 
 	generationOptions := indexer.NewGenerationOptions()
-	generationOptions.EnableApiDocs = enableApiDocs
+	if enableApiDocs {
+		return fmt.Errorf("API Docs are no longer supported. To fix this problem, remove the -enable-api-docs flag.")
+	}
 	generationOptions.EnableImplementations = enableImplementations
 	generationOptions.DepBatchSize = depBatchSize
 

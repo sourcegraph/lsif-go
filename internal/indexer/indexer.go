@@ -30,14 +30,12 @@ type importMonikerReference struct {
 type setVal interface{}
 
 type GenerationOptions struct {
-	EnableApiDocs         bool
 	EnableImplementations bool
 	DepBatchSize          int
 }
 
 func NewGenerationOptions() GenerationOptions {
 	return GenerationOptions{
-		EnableApiDocs:         true,
 		EnableImplementations: true,
 		DepBatchSize:          0,
 	}
@@ -76,8 +74,6 @@ type Indexer struct {
 	packages                                 []*packages.Package                     // index target packages
 	projectID                                uint64                                  // project vertex identifier
 	packagesByFile                           map[string][]*packages.Package
-	emittedDocumentationResults              map[ObjectLike]uint64 // type object -> documentationResult vertex ID
-	emittedDocumentationResultsByPackagePath map[string]uint64     // package path -> documentationResult vertex ID
 
 	constsMutex                sync.Mutex
 	funcsMutex                 sync.Mutex
@@ -158,7 +154,6 @@ func (i *Indexer) Index() error {
 	i.emitDocuments()
 	i.emitImports()
 	i.indexPackageDeclarations()
-	i.indexDocumentation() // must be invoked before indexDefinitions/indexReferences
 	i.indexDefinitions()
 	i.indexReferences()
 
@@ -657,16 +652,6 @@ func (i *Indexer) indexDefinitionForRangeAndResult(p *packages.Package, document
 
 	if obj.Exported() {
 		i.emitExportMoniker(resultSetID, p, obj)
-	}
-
-	// If the pkg/object has associated documentation, link to it. This enables e.g. going from documentation
-	// for a symbol <-> its definition/hover/references/etc in either direction.
-	if pkgName, ok := obj.(*types.PkgName); ok {
-		if documentationResultID, ok := i.emittedDocumentationResultsByPackagePath[pkgName.Imported().Path()]; ok {
-			_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
-		}
-	} else if documentationResultID, ok := i.emittedDocumentationResults[obj]; ok {
-		_ = i.emitter.EmitDocumentationResultEdge(documentationResultID, resultSetID)
 	}
 
 	definitionInfo := &DefinitionInfo{

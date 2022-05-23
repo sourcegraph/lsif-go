@@ -1,4 +1,0 @@
-package gosrc
-
-func init() {
-}
