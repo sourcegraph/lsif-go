@@ -48,7 +48,7 @@ func mainErr() (err error) {
 
 	outputOptions := output.Options{
 		Verbosity:      getVerbosity(),
-		ShowAnimations: !noAnimation,
+		ShowAnimations: animation,
 	}
 
 	moduleName, err := gomod.ModuleName(moduleRoot, repositoryRemote, outputOptions)
