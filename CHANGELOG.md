@@ -9,6 +9,12 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
+## v1.9.1
+
+### Changed
+
+- The `--no-animation` flag is now enabled by default. Use the flag `--animation` to get the old default behavior.
+
 ## v1.9.0
 
 ### Changed
