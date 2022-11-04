@@ -4,9 +4,12 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+
+	"golang.org/x/tools/go/packages"
 )
 
-type RawPackageInfo struct {
+type GoListOutput struct {
+	Path       string
 	Dir        string   // directory containing package sources
 	ImportPath string   // import path of package in dir
 	Name       string   // package name
@@ -25,22 +28,73 @@ type RawPackageInfo struct {
 	Imports   []string          // import paths used by this package
 	ImportMap map[string]string // map from source import to ImportPath (identity entries omitted)
 	Deps      []string          // all (recursively) imported dependencies
+	Module    packages.Module
 	// TestImports  []string          // imports from TestGoFiles
 	// XTestImports []string          // imports from XTestGoFiles
 }
 
 type PackageInfo struct {
-	*RawPackageInfo
-	// *packages.Package
+	Name          string
+	Path          string
+	Dir           string // directory containing package sources
+	ImportPath    string // import path of package in dir
+	ImportedPaths []string
 
-	// Like packages.Package
-	ID        string
+	GoFiles     []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	TestGoFiles []string // _test.go files in package
+
 	Fset      *token.FileSet
+	Imports   map[string]*PackageInfo
+	Module    *packages.Module
 	Syntax    []*ast.File
 	Types     *types.Package
 	TypesInfo *types.Info
-	PkgPath   string
-	Imports   map[string]*PackageInfo
+
+	// TODO: Remove
+	// originalPackage *packages.Package
+}
+
+func NewPackageInfo(raw *GoListOutput, goPkg *packages.Package) PackageInfo {
+	pkg := PackageInfo{
+		Imports: map[string]*PackageInfo{},
+	}
+
+	pkg.updateFromGoList(raw)
+	pkg.updateFromPackage(goPkg)
+
+	return pkg
+}
+
+func (pkg *PackageInfo) updateFromGoList(raw *GoListOutput) {
+	if raw == nil {
+		return
+	}
+
+	pkg.Path = raw.Path
+	pkg.Name = raw.Name
+	pkg.Dir = raw.Dir
+	pkg.ImportPath = raw.ImportPath
+	pkg.ImportedPaths = raw.Imports
+
+	pkg.GoFiles = raw.GoFiles
+	pkg.TestGoFiles = raw.TestGoFiles
+}
+
+func (pkg *PackageInfo) updateFromPackage(goPkg *packages.Package) {
+	if goPkg == nil {
+		return
+	}
+
+	// pkg.originalPackage = goPkg
+
+	// TODO: Transform the imports to the new style
+	// pkg.Imports = goPkg.Imports
+
+	pkg.Fset = goPkg.Fset
+	pkg.Module = goPkg.Module
+	pkg.Syntax = goPkg.Syntax
+	pkg.Types = goPkg.Types
+	pkg.TypesInfo = goPkg.TypesInfo
 }
 
 // ObjectLike is effectively just types.Object. We needed an interface that we could actually implement
@@ -50,8 +104,6 @@ type ObjectLike interface {
 	Pkg() *types.Package
 	Name() string
 	Type() types.Type
-	Exported() bool
-	Id() string
 
 	String() string
 }
@@ -84,21 +136,21 @@ func (p pkgDeclarationType) String() string         { return p.decl.Id() }
 
 var packageLen = len("package ")
 
-func newPkgDeclaration(p *PackageInfo, f *ast.File) (*PkgDeclaration, token.Position) {
-	// import mypackage
-	// ^--------------------- pkgKeywordPosition *types.Position
-	//        ^-------------- pkgDeclarationPos  *types.Pos
-	//        ^-------------- pkgPosition        *types.Position
-	pkgKeywordPosition := p.Fset.Position(f.Package)
-
-	pkgDeclarationPos := p.Fset.File(f.Package).Pos(pkgKeywordPosition.Offset + packageLen)
-	pkgPosition := p.Fset.Position(pkgDeclarationPos)
-
-	name := f.Name.Name
-
-	return &PkgDeclaration{
-		pos:  pkgDeclarationPos,
-		pkg:  types.NewPackage(p.PkgPath, name),
-		name: name,
-	}, pkgPosition
-}
+// func newPkgDeclaration(p *PackageInfo, f *ast.File) (*PkgDeclaration, token.Position) {
+// 	// import mypackage
+// 	// ^--------------------- pkgKeywordPosition *types.Position
+// 	//        ^-------------- pkgDeclarationPos  *types.Pos
+// 	//        ^-------------- pkgPosition        *types.Position
+// 	pkgKeywordPosition := p.Fset.Position(f.Package)
+//
+// 	pkgDeclarationPos := p.Fset.File(f.Package).Pos(pkgKeywordPosition.Offset + packageLen)
+// 	pkgPosition := p.Fset.Position(pkgDeclarationPos)
+//
+// 	name := f.Name.Name
+//
+// 	return &PkgDeclaration{
+// 		pos:  pkgDeclarationPos,
+// 		pkg:  types.NewPackage(p.PkgPath, name),
+// 		name: name,
+// 	}, pkgPosition
+// }

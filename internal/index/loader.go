@@ -10,6 +10,8 @@ import (
 	"go/types"
 	"os/exec"
 	"path/filepath"
+
+	"golang.org/x/tools/go/packages"
 )
 
 var parsedPackages = map[string]*PackageInfo{}
@@ -23,7 +25,6 @@ func getListPkg(pkgName string, dir string, isCurrentProject bool) ([]*PackageIn
 
 	if _, ok := parsedPackages[pkgName]; ok {
 		return []*PackageInfo{parsedPackages[pkgName]}, nil
-		// panic(fmt.Sprintf("==> Already Parsed (from list): %s", pkgName))
 	}
 
 	arguments := []string{"list", "-e"}
@@ -41,16 +42,17 @@ func getListPkg(pkgName string, dir string, isCurrentProject bool) ([]*PackageIn
 	cmd.Dir = dir
 	out, _ := cmd.CombinedOutput()
 
-	rawPkgs := []*RawPackageInfo{}
+	rawPkgs := []*GoListOutput{}
 
 	decoder := json.NewDecoder(bytes.NewReader(out))
 	for decoder.More() {
-		pkg := RawPackageInfo{}
+		pkg := GoListOutput{}
 		err := decoder.Decode(&pkg)
 		if err != nil {
 			return nil, err
 		}
 
+		fmt.Println("MODULE:", pkg.Name, pkg.Module)
 		rawPkgs = append(rawPkgs, &pkg)
 	}
 
@@ -76,16 +78,14 @@ type importerFunc func(path string) (*types.Package, error)
 
 func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
 
-func parseRawPackage(fset *token.FileSet, rawPkg *RawPackageInfo, isCurrentProject bool) (PackageInfo, error) {
+func parseRawPackage(fset *token.FileSet, rawPkg *GoListOutput, isCurrentProject bool) (PackageInfo, error) {
 	var err error
 
 	if parsedPackages[rawPkg.ImportPath] != nil {
 		return *parsedPackages[rawPkg.ImportPath], nil
 	}
 
-	pkg := PackageInfo{
-		RawPackageInfo: rawPkg,
-
+	pkg := NewPackageInfo(rawPkg, &packages.Package{
 		PkgPath: rawPkg.ImportPath,
 
 		// packages.Package fieldsd
@@ -95,12 +95,10 @@ func parseRawPackage(fset *token.FileSet, rawPkg *RawPackageInfo, isCurrentProje
 
 		// TODO: Check if this is right
 		Types: types.NewPackage(rawPkg.ImportPath, rawPkg.Name),
-
-		Imports: parsedPackages,
-	}
+	})
 
 	if isCurrentProject {
-		for _, imp := range pkg.RawPackageInfo.Imports {
+		for _, imp := range pkg.ImportedPaths {
 			if parsedPackages[imp] != nil {
 				continue
 			}
@@ -118,11 +116,13 @@ func parseRawPackage(fset *token.FileSet, rawPkg *RawPackageInfo, isCurrentProje
 		}
 	}
 
+	// Collect our files
 	filesToParse := []string{}
 	filesToParse = append(filesToParse, pkg.GoFiles...)
 	if isCurrentProject {
 		filesToParse = append(filesToParse, pkg.TestGoFiles...)
 	}
+
 	for _, gofile := range pkg.GoFiles {
 		gofilePath := gofile
 		if !filepath.IsAbs(gofilePath) {
@@ -193,7 +193,6 @@ func parseRawPackage(fset *token.FileSet, rawPkg *RawPackageInfo, isCurrentProje
 		// we can ignore function bodies in B.
 		IgnoreFuncBodies: !isCurrentProject,
 
-		// TODO: Explore
 		// FakeImportC: true,
 
 		Error: func(err error) {},
@@ -203,7 +202,8 @@ func parseRawPackage(fset *token.FileSet, rawPkg *RawPackageInfo, isCurrentProje
 	}
 
 	// discard the error for this... we don't care if it fails
-	types.NewChecker(tc, pkg.Fset, pkg.Types, pkg.TypesInfo).Files(pkg.Syntax)
+	checker := types.NewChecker(tc, pkg.Fset, pkg.Types, pkg.TypesInfo)
+	checker.Files(pkg.Syntax)
 
 	parsedPackages[pkg.ImportPath] = &pkg
 

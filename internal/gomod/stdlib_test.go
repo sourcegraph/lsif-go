@@ -10,7 +10,7 @@ func TestStdLib(t *testing.T) {
 	}
 
 	for _, testCase := range expectedStdlib {
-		if !isStandardlibPackge(testCase) {
+		if !IsStandardlibPackge(testCase) {
 			t.Errorf(`"%s" should be marked as a standard library package`, testCase)
 		}
 	}
@@ -22,7 +22,7 @@ func TestStdLib(t *testing.T) {
 	}
 
 	for _, testCase := range expectedUserlib {
-		if isStandardlibPackge(testCase) {
+		if IsStandardlibPackge(testCase) {
 			t.Errorf(`"%s" should not be marked as a standard library package`, testCase)
 		}
 	}

@@ -193,7 +193,12 @@ func NormalizeMonikerPackage(path string) string {
 	// consistent names.
 	normalizedPath := strings.TrimPrefix(path, "std/")
 
-	if !isStandardlibPackge(normalizedPath) {
+	if strings.HasPrefix(normalizedPath, "builtin/") {
+		// return fmt.Sprintf("%s/builtin/", golangRepository, strings.TrimPrefix(normalizedPath))
+		return fmt.Sprintf("%s/builtin/", golangRepository)
+	}
+
+	if !IsStandardlibPackge(normalizedPath) {
 		return path
 	}
 
