@@ -14,7 +14,10 @@ import (
 // directory usable for moniker identifiers. Note that this is distinct from the
 // declared module as this does not uniquely identify a project via its code host
 // coordinates in the presence of forks.
-func ModuleName(dir, repo string, outputOptions output.Options) (moduleName string, err error) {
+//
+// isStdLib is true if dir is pointing to the src directory in the golang/go
+// repository.
+func ModuleName(dir, repo string, outputOptions output.Options) (moduleName string, isStdLib bool, err error) {
 	resolve := func() {
 		name := repo
 
@@ -27,18 +30,18 @@ func ModuleName(dir, repo string, outputOptions output.Options) (moduleName stri
 			}
 		}
 
-		moduleName, err = resolveModuleName(repo, name)
+		moduleName, isStdLib, err = resolveModuleName(repo, name)
 	}
 
 	output.WithProgress("Resolving module name", resolve, outputOptions)
-	return moduleName, err
+	return moduleName, isStdLib, err
 }
 
 // resolveModuleName converts the given repository and import path into a canonical
 // representation of a module name usable for moniker identifiers. The base of the
 // import path will be the resolved repository remote, and the given module name
 // is used only to determine the path suffix.
-func resolveModuleName(repo, name string) (string, error) {
+func resolveModuleName(repo, name string) (string, bool, error) {
 	// Determine path suffix relative to repository root
 	var suffix string
 
@@ -53,8 +56,8 @@ func resolveModuleName(repo, name string) (string, error) {
 	repoRepoRoot, err := vcs.RepoRootForImportPath(repo, false)
 	if err != nil {
 		help := "Make sure your git repo has a remote (git remote add origin git@github.com:owner/repo)"
-		return "", fmt.Errorf("%v\n\n%s", err, help)
+		return "", false, fmt.Errorf("%v\n\n%s", err, help)
 	}
 
-	return repoRepoRoot.Repo + suffix, nil
+	return repoRepoRoot.Repo + suffix, name == "std", nil
 }
