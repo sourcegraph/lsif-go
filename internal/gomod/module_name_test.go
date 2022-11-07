@@ -24,10 +24,16 @@ func TestResolveModuleName(t *testing.T) {
 			name:     "github.com/google/zoekt/some/sub/path",
 			expected: "https://github.com/sourcegraph/zoekt/some/sub/path",
 		},
+
+		{
+			repo:     "github.com/golang/go",
+			name:     "std",
+			expected: "https://github.com/golang/go",
+		},
 	}
 
 	for _, testCase := range testCases {
-		if actual, err := resolveModuleName(testCase.repo, testCase.name); err != nil {
+		if actual, _, err := resolveModuleName(testCase.repo, testCase.name); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		} else if actual != testCase.expected {
 			t.Errorf("unexpected module name. want=%q have=%q", testCase.expected, actual)

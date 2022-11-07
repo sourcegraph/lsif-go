@@ -51,7 +51,7 @@ func mainErr() (err error) {
 		ShowAnimations: animation,
 	}
 
-	moduleName, err := gomod.ModuleName(moduleRoot, repositoryRemote, outputOptions)
+	moduleName, isStdLib, err := gomod.ModuleName(moduleRoot, repositoryRemote, outputOptions)
 	if err != nil {
 		return fmt.Errorf("failed to infer module name: %v", err)
 	}
@@ -61,9 +61,12 @@ func mainErr() (err error) {
 		return fmt.Errorf("failed to list dependencies: %v", err)
 	}
 
-	projectDependencies, err := gomod.ListProjectDependencies(moduleRoot)
-	if err != nil {
-		return fmt.Errorf("failed to list project dependencies: %v", err)
+	var projectDependencies []string
+	if !isStdLib {
+		projectDependencies, err = gomod.ListProjectDependencies(moduleRoot)
+		if err != nil {
+			return fmt.Errorf("failed to list project dependencies: %v", err)
+		}
 	}
 
 	generationOptions := indexer.NewGenerationOptions()
