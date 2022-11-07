@@ -9,6 +9,12 @@
 
 All notable changes to `lsif-go` are documented in this file.
 
+## v1.9.2
+
+### Fixed
+
+- Fixed issues with indexing `golang/go` repo
+
 ## v1.9.1
 
 ### Changed
