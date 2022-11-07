@@ -24,4 +24,5 @@ func useOfCompositeStructs() {
 	}
 
 	fmt.Printf("> %d\n", o.X)
+	fmt.Println(o.Inner.Y)
 }

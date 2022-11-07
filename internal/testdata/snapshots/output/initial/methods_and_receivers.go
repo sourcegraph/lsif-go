@@ -1,7 +1,7 @@
   package initial
   
   import "fmt"
-//        ^^^ reference fmt fmt/
+//        ^^^ reference github.com/golang/go fmt/
   
   type MyStruct struct{ f, y int }
 //     ^^^^^^^^ definition sg/initial/MyStruct#

@@ -113,13 +113,12 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 		}
 	}
 
-	// => Walk all structs and generate lookup table from position -> descriptors
-	//    TODO: I think it should be possible to have Fields just be the SymbolString
-	posToFields := map[token.Pos][]*scip.Descriptor{}
+	fieldPositionsToSymbol := map[token.Pos]string{}
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
 			visitor := StructVisitor{
-				fields: posToFields,
+				mod:    pkg.Module,
+				Fields: fieldPositionsToSymbol,
 				curScope: []*scip.Descriptor{
 					{
 						Name:   pkg.PkgPath,
@@ -160,7 +159,7 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 				file:      f,
 				pkgLookup: pkgLookup,
 				locals:    map[token.Pos]string{},
-				fields:    posToFields,
+				fields:    fieldPositionsToSymbol,
 			}
 
 			pkgDescriptor := &scip.Descriptor{
@@ -177,79 +176,21 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 					case token.IMPORT:
 						// Already handled imports above
 						continue
-					case token.VAR:
-					case token.CONST:
-						fmt.Println(":: Variable", decl.Tok)
+					case token.VAR, token.CONST:
+						ast.Walk(VarVisitor{
+							doc: &doc,
+							pkg: pkg,
+							vis: &visitor,
+						}, decl)
+
+						continue
 					case token.TYPE:
-						for _, spec := range decl.Specs {
-							// token.TYPE ensures only ast.TypeSpec, as far as I can tell
-							typespec := spec.(*ast.TypeSpec)
-
-							structDescriptors := []*scip.Descriptor{
-								pkgDescriptor,
-								{
-									Name:   typespec.Name.Name,
-									Suffix: scip.Descriptor_Type,
-								},
-							}
-							symbol := scipSymbolFromDescriptors(pkg.Module, structDescriptors)
-
-							position := pkg.Fset.Position(typespec.Name.NamePos)
-							doc.Occurrences = append(doc.Occurrences, &scip.Occurrence{
-								Range:       scipRangeFromName(position, typespec.Name.Name, false),
-								Symbol:      symbol,
-								SymbolRoles: SymbolDefinition,
-							})
-
-							switch typ := typespec.Type.(type) {
-							case *ast.StructType:
-								for _, field := range typ.Fields.List {
-									for _, name := range field.Names {
-										if descriptors, ok := posToFields[name.NamePos]; ok {
-											namePosition := pkg.Fset.Position(name.NamePos)
-											doc.Occurrences = append(doc.Occurrences, &scip.Occurrence{
-												Range:       scipRangeFromName(namePosition, name.Name, false),
-												Symbol:      scipSymbolFromDescriptors(pkg.Module, descriptors),
-												SymbolRoles: SymbolDefinition,
-											})
-										}
-
-										// Otherwise?
-										// append(structDescriptors, &scip.Descriptor{ Name:   name.Name, Suffix: scip.Descriptor_Term, }
-									}
-
-									ast.Walk(visitor, field.Type)
-								}
-							case *ast.Ident:
-								// explicit pass
-							case *ast.FuncType:
-								fmt.Println("TODO: FuncType", typ)
-							case *ast.InterfaceType:
-								fmt.Println("TODO: InterfaceType", typ)
-							case *ast.SelectorExpr:
-								fmt.Println("TODO: SelectorExpr", typ)
-							default:
-								panic(fmt.Sprintf("unhandled typespec.Type: %T %s", typ, typ))
-							}
-
-							if typespec.TypeParams != nil {
-								for _, param := range typespec.TypeParams.List {
-									for _, name := range param.Names {
-										namePosition := pkg.Fset.Position(name.NamePos)
-										doc.Occurrences = append(doc.Occurrences, &scip.Occurrence{
-											Range: scipRangeFromName(namePosition, name.Name, false),
-											Symbol: scipSymbolFromDescriptors(pkg.Module, append(structDescriptors, &scip.Descriptor{
-												Name:   name.Name,
-												Suffix: scip.Descriptor_Term,
-											})),
-											SymbolRoles: SymbolDefinition,
-										})
-									}
-								}
-
-								panic("TypeParams")
-							}
-						}
+						ast.Walk(TypeVisitor{
+							doc:    &doc,
+							pkg:    pkg,
+							vis:    &visitor,
+							fields: fieldPositionsToSymbol,
+						}, decl)
 					default:
 						panic("Unhandled general declaration")
 					}
@@ -348,29 +289,28 @@ func emitImportReference(
 	position token.Position,
 	importedPackage *packages.Package,
 ) {
-	// TODO: Remove once we do this at the start
-	ensureVersionForPackage(importedPackage)
-
 	pkgPath := importedPackage.PkgPath
 	scipRange := scipRangeFromName(position, pkgPath, true)
-	symbol := scip.Symbol{
-		Scheme: "scip-go",
-		Package: &scip.Package{
-			Manager: "gomod",
-			Name:    importedPackage.Name,
-			Version: importedPackage.Module.Version,
-		},
-		Descriptors: []*scip.Descriptor{{Name: pkgPath, Suffix: scip.Descriptor_Package}},
-	}
+
+	symbol := scipSymbolFromDescriptors(importedPackage.Module, []*scip.Descriptor{descriptorPackage(pkgPath)})
+	// symbol := scip.Symbol{
+	// 	Scheme: "scip-go",
+	// 	Package: &scip.Package{
+	// 		Manager: "gomod",
+	// 		Name:    importedPackage.Name,
+	// 		Version: importedPackage.Module.Version,
+	// 	},
+	// 	Descriptors: []*scip.Descriptor{{Name: pkgPath, Suffix: scip.Descriptor_Package}},
+	// }
 
 	doc.Occurrences = append(doc.Occurrences, &scip.Occurrence{
 		Range:       scipRange,
-		Symbol:      scip.VerboseSymbolFormatter.FormatSymbol(&symbol),
+		Symbol:      symbol,
 		SymbolRoles: int32(scip.SymbolRole_ReadAccess),
 	})
 }
 
-func makeMonikerPackage(obj ObjectLike) string {
+func makeMonikerPackage(obj types.Object) string {
 	var pkgName string
 	if v, ok := obj.(*types.PkgName); ok {
 		// gets the full path of the package name, rather than just the name.
@@ -383,7 +323,7 @@ func makeMonikerPackage(obj ObjectLike) string {
 	return gomod.NormalizeMonikerPackage(pkgName)
 }
 
-func pkgPath(obj ObjectLike) string {
+func pkgPath(obj types.Object) string {
 	pkg := obj.Pkg()
 
 	// Handle Universe Scoped objs.
@@ -440,7 +380,7 @@ func scipRangeFromName(position token.Position, name string, adjust bool) []int3
 	return []int32{line, column + adjustment, column + n + adjustment}
 }
 
-func scipRange(position token.Position, obj ObjectLike) []int32 {
+func scipRange(position token.Position, obj types.Object) []int32 {
 	var adjustment int32 = 0
 	if pkgName, ok := obj.(*types.PkgName); ok && strings.HasPrefix(pkgName.Name(), `"`) {
 		adjustment = 1
@@ -453,10 +393,10 @@ func scipRange(position token.Position, obj ObjectLike) []int32 {
 	return []int32{line, column + adjustment, column + n - adjustment}
 }
 
-func findModuleForObj(dependencies map[string]gomod.GoModule, obj ObjectLike) *gomod.GoModule {
+func findModuleForObj(dependencies map[string]gomod.GoModule, obj types.Object) *gomod.GoModule {
 	pkg := makeMonikerPackage(obj)
 	if pkg == "main" || pkg == "" {
-		// Special case...
+		// TODO(modules): Special case...
 		x := dependencies["smol_go"]
 		return &x
 	}
@@ -467,30 +407,7 @@ func findModuleForObj(dependencies map[string]gomod.GoModule, obj ObjectLike) *g
 		}
 	}
 
-	fmt.Printf("Unhandled module: %T %+v || %s\n", obj, obj, makeMonikerPackage(obj))
-	panic("OH NO")
-}
-
-func emitImportMoniker(dependencies map[string]gomod.GoModule, obj ObjectLike) bool {
-	// pkg := makeMonikerPackage(obj)
-	// monikerIdentifier := joinMonikerParts(pkg, makeMonikerIdentifier(i.packageDataCache, p, obj))
-
-	// for _, moduleName := range packagePrefixes(pkg) {
-	// 	if module, ok := dependencies[moduleName]; ok {
-	// 		// Lazily emit package information vertex
-	// 		packageInformationID := i.ensurePackageInformation(module.Name, module.Version)
-	//
-	// 		// Lazily emit moniker vertex
-	// 		monikerID := i.ensureImportMoniker(monikerIdentifier, packageInformationID)
-	//
-	// 		// Monikers will be linked during Indexer.linkImportMonikersToRanges
-	// 		i.addImportMonikerReference(monikerID, rangeID, document.DocumentID)
-	//
-	// 		return true
-	// 	}
-	// }
-
-	return false
+	panic(fmt.Sprintf("Unhandled module: %T %+v || %s\n", obj, obj, makeMonikerPackage(obj)))
 }
 
 // packagePrefixes returns all prefix of the go package path. For example, the package
@@ -506,150 +423,31 @@ func packagePrefixes(packageName string) []string {
 	return prefixes
 }
 
-// A Visitor's Visit method is invoked for each node encountered by Walk.
-// If the result visitor w is not nil, Walk visits each of the children
-// of node with the visitor w, followed by a call of w.Visit(nil).
-// type Visitor interface { Visit(node Node) (w Visitor) }
-
-type FileVisitor struct {
-	// Document to append occurrences to
-	doc *scip.Document
-
-	// Current file information
-	pkg  *packages.Package
-	file *ast.File
-
-	// soething
-	pkgLookup map[string]*packages.Module
-
-	// locals holds the references for a DEFINITION identifier
-	locals map[token.Pos]string
-
-	fields map[token.Pos][]*scip.Descriptor
-}
-
-func (f *FileVisitor) createNewLocalSymbol(pos token.Pos) string {
-	if _, ok := f.locals[pos]; ok {
-		panic("Cannot create a new local symbol for an ident that has already been created")
-	}
-
-	f.locals[pos] = fmt.Sprintf("local %d", len(f.locals))
-	return f.locals[pos]
-}
-
-func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
-	if n == nil {
-		return nil
-	}
-
-	switch node := n.(type) {
-	// explicit fail
-	case *ast.File:
-		panic("Should not find a file. Only call from within a file")
-
-	// explicit pass
-	case *ast.FuncDecl:
-
-	// Identifiers
-	case *ast.Ident:
-		info := f.pkg.TypesInfo
-
-		def := info.Defs[node]
-		ref := info.Uses[node]
-
-		pos := node.NamePos
-		position := f.pkg.Fset.Position(pos)
-
-		// Don't think anything can be a def and a ref
-		// if def != nil && ref != nil {
-		// 	panic("Didn't think this was possible")
-		// }
-
-		// Append definition
-		if def != nil {
-			// TODO: Ensure that nothing in this type could possibly be exported.
-			//       That's literally the goal of the way that we have this set up.
-
-			f.doc.Occurrences = append(f.doc.Occurrences, &scip.Occurrence{
-				Range: scipRange(position, def),
-				// Symbol:      scipSymbol2(mod, def),
-				Symbol:      f.createNewLocalSymbol(def.Pos()),
-				SymbolRoles: int32(scip.SymbolRole_Definition),
-			})
-		}
-
-		if ref != nil {
-			var symbol string
-			if localSymbol, ok := f.locals[ref.Pos()]; ok {
-				symbol = localSymbol
-			} else {
-				mod, ok := f.pkgLookup[pkgPath(ref)]
-				if !ok {
-					if ref.Pkg() == nil {
-						panic(fmt.Sprintf("Failed to find the thing for ref: %s | %+v\n", pkgPath(ref), ref))
-					}
-
-					mod = f.pkgLookup[ref.Pkg().Name()]
-				}
-
-				if mod == nil {
-					panic(fmt.Sprintf("Very weird, can't figure out this reference: %s", ref))
-				}
-
-				switch ref := ref.(type) {
-				case *types.Var:
-					if ref.IsField() {
-						fieldDescriptors := f.fields[ref.Pos()]
-
-						// TODO: Would probably be better to save this.
-						symbol = scipSymbolFromDescriptors(mod, fieldDescriptors)
-					}
-
-				}
-
-				if symbol == "" {
-					symbol = scipSymbolFromObject(mod, ref)
-				}
-			}
-
-			f.doc.Occurrences = append(f.doc.Occurrences, &scip.Occurrence{
-				Range:       scipRange(position, ref),
-				Symbol:      symbol,
-				SymbolRoles: int32(scip.SymbolRole_ReadAccess),
-			})
-		}
-	default:
-		// fmt.Printf("unhandled: %T %v\n", n, n)
-	}
-
-	return f
-}
-
-func scipSymbolFromDescriptors(dep *packages.Module, descriptors []*scip.Descriptor) string {
+func scipSymbolFromDescriptors(mod *packages.Module, descriptors []*scip.Descriptor) string {
 	return scip.VerboseSymbolFormatter.FormatSymbol(&scip.Symbol{
 		Scheme: "scip-go",
 		Package: &scip.Package{
 			Manager: "gomod",
 			// TODO: We might not have a dep, so we should handle that
-			Name:    dep.Path,
-			Version: dep.Version,
+			Name:    mod.Path,
+			Version: mod.Version,
 		},
 		Descriptors: descriptors,
 	})
 }
 
-func scipSymbolFromObject(dep *packages.Module, obj ObjectLike) string {
-	if dep == nil {
+func scipSymbolFromObject(mod *packages.Module, obj types.Object) string {
+	if mod == nil {
 		panic("Somehow dep was nil...")
 	}
 
 	desc := []*scip.Descriptor{
 		{Name: makeMonikerPackage(obj), Suffix: scip.Descriptor_Package},
 	}
-	return scipSymbolFromDescriptors(dep, append(desc, scipDescriptors(obj)...))
+	return scipSymbolFromDescriptors(mod, append(desc, scipDescriptors(obj)...))
 }
 
-func scipDescriptors(obj ObjectLike) []*scip.Descriptor {
+func scipDescriptors(obj types.Object) []*scip.Descriptor {
 	switch obj := obj.(type) {
 	case *types.Func:
 		return []*scip.Descriptor{
@@ -666,6 +464,10 @@ func scipDescriptors(obj ObjectLike) []*scip.Descriptor {
 		return []*scip.Descriptor{
 			{Name: obj.Name(), Suffix: scip.Descriptor_Term},
 		}
+	case *types.Const:
+		return []*scip.Descriptor{
+			{Name: obj.Name(), Suffix: scip.Descriptor_Term},
+		}
 	case *types.TypeName:
 		return []*scip.Descriptor{
 			{Name: obj.Name(), Suffix: scip.Descriptor_Type},
@@ -675,52 +477,10 @@ func scipDescriptors(obj ObjectLike) []*scip.Descriptor {
 			{Name: obj.Name(), Suffix: scip.Descriptor_Namespace},
 		}
 	default:
-		fmt.Printf("TYPE OF OBJ: %T\n", obj)
+		fmt.Printf("unknown scip descriptor for type: %T\n", obj)
 	}
 
 	return []*scip.Descriptor{}
-}
-
-type StructVisitor struct {
-	fields   map[token.Pos][]*scip.Descriptor
-	curScope []*scip.Descriptor
-}
-
-func (s StructVisitor) Visit(n ast.Node) (w ast.Visitor) {
-	switch node := n.(type) {
-	// TODO: Could probably skip a lot more of these?
-	case *ast.FuncDecl:
-	case *ast.FuncLit:
-		return nil
-
-	case *ast.TypeSpec:
-		s.curScope = append(s.curScope, &scip.Descriptor{
-			Name:   node.Name.Name,
-			Suffix: scip.Descriptor_Type,
-		})
-
-		defer func() {
-			s.curScope = s.curScope[:len(s.curScope)-1]
-		}()
-
-		ast.Walk(s, node.Type)
-		return nil
-	case *ast.Field:
-		for _, name := range node.Names {
-			newFields := append([]*scip.Descriptor{}, s.curScope...)
-			newFields = append(newFields, &scip.Descriptor{
-				Name:   name.Name,
-				Suffix: scip.Descriptor_Term,
-			})
-
-			s.fields[name.Pos()] = newFields
-		}
-
-		// ast.Walk(s, node.Type)
-		return nil
-	}
-
-	return s
 }
 
 func descriptorType(name string) *scip.Descriptor {
@@ -734,6 +494,20 @@ func descriptorMethod(name string) *scip.Descriptor {
 	return &scip.Descriptor{
 		Name:   name,
 		Suffix: scip.Descriptor_Method,
+	}
+}
+
+func descriptorPackage(name string) *scip.Descriptor {
+	return &scip.Descriptor{
+		Name:   name,
+		Suffix: scip.Descriptor_Package,
+	}
+}
+
+func descriptorTerm(name string) *scip.Descriptor {
+	return &scip.Descriptor{
+		Name:   name,
+		Suffix: scip.Descriptor_Term,
 	}
 }
 

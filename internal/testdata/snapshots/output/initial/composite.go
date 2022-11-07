@@ -1,7 +1,7 @@
   package initial
   
   import "fmt"
-//        ^^^ reference fmt fmt/
+//        ^^^ reference github.com/golang/go fmt/
   
   type Inner struct {
 //     ^^^^^ definition sg/initial/Inner#
@@ -19,7 +19,7 @@
   type Outer struct {
 //     ^^^^^ definition sg/initial/Outer#
    Inner
-// ^^^^^ definition local 0
+// ^^^^^ definition sg/initial/Outer#Inner.
 // ^^^^^ reference sg/initial/Inner#
    W int
 // ^ definition sg/initial/Outer#W.
@@ -29,10 +29,10 @@
   func useOfCompositeStructs() {
 //     ^^^^^^^^^^^^^^^^^^^^^ definition sg/initial/useOfCompositeStructs().
    o := Outer{
-// ^ definition local 1
+// ^ definition local 0
 //      ^^^^^ reference sg/initial/Outer#
     Inner: Inner{
-//  ^^^^^ reference local 0
+//  ^^^^^ reference sg/initial/Outer#Inner.
 //         ^^^^^ reference sg/initial/Inner#
      X: 1,
 //   ^ reference sg/initial/Inner#X.
@@ -48,7 +48,13 @@
    fmt.Printf("> %d\n", o.X)
 // ^^^ reference github.com/golang/go/std/fmt/fmt/
 //     ^^^^^^ reference github.com/golang/go github.com/golang/go/std/fmt/Printf().
-//                      ^ reference local 1
+//                      ^ reference local 0
 //                        ^ reference sg/initial/Inner#X.
+   fmt.Println(o.Inner.Y)
+// ^^^ reference github.com/golang/go/std/fmt/fmt/
+//     ^^^^^^^ reference github.com/golang/go github.com/golang/go/std/fmt/Println().
+//             ^ reference local 0
+//               ^^^^^ reference sg/initial/Outer#Inner.
+//                     ^ reference sg/initial/Inner#Y.
   }
   
