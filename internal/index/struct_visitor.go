@@ -38,12 +38,12 @@ type FieldVisitor struct {
 // Implements ast.Visitor
 var _ ast.Visitor = &FieldVisitor{}
 
-func (s *FieldVisitor) getNameOfTypeExpr(ty ast.Expr) string {
+func (s *FieldVisitor) getNameOfTypeExpr(ty ast.Expr) *ast.Ident {
 	switch ty := ty.(type) {
 	case *ast.Ident:
-		return ty.Name
+		return ty
 	case *ast.SelectorExpr:
-		return ty.Sel.Name
+		return ty.Sel
 	case *ast.StarExpr:
 		return s.getNameOfTypeExpr(ty.X)
 	default:
@@ -89,10 +89,11 @@ func (s FieldVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		ast.Walk(s, node.Type)
 	case *ast.Field:
 		if len(node.Names) == 0 {
+			name := s.getNameOfTypeExpr(node.Type)
 			s.doc.declareNewSymbol(s.makeSymbol(&scip.Descriptor{
-				Name:   s.getNameOfTypeExpr(node.Type),
+				Name:   name.Name,
 				Suffix: scip.Descriptor_Term,
-			}), nil, node)
+			}), nil, name)
 		} else {
 			for _, name := range node.Names {
 				s.doc.declareNewSymbol(s.makeSymbol(&scip.Descriptor{

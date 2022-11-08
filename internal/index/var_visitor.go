@@ -46,7 +46,7 @@ func (v VarVisitor) Visit(n ast.Node) (w ast.Visitor) {
 				descriptorTerm(name.Name),
 			})
 
-			v.doc.declareNewSymbol(symbol, v.curDecl, node)
+			v.doc.declareNewSymbol(symbol, v.curDecl, name)
 
 			// position := v.pkg.Fset.Position(name.Pos())
 			// v.doc.NewOccurrence(symbol, scipRangeFromName(position, name.Name, false))

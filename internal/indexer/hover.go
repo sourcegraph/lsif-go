@@ -11,7 +11,7 @@ import (
 // findHoverContents returns the hover contents of the given object. This method is not cached
 // and should only be called wrapped in a call to makeCachedHoverResult.
 func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) protocol.MarkupContent {
-	signature, extra := typeString(obj)
+	signature, extra := TypeStringForObject(obj)
 	docstring := findDocstring(packageDataCache, pkgs, p, obj)
 	return toMarkupContent(signature, docstring, extra)
 }
@@ -19,7 +19,7 @@ func findHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Pack
 // findExternalHoverContents returns the hover contents of the given object defined in the given
 // package. This method is not cached and should only be called wrapped in a call to makeCachedHoverResult.
 func findExternalHoverContents(packageDataCache *PackageDataCache, pkgs []*packages.Package, p *packages.Package, obj ObjectLike) protocol.MarkupContent {
-	signature, extra := typeString(obj)
+	signature, extra := TypeStringForObject(obj)
 	docstring := findExternalDocstring(packageDataCache, pkgs, p, obj)
 	return toMarkupContent(signature, docstring, extra)
 }

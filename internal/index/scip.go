@@ -139,6 +139,7 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 					Occurrences:  []*scip.Occurrence{},
 					Symbols:      []*scip.SymbolInformation{},
 				},
+				pkg:        pkg,
 				pkgSymbols: pkgSymbols,
 			}
 
@@ -491,6 +492,9 @@ func scipDescriptors(obj types.Object) []*scip.Descriptor {
 		return []*scip.Descriptor{
 			{Name: obj.Name(), Suffix: scip.Descriptor_Namespace},
 		}
+	case *types.Builtin:
+		// TODO: Builtin
+
 	default:
 		fmt.Printf("unknown scip descriptor for type: %T\n", obj)
 	}

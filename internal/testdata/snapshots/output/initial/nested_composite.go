@@ -5,31 +5,35 @@
   
   type NestedHandler struct {
 //     ^^^^^^^^^^^^^ definition sg/initial/NestedHandler#
+//     documentation type NestedHandler struct
+//     documentation struct {
    http.Handler
 // ^^^^ reference github.com/golang/go/std/net/http/http/
-//      ^^^^^^^ definition sg/initial/NestedHandler#Handler.
+//      ^^^^^^^ definition local 0
 //      ^^^^^^^ reference github.com/golang/go github.com/golang/go/std/net/http/Handler#
   
    // Wow, a great thing for integers
    Other int
 // ^^^^^ definition sg/initial/NestedHandler#Other.
+// documentation struct field Other int
 // documentation Wow, a great thing for integers
 //       ^^^ reference builtin/builtin builtin/int#
   }
   
   func NestedExample(n NestedHandler) {
 //     ^^^^^^^^^^^^^ definition sg/initial/NestedExample().
-//                   ^ definition local 0
+//     documentation func NestedExample(n NestedHandler)
+//                   ^ definition local 1
 //                     ^^^^^^^^^^^^^ reference sg/initial/NestedHandler#
    _ = n.Handler.ServeHTTP
-//     ^ reference local 0
-//       ^^^^^^^ reference sg/initial/NestedHandler#Handler.
+//     ^ reference local 1
+//       ^^^^^^^ reference local 0
 //               ^^^^^^^^^ reference github.com/golang/go github.com/golang/go/std/net/http/ServeHTTP().
    _ = n.ServeHTTP
-//     ^ reference local 0
+//     ^ reference local 1
 //       ^^^^^^^^^ reference github.com/golang/go github.com/golang/go/std/net/http/ServeHTTP().
    _ = n.Other
-//     ^ reference local 0
+//     ^ reference local 1
 //       ^^^^^ reference sg/initial/NestedHandler#Other.
   }
   

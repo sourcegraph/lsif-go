@@ -45,7 +45,7 @@ func (v TypeVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		}
 
 		typeSymbol := scipSymbolFromDescriptors(v.pkg.Module, structDescriptors)
-		v.doc.declareNewSymbol(typeSymbol, v.curDecl, node)
+		v.doc.declareNewSymbol(typeSymbol, v.curDecl, node.Name)
 
 		if node.TypeParams != nil {
 			// panic("generics")

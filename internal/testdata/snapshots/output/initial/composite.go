@@ -5,29 +5,39 @@
   
   type Inner struct {
 //     ^^^^^ definition sg/initial/Inner#
+//     documentation type Inner struct
+//     documentation struct {
    X int
 // ^ definition sg/initial/Inner#X.
+// documentation struct field X int
 //   ^^^ reference builtin/builtin builtin/int#
    Y int
 // ^ definition sg/initial/Inner#Y.
+// documentation struct field Y int
 //   ^^^ reference builtin/builtin builtin/int#
    Z int
 // ^ definition sg/initial/Inner#Z.
+// documentation struct field Z int
 //   ^^^ reference builtin/builtin builtin/int#
   }
   
   type Outer struct {
 //     ^^^^^ definition sg/initial/Outer#
+//     documentation type Outer struct
+//     documentation struct {
    Inner
 // ^^^^^ definition sg/initial/Outer#Inner.
+// documentation struct field Inner sg/initial.Inner
 // ^^^^^ reference sg/initial/Inner#
    W int
 // ^ definition sg/initial/Outer#W.
+// documentation struct field W int
 //   ^^^ reference builtin/builtin builtin/int#
   }
   
   func useOfCompositeStructs() {
 //     ^^^^^^^^^^^^^^^^^^^^^ definition sg/initial/useOfCompositeStructs().
+//     documentation func useOfCompositeStructs()
    o := Outer{
 // ^ definition local 0
 //      ^^^^^ reference sg/initial/Outer#
