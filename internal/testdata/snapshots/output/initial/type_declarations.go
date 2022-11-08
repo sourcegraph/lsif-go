@@ -29,6 +29,7 @@
    // anonymous struct
    anon struct {
 // ^^^^ definition sg/initial/StructType#anon.
+// documentation anonymous struct
     sub int
 //  ^^^ definition sg/initial/StructType#anon.sub.
 //      ^^^ reference builtin/builtin builtin/int#
@@ -37,6 +38,7 @@
    // interface within struct
    i interface {
 // ^ definition sg/initial/StructType#i.
+// documentation interface within struct
     AnonMethod() bool
 //  ^^^^^^^^^^ definition sg/initial/StructType#i.AnonMethod.
 //               ^^^^ reference builtin/builtin builtin/bool#

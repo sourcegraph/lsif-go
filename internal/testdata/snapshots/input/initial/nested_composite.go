@@ -4,6 +4,8 @@ import "net/http"
 
 type NestedHandler struct {
 	http.Handler
+
+	// Wow, a great thing for integers
 	Other int
 }
 

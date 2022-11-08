@@ -9,8 +9,11 @@
 // ^^^^ reference github.com/golang/go/std/net/http/http/
 //      ^^^^^^^ definition sg/initial/NestedHandler#Handler.
 //      ^^^^^^^ reference github.com/golang/go github.com/golang/go/std/net/http/Handler#
+  
+   // Wow, a great thing for integers
    Other int
 // ^^^^^ definition sg/initial/NestedHandler#Other.
+// documentation Wow, a great thing for integers
 //       ^^^ reference builtin/builtin builtin/int#
   }
   

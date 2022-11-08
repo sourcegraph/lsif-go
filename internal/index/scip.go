@@ -5,21 +5,24 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
+	"github.com/sourcegraph/lsif-go/internal/output"
+	"github.com/sourcegraph/lsif-go/internal/parallel"
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	"github.com/sourcegraph/scip/bindings/go/scip/testutil"
 	"golang.org/x/tools/go/packages"
 )
 
-const SymbolDefinition = int32(scip.SymbolRole_Definition)
-
 func Parse() {
-	// root := "/home/tjdevries/sourcegraph/sourcegraph.git/main/"
+	root := "/home/tjdevries/sourcegraph/sourcegraph.git/main/"
 	// root := "/home/tjdevries/build/vhs/"
-	root := "/home/tjdevries/git/smol_go/"
+	// root := "/home/tjdevries/build/bubbletea/"
+	// root := "/home/tjdevries/git/smol_go/"
 
 	index, _ := IndexProject(IndexOpts{
 		ModuleRoot:    root,
@@ -31,12 +34,20 @@ func Parse() {
 			continue
 		}
 
-		fmt.Println("\nSnapshot:", doc.RelativePath)
-		if true {
+		if false {
+			fmt.Println("\nSnapshot:", doc.RelativePath)
 			formatted, _ := testutil.FormatSnapshot(doc, index, "//", scip.VerboseSymbolFormatter)
 			fmt.Println(formatted)
 		}
 	}
+
+	b, err := proto.Marshal(index)
+	if err != nil {
+		fmt.Println("Failed", err)
+		return
+	}
+
+	os.WriteFile(filepath.Join(root, "index.scip"), b, 0644)
 }
 
 type IndexOpts struct {
@@ -55,23 +66,7 @@ var loadMode = packages.NeedDeps |
 
 func IndexProject(opts IndexOpts) (*scip.Index, error) {
 	opts.ModuleRoot, _ = filepath.Abs(opts.ModuleRoot)
-
 	moduleRoot := opts.ModuleRoot
-
-	index := scip.Index{
-		Metadata: &scip.Metadata{
-			Version: 0,
-			ToolInfo: &scip.ToolInfo{
-				Name:      "scip-go",
-				Version:   "0.1",
-				Arguments: []string{},
-			},
-			ProjectRoot:          "file://" + moduleRoot,
-			TextDocumentEncoding: scip.TextEncoding_UnspecifiedTextEncoding,
-		},
-		Documents:       []*scip.Document{},
-		ExternalSymbols: []*scip.SymbolInformation{},
-	}
 
 	cfg := &packages.Config{
 		Mode: loadMode,
@@ -86,6 +81,21 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
 		panic(err)
+	}
+
+	index := scip.Index{
+		Metadata: &scip.Metadata{
+			Version: 0,
+			ToolInfo: &scip.ToolInfo{
+				Name:      "scip-go",
+				Version:   "0.1",
+				Arguments: []string{},
+			},
+			ProjectRoot:          "file://" + moduleRoot,
+			TextDocumentEncoding: scip.TextEncoding_UTF8,
+		},
+		Documents:       []*scip.Document{},
+		ExternalSymbols: []*scip.SymbolInformation{},
 	}
 
 	normalizeThisPackage(opts, pkgs)
@@ -113,32 +123,17 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 		}
 	}
 
-	fieldPositionsToSymbol := map[token.Pos]string{}
-	for _, pkg := range pkgs {
-		for _, f := range pkg.Syntax {
-			visitor := StructVisitor{
-				mod:    pkg.Module,
-				Fields: fieldPositionsToSymbol,
-				curScope: []*scip.Descriptor{
-					{
-						Name:   pkg.PkgPath,
-						Suffix: scip.Descriptor_Namespace,
-					},
-				},
-			}
-
-			ast.Walk(visitor, f)
-		}
-	}
-
+	projectFields := traverseFields(pkgs)
 	for _, pkg := range pkgs {
 		for _, f := range pkg.Syntax {
 			relative, _ := filepath.Rel(moduleRoot, pkg.Fset.File(f.Package).Name())
-			doc := scip.Document{
-				Language:     "go",
-				RelativePath: relative,
-				Occurrences:  []*scip.Occurrence{},
-				Symbols:      []*scip.SymbolInformation{},
+			doc := Document{
+				&scip.Document{
+					Language:     "go",
+					RelativePath: relative,
+					Occurrences:  []*scip.Occurrence{},
+					Symbols:      []*scip.SymbolInformation{},
+				},
 			}
 
 			// Generate import references
@@ -154,17 +149,15 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 			}
 
 			visitor := FileVisitor{
-				doc:       &doc,
-				pkg:       pkg,
-				file:      f,
-				pkgLookup: pkgLookup,
-				locals:    map[token.Pos]string{},
-				fields:    fieldPositionsToSymbol,
-			}
+				doc:           &doc,
+				pkg:           pkg,
+				file:          f,
+				pkgLookup:     pkgLookup,
+				projectFields: projectFields,
+				pkgFields:     projectFields.getPackage(pkg),
 
-			pkgDescriptor := &scip.Descriptor{
-				Name:   pkg.PkgPath,
-				Suffix: scip.Descriptor_Namespace,
+				// locals are per-file, so create a new one per file
+				locals: map[token.Pos]string{},
 			}
 
 			for _, decl := range f.Decls {
@@ -175,7 +168,7 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 					switch decl.Tok {
 					case token.IMPORT:
 						// Already handled imports above
-						continue
+
 					case token.VAR, token.CONST:
 						ast.Walk(VarVisitor{
 							doc: &doc,
@@ -183,62 +176,38 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 							vis: &visitor,
 						}, decl)
 
-						continue
 					case token.TYPE:
+						fields := projectFields.getPackage(pkg)
+						if fields == nil {
+							panic("Unhandled package")
+						}
+
 						ast.Walk(TypeVisitor{
 							doc:    &doc,
 							pkg:    pkg,
 							vis:    &visitor,
-							fields: fieldPositionsToSymbol,
+							fields: fields,
 						}, decl)
+
 					default:
 						panic("Unhandled general declaration")
 					}
 
 					continue
 				case *ast.FuncDecl:
-					if decl.Recv != nil {
-						ast.Walk(visitor, decl.Recv)
-					}
-
-					pos := decl.Name.Pos()
-					position := pkg.Fset.Position(pos)
-
-					tPackage := types.NewPackage(pkg.Module.Path, pkg.Name)
-					obj := types.NewFunc(decl.Pos(), tPackage, decl.Name.Name, nil)
-
-					desciptors := []*scip.Descriptor{
-						pkgDescriptor,
-					}
-
-					if recv, has := receiverTypeName(decl); has {
-						desciptors = append(desciptors, descriptorType(recv))
-					}
-
-					desciptors = append(desciptors, descriptorMethod(decl.Name.Name))
-
-					symbol := scipSymbolFromDescriptors(pkg.Module, desciptors)
-
-					doc.Occurrences = append(doc.Occurrences, &scip.Occurrence{
-						Range:       scipRange(position, obj),
-						Symbol:      symbol,
-						SymbolRoles: SymbolDefinition,
-					})
-
-					ast.Walk(visitor, decl.Type.Params)
-					ast.Walk(visitor, decl.Body)
-
-					if decl.Type.Results != nil {
-						ast.Walk(visitor, decl.Type.Results)
-					}
+					ast.Walk(&FuncVisitor{
+						doc: &doc,
+						pkg: pkg,
+						vis: visitor,
+					}, decl)
 
 					continue
 				}
 
-				panic("unreachable")
+				panic("unreachable declaration")
 			}
 
-			index.Documents = append(index.Documents, &doc)
+			index.Documents = append(index.Documents, doc.Document)
 		}
 	}
 
@@ -285,29 +254,15 @@ func ensureVersionForPackage(pkg *packages.Package) {
 }
 
 func emitImportReference(
-	doc *scip.Document,
+	doc *Document,
 	position token.Position,
 	importedPackage *packages.Package,
 ) {
 	pkgPath := importedPackage.PkgPath
 	scipRange := scipRangeFromName(position, pkgPath, true)
-
 	symbol := scipSymbolFromDescriptors(importedPackage.Module, []*scip.Descriptor{descriptorPackage(pkgPath)})
-	// symbol := scip.Symbol{
-	// 	Scheme: "scip-go",
-	// 	Package: &scip.Package{
-	// 		Manager: "gomod",
-	// 		Name:    importedPackage.Name,
-	// 		Version: importedPackage.Module.Version,
-	// 	},
-	// 	Descriptors: []*scip.Descriptor{{Name: pkgPath, Suffix: scip.Descriptor_Package}},
-	// }
 
-	doc.Occurrences = append(doc.Occurrences, &scip.Occurrence{
-		Range:       scipRange,
-		Symbol:      symbol,
-		SymbolRoles: int32(scip.SymbolRole_ReadAccess),
-	})
+	doc.appendSymbolReference(symbol, scipRange)
 }
 
 func makeMonikerPackage(obj types.Object) string {
@@ -557,4 +512,55 @@ func receiverTypeName(f *ast.FuncDecl) (string, bool) {
 	}
 
 	return "", false
+}
+
+func traverseFields(pkgs []*packages.Package) *ProjectFields {
+	ch := make(chan func())
+
+	projectFields := NewProjectFields()
+	go func() {
+		defer close(ch)
+
+		for _, pkg := range pkgs {
+			// Bind pkg
+			pkg := pkg
+
+			ch <- func() {
+				packageFields := NewPackageFields(pkg)
+
+				visitor := StructVisitor{
+					mod:    pkg.Module,
+					Fields: packageFields,
+					curScope: []*scip.Descriptor{
+						{
+							Name:   pkg.PkgPath,
+							Suffix: scip.Descriptor_Namespace,
+						},
+					},
+				}
+
+				for _, f := range pkg.Syntax {
+					ast.Walk(visitor, f)
+				}
+
+				projectFields.add(&packageFields)
+			}
+
+		}
+	}()
+
+	n := uint64(len(pkgs))
+	wg, count := parallel.Run(ch)
+	output.WithProgressParallel(
+		wg,
+		"Traversing Field Definitions",
+		output.Options{
+			Verbosity:      output.DefaultOutput,
+			ShowAnimations: true,
+		},
+		count,
+		n,
+	)
+
+	return &projectFields
 }

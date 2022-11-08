@@ -3,7 +3,6 @@ package index
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	"golang.org/x/tools/go/packages"
@@ -16,8 +15,8 @@ import (
 // packages. So we need to make those field names global (we only have global
 // or file-local).
 type StructVisitor struct {
-	// mapping from field definitions to symbols
-	Fields map[token.Pos]string
+	// mapping from field definitions to symbols for this package
+	Fields PackageFields
 
 	mod      *packages.Module
 	curScope []*scip.Descriptor
@@ -79,16 +78,16 @@ func (s StructVisitor) Visit(n ast.Node) (w ast.Visitor) {
 
 	case *ast.Field:
 		if len(node.Names) == 0 {
-			s.Fields[node.Type.Pos()] = s.makeSymbol(&scip.Descriptor{
+			s.Fields.set(node.Type.Pos(), s.makeSymbol(&scip.Descriptor{
 				Name:   s.getNameOfTypeExpr(node.Type),
 				Suffix: scip.Descriptor_Term,
-			})
+			}))
 		} else {
 			for _, name := range node.Names {
-				s.Fields[name.Pos()] = s.makeSymbol(&scip.Descriptor{
+				s.Fields.set(name.Pos(), s.makeSymbol(&scip.Descriptor{
 					Name:   name.Name,
 					Suffix: scip.Descriptor_Term,
-				})
+				}))
 
 				switch node.Type.(type) {
 				case *ast.StructType, *ast.InterfaceType:

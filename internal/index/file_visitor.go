@@ -6,7 +6,6 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/sourcegraph/scip/bindings/go/scip"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -16,7 +15,7 @@ import (
 // Iterates over a file,
 type FileVisitor struct {
 	// Document to append occurrences to
-	doc *scip.Document
+	doc *Document
 
 	// Current file information
 	pkg  *packages.Package
@@ -29,7 +28,8 @@ type FileVisitor struct {
 	locals map[token.Pos]string
 
 	// field definition position to symbol
-	fields map[token.Pos]string
+	projectFields *ProjectFields
+	pkgFields     *PackageFields
 }
 
 // Implements ast.Visitor
@@ -87,17 +87,13 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		// Append definition
 		if def != nil {
 			var sym string
-			if fieldSymbol, ok := f.fields[def.Pos()]; ok {
+			if fieldSymbol, ok := f.pkgFields.get(def.Pos()); ok {
 				sym = fieldSymbol
 			} else {
 				sym = f.createNewLocalSymbol(def.Pos())
 			}
 
-			f.doc.Occurrences = append(f.doc.Occurrences, &scip.Occurrence{
-				Range:       scipRange(position, def),
-				Symbol:      sym,
-				SymbolRoles: int32(scip.SymbolRole_Definition),
-			})
+			f.doc.appendSymbolDefinition(sym, scipRange(position, def), nil, node)
 		}
 
 		if ref != nil {
@@ -105,7 +101,8 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 			if localSymbol, ok := f.locals[ref.Pos()]; ok {
 				symbol = localSymbol
 			} else {
-				mod, ok := f.pkgLookup[pkgPath(ref)]
+				refPkgPath := pkgPath(ref)
+				mod, ok := f.pkgLookup[refPkgPath]
 				if !ok {
 					if ref.Pkg() == nil {
 						panic(fmt.Sprintf("Failed to find the thing for ref: %s | %+v\n", pkgPath(ref), ref))
@@ -115,7 +112,8 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 				}
 
 				if mod == nil {
-					panic(fmt.Sprintf("Very weird, can't figure out this reference: %s", ref))
+					// panic(fmt.Sprintf("Very weird, can't figure out this reference: %s", ref))
+					return
 				}
 
 				switch ref := ref.(type) {
@@ -124,7 +122,8 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 					//    We iterate over the structs on the first pass to generate these
 					//    fields, and then look them up on reference
 					if ref.IsField() {
-						symbol = f.fields[ref.Pos()]
+						symbol, _ = f.projectFields.get(refPkgPath, ref.Pos())
+						// TODO: assert symbol?
 					}
 
 				case *types.Nil:
@@ -136,11 +135,7 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 				}
 			}
 
-			f.doc.Occurrences = append(f.doc.Occurrences, &scip.Occurrence{
-				Range:       scipRange(position, ref),
-				Symbol:      symbol,
-				SymbolRoles: int32(scip.SymbolRole_ReadAccess),
-			})
+			f.doc.appendSymbolReference(symbol, scipRange(position, ref))
 		}
 
 	// explicit fail

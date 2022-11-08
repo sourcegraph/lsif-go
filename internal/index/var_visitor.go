@@ -9,9 +9,11 @@ import (
 )
 
 type VarVisitor struct {
-	doc *scip.Document
+	doc *Document
 	pkg *packages.Package
 	vis ast.Visitor
+
+	curDecl ast.Decl
 }
 
 var _ ast.Visitor = &VarVisitor{}
@@ -26,6 +28,7 @@ func (v VarVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		switch node.Tok {
 		// Only traverse vars and consts
 		case token.VAR, token.CONST:
+			v.curDecl = node
 			return v
 		default:
 			return nil
@@ -35,13 +38,16 @@ func (v VarVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		for _, name := range node.Names {
 			position := v.pkg.Fset.Position(name.Pos())
 
-			v.doc.Occurrences = append(v.doc.Occurrences, &scip.Occurrence{
-				Range: scipRangeFromName(position, name.Name, false),
-				Symbol: scipSymbolFromDescriptors(v.pkg.Module, []*scip.Descriptor{
-					descriptorTerm(name.Name),
-				}),
-				SymbolRoles: SymbolDefinition,
+			symbol := scipSymbolFromDescriptors(v.pkg.Module, []*scip.Descriptor{
+				descriptorTerm(name.Name),
 			})
+
+			v.doc.appendSymbolDefinition(
+				symbol,
+				scipRangeFromName(position, name.Name, false),
+				v.curDecl,
+				node,
+			)
 		}
 
 		// Walk the rest of the struct
@@ -49,11 +55,6 @@ func (v VarVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		noNames.Names = []*ast.Ident{}
 
 		ast.Walk(v.vis, &noNames)
-
-		// ast.Walk(s.vis, node.Doc)
-		// ast.Walk(s.vis, node.Type)
-		// walkExprList(s.vis, node.Values)
-		// ast.Walk(s.vis, node.Comment)
 
 		return nil
 	default:

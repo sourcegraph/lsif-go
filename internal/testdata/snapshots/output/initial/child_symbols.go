@@ -9,10 +9,12 @@
    // ConstBlock1 is a constant in a block.
    ConstBlock1 = 1
 // ^^^^^^^^^^^ definition ConstBlock1.
+// documentation ConstBlock1 is a constant in a block.
   
    // ConstBlock2 is a constant in a block.
    ConstBlock2 = 2
 // ^^^^^^^^^^^ definition ConstBlock2.
+// documentation ConstBlock2 is a constant in a block.
   )
   
   // Var is a variable interface.
@@ -70,6 +72,7 @@
    // This has some docs
    VarBlock1 = "if you're reading this"
 // ^^^^^^^^^ definition VarBlock1.
+// documentation This has some docs
   
    VarBlock2 = "hi"
 // ^^^^^^^^^ definition VarBlock2.
@@ -78,12 +81,15 @@
   // Embedded is a struct, to be embedded in another struct.
   type Embedded struct {
 //     ^^^^^^^^ definition sg/initial/Embedded#
+//     documentation Embedded is a struct, to be embedded in another struct.
    // EmbeddedField has some docs!
    EmbeddedField string
 // ^^^^^^^^^^^^^ definition sg/initial/Embedded#EmbeddedField.
+// documentation EmbeddedField has some docs!
 //               ^^^^^^ reference builtin/builtin builtin/string#
    Field         string // conflicts with parent "Field"
 // ^^^^^ definition sg/initial/Embedded#Field.
+// documentation conflicts with parent "Field"
 //               ^^^^^^ reference builtin/builtin builtin/string#
   }
   
@@ -114,6 +120,7 @@
 //      ^ definition local 3
 //         ^^^^^^ reference sg/initial/Struct#
 //                 ^^^^^^^^^^^^ definition sg/initial/Struct#StructMethod().
+//                 documentation StructMethod has some docs!
   
   func (s *Struct) ImplementsInterface() string { return "hi!" }
 //      ^ definition local 4
@@ -182,6 +189,7 @@
   // Interface has docs too
   type Interface interface {
 //     ^^^^^^^^^ definition sg/initial/Interface#
+//     documentation Interface has docs too
    ImplementsInterface() string
 // ^^^^^^^^^^^^^^^^^^^ definition sg/initial/Interface#ImplementsInterface.
 //                       ^^^^^^ reference builtin/builtin builtin/string#
@@ -224,6 +232,7 @@
   // crypto/tls/common_string.go uses this pattern..
   func _() {
 //     ^ definition sg/initial/_().
+//     documentation crypto/tls/common_string.go uses this pattern..
   }
   
   // Go can be fun
@@ -231,6 +240,7 @@
    // And confusing
    X struct {
 // ^ definition sg/initial/X#
+// documentation And confusing
     bar string
 //  ^^^ definition sg/initial/X#bar.
 //      ^^^^^^ reference builtin/builtin builtin/string#
@@ -238,6 +248,7 @@
   
    Y struct {
 // ^ definition sg/initial/Y#
+// documentation Go can be fun
     baz float
 //  ^^^ definition sg/initial/Y#baz.
    }

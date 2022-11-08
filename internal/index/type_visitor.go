@@ -10,11 +10,13 @@ import (
 )
 
 type TypeVisitor struct {
-	doc *scip.Document
+	doc *Document
 	pkg *packages.Package
 	vis ast.Visitor
 
-	fields map[token.Pos]string
+	fields *PackageFields
+
+	curDecl *ast.GenDecl
 }
 
 func (v TypeVisitor) Visit(n ast.Node) (w ast.Visitor) {
@@ -22,38 +24,32 @@ func (v TypeVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	case *ast.GenDecl:
 		switch node.Tok {
 		case token.TYPE:
+			v.curDecl = node
 			return v
 		default:
 			return nil
 		}
 	case *ast.TypeSpec:
-		pkgDescriptor := &scip.Descriptor{
-			Name:   v.pkg.PkgPath,
-			Suffix: scip.Descriptor_Namespace,
-		}
-
 		structDescriptors := []*scip.Descriptor{
-			pkgDescriptor,
+			{
+				Name:   v.pkg.PkgPath,
+				Suffix: scip.Descriptor_Namespace,
+			},
 			{
 				Name:   node.Name.Name,
 				Suffix: scip.Descriptor_Type,
 			},
 		}
 
-		symbol := scipSymbolFromDescriptors(v.pkg.Module, structDescriptors)
-		position := v.pkg.Fset.Position(node.Name.NamePos)
-		v.doc.Occurrences = append(v.doc.Occurrences, &scip.Occurrence{
-			Range:       scipRangeFromName(position, node.Name.Name, false),
-			Symbol:      symbol,
-			SymbolRoles: SymbolDefinition,
-		})
+		typeSymbol := scipSymbolFromDescriptors(v.pkg.Module, structDescriptors)
+		typeRange := scipRangeFromName(v.pkg.Fset.Position(node.Name.NamePos), node.Name.Name, false)
+		v.doc.appendSymbolDefinition(typeSymbol, typeRange, v.curDecl, node)
 
 		if node.TypeParams != nil {
-			panic("generics")
+			// panic("generics")
 		}
 
 		ast.Walk(v, node.Type)
-
 		return nil
 
 	case *ast.StructType, *ast.InterfaceType:
@@ -62,13 +58,10 @@ func (v TypeVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	case *ast.FieldList:
 		for _, field := range node.List {
 			for _, name := range field.Names {
-				if fieldSymbol, ok := v.fields[name.NamePos]; ok {
+				if fieldSymbol, ok := v.fields.get(name.NamePos); ok {
 					namePosition := v.pkg.Fset.Position(name.NamePos)
-					v.doc.Occurrences = append(v.doc.Occurrences, &scip.Occurrence{
-						Range:       scipRangeFromName(namePosition, name.Name, false),
-						Symbol:      fieldSymbol,
-						SymbolRoles: SymbolDefinition,
-					})
+					nameRange := scipRangeFromName(namePosition, name.Name, false)
+					v.doc.appendSymbolDefinition(fieldSymbol, nameRange, nil, field)
 				} else {
 					panic(fmt.Sprintf("field with no definition: %v", node))
 				}
