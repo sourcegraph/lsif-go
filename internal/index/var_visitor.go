@@ -8,10 +8,16 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+func visitVarDefinition(doc *Document, pkg *packages.Package, decl *ast.GenDecl) {
+	ast.Walk(VarVisitor{
+		doc: doc,
+		pkg: pkg,
+	}, decl)
+}
+
 type VarVisitor struct {
 	doc *Document
 	pkg *packages.Package
-	vis ast.Visitor
 
 	curDecl ast.Decl
 }
@@ -36,25 +42,15 @@ func (v VarVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	case *ast.ValueSpec:
 		// Iterate over names, which are the only thing that can be definitions
 		for _, name := range node.Names {
-			position := v.pkg.Fset.Position(name.Pos())
-
 			symbol := scipSymbolFromDescriptors(v.pkg.Module, []*scip.Descriptor{
 				descriptorTerm(name.Name),
 			})
 
-			v.doc.appendSymbolDefinition(
-				symbol,
-				scipRangeFromName(position, name.Name, false),
-				v.curDecl,
-				node,
-			)
+			v.doc.declareNewSymbol(symbol, v.curDecl, node)
+
+			// position := v.pkg.Fset.Position(name.Pos())
+			// v.doc.NewOccurrence(symbol, scipRangeFromName(position, name.Name, false))
 		}
-
-		// Walk the rest of the struct
-		noNames := *node
-		noNames.Names = []*ast.Ident{}
-
-		ast.Walk(v.vis, &noNames)
 
 		return nil
 	default:

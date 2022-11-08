@@ -28,8 +28,9 @@ type FileVisitor struct {
 	locals map[token.Pos]string
 
 	// field definition position to symbol
-	projectFields *ProjectFields
-	pkgFields     *PackageFields
+
+	pkgSymbols    *PackageSymbols
+	globalSymbols *GlobalSymbols
 }
 
 // Implements ast.Visitor
@@ -61,54 +62,49 @@ func (f *FileVisitor) findModule(ref types.Object) *packages.Module {
 	return mod
 }
 
-func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
+func (v FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	if n == nil {
 		return nil
 	}
 
 	switch node := n.(type) {
 	case *ast.Ident:
-		info := f.pkg.TypesInfo
-
-		def := info.Defs[node]
-		ref := info.Uses[node]
+		info := v.pkg.TypesInfo
 
 		pos := node.NamePos
-		position := f.pkg.Fset.Position(pos)
+		position := v.pkg.Fset.Position(pos)
 
-		// This happens for composite structs
-		//    We need to figure out a bit more information for this.
-		//    Asked eric :)
-		//
-		// if def != nil && ref != nil {
-		// 	panic("Didn't think this was possible")
-		// }
-
-		// Append definition
+		// Emit Definition
+		def := info.Defs[node]
 		if def != nil {
 			var sym string
-			if fieldSymbol, ok := f.pkgFields.get(def.Pos()); ok {
-				sym = fieldSymbol
+			if pkgSymbols, ok := v.pkgSymbols.get(def.Pos()); ok {
+				sym = pkgSymbols
+			} else if globalSymbol, ok := v.globalSymbols.get(v.pkg.PkgPath, def.Pos()); ok {
+				fmt.Println("GLOBAL SYMBOL", globalSymbol)
+				sym = globalSymbol
 			} else {
-				sym = f.createNewLocalSymbol(def.Pos())
+				sym = v.createNewLocalSymbol(def.Pos())
 			}
 
-			f.doc.appendSymbolDefinition(sym, scipRange(position, def), nil, node)
+			v.doc.NewOccurrence(sym, scipRange(position, def))
 		}
 
+		// Emit Reference
+		ref := info.Uses[node]
 		if ref != nil {
 			var symbol string
-			if localSymbol, ok := f.locals[ref.Pos()]; ok {
+			if localSymbol, ok := v.locals[ref.Pos()]; ok {
 				symbol = localSymbol
 			} else {
 				refPkgPath := pkgPath(ref)
-				mod, ok := f.pkgLookup[refPkgPath]
+				mod, ok := v.pkgLookup[refPkgPath]
 				if !ok {
 					if ref.Pkg() == nil {
 						panic(fmt.Sprintf("Failed to find the thing for ref: %s | %+v\n", pkgPath(ref), ref))
 					}
 
-					mod = f.pkgLookup[ref.Pkg().Name()]
+					mod = v.pkgLookup[ref.Pkg().Name()]
 				}
 
 				if mod == nil {
@@ -122,7 +118,7 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 					//    We iterate over the structs on the first pass to generate these
 					//    fields, and then look them up on reference
 					if ref.IsField() {
-						symbol, _ = f.projectFields.get(refPkgPath, ref.Pos())
+						symbol, _ = v.globalSymbols.get(refPkgPath, ref.Pos())
 						// TODO: assert symbol?
 					}
 
@@ -135,19 +131,9 @@ func (f FileVisitor) Visit(n ast.Node) (w ast.Visitor) {
 				}
 			}
 
-			f.doc.appendSymbolReference(symbol, scipRange(position, ref))
+			v.doc.appendSymbolReference(symbol, scipRange(position, ref))
 		}
-
-	// explicit fail
-	case *ast.File:
-		panic("Should not find a file. Only call from within a file")
-
-	case *ast.FuncDecl:
-		// explicit pass
-
-	default:
-		// fmt.Printf("unhandled: %T %v\n", n, n)
 	}
 
-	return f
+	return v
 }

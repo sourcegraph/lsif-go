@@ -9,26 +9,23 @@ import (
 
 type Document struct {
 	*scip.Document
+
+	// pkgSymbols maps positions to symbol names within
+	// this document.
+	pkgSymbols *PackageSymbols
 }
 
 const SymbolDefinition = int32(scip.SymbolRole_Definition)
 const SymbolReference = int32(scip.SymbolRole_ReadAccess)
 
-func (d *Document) appendSymbolDefinition(
+func (d *Document) declareNewSymbol(
 	symbol string,
-	rng []int32,
-	decl ast.Decl,
+	parent ast.Node,
 	node ast.Node,
 ) {
-	d.Occurrences = append(d.Occurrences, &scip.Occurrence{
-		Range:       rng,
-		Symbol:      symbol,
-		SymbolRoles: SymbolDefinition,
-	})
-
 	documentation := []string{}
 	if node != nil {
-		hover := extractHoverText(decl, node)
+		hover := extractHoverText(parent, node)
 		if hover != "" {
 			documentation = append(documentation, hover)
 		}
@@ -37,6 +34,16 @@ func (d *Document) appendSymbolDefinition(
 	d.Symbols = append(d.Symbols, &scip.SymbolInformation{
 		Symbol:        symbol,
 		Documentation: documentation,
+	})
+
+	d.pkgSymbols.set(node.Pos(), symbol)
+}
+
+func (d *Document) NewOccurrence(symbol string, rng []int32) {
+	d.Occurrences = append(d.Occurrences, &scip.Occurrence{
+		Range:       rng,
+		Symbol:      symbol,
+		SymbolRoles: SymbolDefinition,
 	})
 }
 
@@ -48,7 +55,7 @@ func (d *Document) appendSymbolReference(symbol string, rng []int32) {
 	})
 }
 
-func extractHoverText(decl ast.Decl, node ast.Node) string {
+func extractHoverText(parent ast.Node, node ast.Node) string {
 	switch v := node.(type) {
 	case *ast.FuncDecl:
 		return v.Doc.Text()
@@ -61,15 +68,24 @@ func extractHoverText(decl ast.Decl, node ast.Node) string {
 		//
 		// This is why we have to pass the declaration node
 		doc := v.Doc.Text()
-		if doc == "" && decl != nil {
-			doc = extractHoverText(nil, decl)
+		if doc == "" && parent != nil {
+			doc = extractHoverText(nil, parent)
 		}
 
 		return doc
 	case *ast.ValueSpec:
-		return v.Doc.Text()
+		doc := v.Doc.Text()
+		if doc == "" && parent != nil {
+			doc = extractHoverText(nil, parent)
+		}
+
+		return doc
 	case *ast.Field:
 		return strings.TrimSpace(v.Doc.Text() + "\n" + v.Comment.Text())
+	case *ast.Ident:
+		if parent != nil {
+			return extractHoverText(nil, parent)
+		}
 	}
 
 	return ""

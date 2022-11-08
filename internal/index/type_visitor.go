@@ -9,13 +9,16 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+func visitTypeDefinition(doc *Document, pkg *packages.Package, decl *ast.GenDecl) {
+	ast.Walk(TypeVisitor{
+		doc: doc,
+		pkg: pkg,
+	}, decl)
+}
+
 type TypeVisitor struct {
-	doc *Document
-	pkg *packages.Package
-	vis ast.Visitor
-
-	fields *PackageFields
-
+	doc     *Document
+	pkg     *packages.Package
 	curDecl *ast.GenDecl
 }
 
@@ -42,8 +45,7 @@ func (v TypeVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		}
 
 		typeSymbol := scipSymbolFromDescriptors(v.pkg.Module, structDescriptors)
-		typeRange := scipRangeFromName(v.pkg.Fset.Position(node.Name.NamePos), node.Name.Name, false)
-		v.doc.appendSymbolDefinition(typeSymbol, typeRange, v.curDecl, node)
+		v.doc.declareNewSymbol(typeSymbol, v.curDecl, node)
 
 		if node.TypeParams != nil {
 			// panic("generics")
@@ -58,32 +60,27 @@ func (v TypeVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	case *ast.FieldList:
 		for _, field := range node.List {
 			for _, name := range field.Names {
-				if fieldSymbol, ok := v.fields.get(name.NamePos); ok {
-					namePosition := v.pkg.Fset.Position(name.NamePos)
-					nameRange := scipRangeFromName(namePosition, name.Name, false)
-					v.doc.appendSymbolDefinition(fieldSymbol, nameRange, nil, field)
+				if fieldSymbol, ok := v.doc.pkgSymbols.get(name.NamePos); ok {
+					v.doc.declareNewSymbol(fieldSymbol, field, name)
 				} else {
 					panic(fmt.Sprintf("field with no definition: %v", node))
 				}
 			}
 
 			switch field.Type.(type) {
-			case *ast.InterfaceType:
+			case *ast.InterfaceType, *ast.StructType:
 				ast.Walk(v, field.Type)
-			default:
-				ast.Walk(v.vis, field.Type)
 			}
 		}
 		return nil
 
 	case *ast.FuncType, *ast.SelectorExpr:
-		return v.vis
+		return nil
 
 	case *ast.Ident:
-		ast.Walk(v.vis, node)
 		return nil
 
 	default:
-		return v.vis
+		return nil
 	}
 }

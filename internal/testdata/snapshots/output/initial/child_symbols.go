@@ -3,6 +3,7 @@
   // Const is a constant equal to 5. It's the best constant I've ever written. 😹
   const Const = 5
 //      ^^^^^ definition Const.
+//      documentation Const is a constant equal to 5. It's the best constant I've ever written. 😹
   
   // Docs for the const block itself.
   const (
@@ -20,6 +21,7 @@
   // Var is a variable interface.
   var Var Interface = &Struct{Field: "bar!"}
 //    ^^^ definition Var.
+//    documentation Var is a variable interface.
 //        ^^^^^^^^^ reference sg/initial/Interface#
 //                     ^^^^^^ reference sg/initial/Struct#
 //                            ^^^^^ reference sg/initial/Struct#Field.
@@ -27,6 +29,7 @@
   // unexportedVar is an unexported variable interface.
   var unexportedVar Interface = &Struct{Field: "bar!"}
 //    ^^^^^^^^^^^^^ definition unexportedVar.
+//    documentation unexportedVar is an unexported variable interface.
 //                  ^^^^^^^^^ reference sg/initial/Interface#
 //                               ^^^^^^ reference sg/initial/Struct#
 //                                      ^^^^^ reference sg/initial/Struct#Field.
@@ -34,6 +37,7 @@
   // x has a builtin error type
   var x error
 //    ^ definition x.
+//    documentation x has a builtin error type
 //      ^^^^^ reference builtin/builtin builtin/error#
   
   var BigVar Interface = &Struct{
@@ -76,6 +80,7 @@
   
    VarBlock2 = "hi"
 // ^^^^^^^^^ definition VarBlock2.
+// documentation What are docs, really?
   )
   
   // Embedded is a struct, to be embedded in another struct.
@@ -223,6 +228,7 @@
   //
   var _ = Interface(&Struct{})
 //    ^ definition _.
+//    documentation Yeah this is some Go magic incantation which is common.
 //        ^^^^^^^^^ reference sg/initial/Interface#
 //                   ^^^^^^ reference sg/initial/Struct#
   

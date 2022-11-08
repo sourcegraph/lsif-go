@@ -8,24 +8,37 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// StructVisitor collects the all the information for top-level structs
+func visitFieldsInFile(doc *Document, pkg *packages.Package, file *ast.File) {
+	visitor := FieldVisitor{
+		mod: pkg.Module,
+		doc: doc,
+		curScope: []*scip.Descriptor{
+			{
+				Name:   pkg.PkgPath,
+				Suffix: scip.Descriptor_Namespace,
+			},
+		},
+	}
+
+	ast.Walk(visitor, file)
+}
+
+// FieldVisitor collects the all the information for top-level structs
 // that can be imported by any other file (they do not have to be exported).
 //
 // For example, a struct `myStruct` can be imported by other files in the same
 // packages. So we need to make those field names global (we only have global
 // or file-local).
-type StructVisitor struct {
-	// mapping from field definitions to symbols for this package
-	Fields PackageFields
-
+type FieldVisitor struct {
+	doc      *Document
 	mod      *packages.Module
 	curScope []*scip.Descriptor
 }
 
 // Implements ast.Visitor
-var _ ast.Visitor = &StructVisitor{}
+var _ ast.Visitor = &FieldVisitor{}
 
-func (s *StructVisitor) getNameOfTypeExpr(ty ast.Expr) string {
+func (s *FieldVisitor) getNameOfTypeExpr(ty ast.Expr) string {
 	switch ty := ty.(type) {
 	case *ast.Ident:
 		return ty.Name
@@ -38,11 +51,11 @@ func (s *StructVisitor) getNameOfTypeExpr(ty ast.Expr) string {
 	}
 }
 
-func (s *StructVisitor) makeSymbol(descriptor *scip.Descriptor) string {
+func (s *FieldVisitor) makeSymbol(descriptor *scip.Descriptor) string {
 	return scipSymbolFromDescriptors(s.mod, append(s.curScope, descriptor))
 }
 
-func (s StructVisitor) Visit(n ast.Node) (w ast.Visitor) {
+func (s FieldVisitor) Visit(n ast.Node) (w ast.Visitor) {
 	if n == nil {
 		return nil
 	}
@@ -74,20 +87,18 @@ func (s StructVisitor) Visit(n ast.Node) (w ast.Visitor) {
 		}()
 
 		ast.Walk(s, node.Type)
-		return nil
-
 	case *ast.Field:
 		if len(node.Names) == 0 {
-			s.Fields.set(node.Type.Pos(), s.makeSymbol(&scip.Descriptor{
+			s.doc.declareNewSymbol(s.makeSymbol(&scip.Descriptor{
 				Name:   s.getNameOfTypeExpr(node.Type),
 				Suffix: scip.Descriptor_Term,
-			}))
+			}), nil, node)
 		} else {
 			for _, name := range node.Names {
-				s.Fields.set(name.Pos(), s.makeSymbol(&scip.Descriptor{
+				s.doc.declareNewSymbol(s.makeSymbol(&scip.Descriptor{
 					Name:   name.Name,
 					Suffix: scip.Descriptor_Term,
-				}))
+				}), nil, name)
 
 				switch node.Type.(type) {
 				case *ast.StructType, *ast.InterfaceType:
@@ -104,12 +115,8 @@ func (s StructVisitor) Visit(n ast.Node) (w ast.Visitor) {
 					s.curScope = s.curScope[:len(s.curScope)-1]
 				}
 			}
-
 		}
-
-		return nil
-
-	default:
-		return nil
 	}
+
+	return nil
 }

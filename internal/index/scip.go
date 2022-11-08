@@ -11,17 +11,15 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/sourcegraph/lsif-go/internal/gomod"
-	"github.com/sourcegraph/lsif-go/internal/output"
-	"github.com/sourcegraph/lsif-go/internal/parallel"
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	"github.com/sourcegraph/scip/bindings/go/scip/testutil"
 	"golang.org/x/tools/go/packages"
 )
 
 func Parse() {
-	root := "/home/tjdevries/sourcegraph/sourcegraph.git/main/"
+	// root := "/home/tjdevries/sourcegraph/sourcegraph.git/main/"
 	// root := "/home/tjdevries/build/vhs/"
-	// root := "/home/tjdevries/build/bubbletea/"
+	root := "/home/tjdevries/build/bubbletea/"
 	// root := "/home/tjdevries/git/smol_go/"
 
 	index, _ := IndexProject(IndexOpts{
@@ -123,17 +121,85 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 		}
 	}
 
-	projectFields := traverseFields(pkgs)
+	pathToDocuments := map[string]*Document{}
+
+	// symbol definitions
+	// map[pkgPath]map[token.Pos]symbol
+	globalSymbols := NewGlobalSymbols()
 	for _, pkg := range pkgs {
+		pkgSymbols := NewPackageSymbols(pkg)
+
+		// Iterate over all the files, collect any global symbols
 		for _, f := range pkg.Syntax {
 			relative, _ := filepath.Rel(moduleRoot, pkg.Fset.File(f.Package).Name())
 			doc := Document{
-				&scip.Document{
+				Document: &scip.Document{
 					Language:     "go",
 					RelativePath: relative,
 					Occurrences:  []*scip.Occurrence{},
 					Symbols:      []*scip.SymbolInformation{},
 				},
+				pkgSymbols: pkgSymbols,
+			}
+
+			// Save document for pass 2
+			pathToDocuments[relative] = &doc
+
+			// TODO: Maybe we should do this before? we have traverse all
+			// the fields first before, but now I think it's fine right here
+			// .... maybe
+			visitFieldsInFile(&doc, pkg, f)
+
+			for _, decl := range f.Decls {
+				switch decl := decl.(type) {
+				case *ast.BadDecl:
+					continue
+
+				case *ast.GenDecl:
+					switch decl.Tok {
+					case token.IMPORT:
+						// These do not create global symbols
+						continue
+
+					case token.VAR, token.CONST:
+						// visit var
+						visitVarDefinition(&doc, pkg, decl)
+
+					case token.TYPE:
+						visitTypeDefinition(&doc, pkg, decl)
+
+					default:
+						panic("Unhandled general declaration")
+					}
+
+				case *ast.FuncDecl:
+					visitFunctionDefinition(&doc, pkg, decl)
+				}
+
+			}
+		}
+
+		globalSymbols.add(pkgSymbols)
+	}
+
+	for _, pkg := range pkgs {
+		pkgSymbols := globalSymbols.getPackage(pkg)
+
+		for _, f := range pkg.Syntax {
+			relative, _ := filepath.Rel(moduleRoot, pkg.Fset.File(f.Package).Name())
+			doc := pathToDocuments[relative]
+
+			visitor := FileVisitor{
+				doc:       doc,
+				pkg:       pkg,
+				file:      f,
+				pkgLookup: pkgLookup,
+
+				// locals are per-file, so create a new one per file
+				locals: map[token.Pos]string{},
+
+				pkgSymbols:    pkgSymbols,
+				globalSymbols: &globalSymbols,
 			}
 
 			// Generate import references
@@ -145,67 +211,61 @@ func IndexProject(opts IndexOpts) (*scip.Index, error) {
 				}
 
 				position := pkg.Fset.Position(spec.Pos())
-				emitImportReference(&doc, position, importedPackage)
+				emitImportReference(doc, position, importedPackage)
 			}
 
-			visitor := FileVisitor{
-				doc:           &doc,
-				pkg:           pkg,
-				file:          f,
-				pkgLookup:     pkgLookup,
-				projectFields: projectFields,
-				pkgFields:     projectFields.getPackage(pkg),
+			ast.Walk(visitor, f)
 
-				// locals are per-file, so create a new one per file
-				locals: map[token.Pos]string{},
-			}
-
-			for _, decl := range f.Decls {
-				switch decl := decl.(type) {
-				case *ast.BadDecl:
-					continue
-				case *ast.GenDecl:
-					switch decl.Tok {
-					case token.IMPORT:
-						// Already handled imports above
-
-					case token.VAR, token.CONST:
-						ast.Walk(VarVisitor{
-							doc: &doc,
-							pkg: pkg,
-							vis: &visitor,
-						}, decl)
-
-					case token.TYPE:
-						fields := projectFields.getPackage(pkg)
-						if fields == nil {
-							panic("Unhandled package")
-						}
-
-						ast.Walk(TypeVisitor{
-							doc:    &doc,
-							pkg:    pkg,
-							vis:    &visitor,
-							fields: fields,
-						}, decl)
-
-					default:
-						panic("Unhandled general declaration")
-					}
-
-					continue
-				case *ast.FuncDecl:
-					ast.Walk(&FuncVisitor{
-						doc: &doc,
-						pkg: pkg,
-						vis: visitor,
-					}, decl)
-
-					continue
-				}
-
-				panic("unreachable declaration")
-			}
+			// Visit all of the declarations, and generate any necessary
+			// global symbols.
+			// for _, decl := range f.Decls {
+			// 	switch decl := decl.(type) {
+			// 	case *ast.BadDecl:
+			// 		continue
+			// 	case *ast.GenDecl:
+			// 		switch decl.Tok {
+			// 		case token.IMPORT:
+			// 			// Already handled imports above
+			//
+			// 		case token.VAR, token.CONST:
+			// 			// ast.Walk(VarVisitor{
+			// 			// 	doc: doc,
+			// 			// 	pkg: pkg,
+			// 			// 	vis: &visitor,
+			// 			// }, decl)
+			//
+			// 		case token.TYPE:
+			// 			fields := projectFields.getPackage(pkg)
+			// 			if fields == nil {
+			// 				panic("Unhandled package")
+			// 			}
+			//
+			// 			// ast.Walk(TypeVisitor{
+			// 			// 	doc:    doc,
+			// 			// 	pkg:    pkg,
+			// 			// 	vis:    &visitor,
+			// 			// 	fields: fields,
+			// 			// }, decl)
+			//
+			// 		default:
+			// 			panic("Unhandled general declaration")
+			// 		}
+			//
+			// 		continue
+			// 	case *ast.FuncDecl:
+			// 		visitFunctionDefinition(doc, pkg, decl)
+			//
+			// 		// ast.Walk(&FuncVisitor{
+			// 		// 	doc: &doc,
+			// 		// 	pkg: pkg,
+			// 		// 	vis: visitor,
+			// 		// }, decl)
+			//
+			// 		continue
+			// 	}
+			//
+			// 	panic("unreachable declaration")
+			// }
 
 			index.Documents = append(index.Documents, doc.Document)
 		}
@@ -314,7 +374,7 @@ func pkgPath(obj types.Object) string {
 		// If this becomes a problem more in the future, we can just default to
 		// returning "builtin" but as of now this handles all the cases that I
 		// know of.
-		fmt.Printf("%T %+v (pkg: %s)\n", obj, obj, obj.Pkg())
+		// fmt.Printf("%T %+v (pkg: %s)\n", obj, obj, obj.Pkg())
 		// panic("Unhandled nil obj.Pkg()")
 		return "builtin"
 	}
@@ -410,10 +470,10 @@ func scipDescriptors(obj types.Object) []*scip.Descriptor {
 		}
 	case *types.Var:
 		if obj.IsField() {
-			fmt.Println("OBJ IS FIELD:", obj)
+			// fmt.Println("OBJ IS FIELD:", obj)
 
 			// inner := obj.Pkg().Scope().Innermost(obj.Pos())
-			fmt.Printf("  %T %+v\n", obj.Parent(), obj.Type())
+			// fmt.Printf("  %T %+v\n", obj.Parent(), obj.Type())
 		}
 
 		return []*scip.Descriptor{
@@ -514,53 +574,53 @@ func receiverTypeName(f *ast.FuncDecl) (string, bool) {
 	return "", false
 }
 
-func traverseFields(pkgs []*packages.Package) *ProjectFields {
-	ch := make(chan func())
-
-	projectFields := NewProjectFields()
-	go func() {
-		defer close(ch)
-
-		for _, pkg := range pkgs {
-			// Bind pkg
-			pkg := pkg
-
-			ch <- func() {
-				packageFields := NewPackageFields(pkg)
-
-				visitor := StructVisitor{
-					mod:    pkg.Module,
-					Fields: packageFields,
-					curScope: []*scip.Descriptor{
-						{
-							Name:   pkg.PkgPath,
-							Suffix: scip.Descriptor_Namespace,
-						},
-					},
-				}
-
-				for _, f := range pkg.Syntax {
-					ast.Walk(visitor, f)
-				}
-
-				projectFields.add(&packageFields)
-			}
-
-		}
-	}()
-
-	n := uint64(len(pkgs))
-	wg, count := parallel.Run(ch)
-	output.WithProgressParallel(
-		wg,
-		"Traversing Field Definitions",
-		output.Options{
-			Verbosity:      output.DefaultOutput,
-			ShowAnimations: true,
-		},
-		count,
-		n,
-	)
-
-	return &projectFields
-}
+// func traverseFields(pkgs []*packages.Package) *GlobalSymbols {
+// 	ch := make(chan func())
+//
+// 	projectFields := NewGlobalSymbols()
+// 	go func() {
+// 		defer close(ch)
+//
+// 		for _, pkg := range pkgs {
+// 			// Bind pkg
+// 			pkg := pkg
+//
+// 			ch <- func() {
+// 				packageFields := NewPackageSymbols(pkg)
+//
+// 				visitor := StructVisitor{
+// 					mod:    pkg.Module,
+// 					Fields: packageFields,
+// 					curScope: []*scip.Descriptor{
+// 						{
+// 							Name:   pkg.PkgPath,
+// 							Suffix: scip.Descriptor_Namespace,
+// 						},
+// 					},
+// 				}
+//
+// 				for _, f := range pkg.Syntax {
+// 					ast.Walk(visitor, f)
+// 				}
+//
+// 				projectFields.add(&packageFields)
+// 			}
+//
+// 		}
+// 	}()
+//
+// 	n := uint64(len(pkgs))
+// 	wg, count := parallel.Run(ch)
+// 	output.WithProgressParallel(
+// 		wg,
+// 		"Traversing Field Definitions",
+// 		output.Options{
+// 			Verbosity:      output.DefaultOutput,
+// 			ShowAnimations: true,
+// 		},
+// 		count,
+// 		n,
+// 	)
+//
+// 	return &projectFields
+// }
