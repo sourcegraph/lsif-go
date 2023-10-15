@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,11 +16,11 @@ func displayStats(indexerStats indexer.IndexerStats, packageDataCacheStats index
 		value string
 	}{
 		{"Wall time elapsed", fmt.Sprintf("%s", util.HumanElapsed(start))},
-		{"Packages indexed", fmt.Sprintf("%d", indexerStats.NumPkgs)},
-		{"Files indexed", fmt.Sprintf("%d", indexerStats.NumFiles)},
-		{"Definitions indexed", fmt.Sprintf("%d", indexerStats.NumDefs)},
-		{"Elements emitted", fmt.Sprintf("%d", indexerStats.NumElements)},
-		{"Packages traversed", fmt.Sprintf("%d", packageDataCacheStats.NumPks)},
+		{"Packages indexed", strconv.Itoa(indexerStats.NumPkgs)},
+		{"Files indexed", strconv.Itoa(indexerStats.NumFiles)},
+		{"Definitions indexed", strconv.Itoa(indexerStats.NumDefs)},
+		{"Elements emitted", strconv.Itoa(indexerStats.NumElements)},
+		{"Packages traversed", strconv.Itoa(packageDataCacheStats.NumPks)},
 	}
 
 	n := 0
